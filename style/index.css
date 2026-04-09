@@ -1,0 +1,200 @@
+:root {
+  --teal: #1DC89A;
+  --teal-dark: #17a882;
+  --navy: #0d1b2a;
+  --navy-mid: #112233;
+  --bg-light: #f4f5f7;
+  --text-muted-light: #6b7280;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-light);
+  color: #1a1a2e;
+}
+
+/* ── NAVBAR ── */
+.navbar {
+  background: #fff;
+  border-bottom: 1px solid #e8eaed;
+  padding: 0.75rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #1a1a2e;
+  text-decoration: none;
+}
+.brand-icon {
+  width: 32px; height: 32px;
+  background: var(--teal);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-icon svg { width: 18px; height: 18px; fill: #fff; }
+.navbar .nav-link {
+  font-size: 0.875rem;
+  color: #4b5563;
+  font-weight: 500;
+  padding: 0.4rem 0.85rem;
+  transition: color 0.2s;
+}
+.navbar .nav-link:hover { color: var(--teal); }
+.btn-login {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.4rem 1.1rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 7px;
+  background: transparent;
+  color: #1a1a2e;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-login:hover { border-color: var(--teal); color: var(--teal); }
+.btn-quote {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.45rem 1.2rem;
+  border-radius: 7px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.btn-quote:hover { background: var(--teal-dark); color: #fff; }
+
+/* ── HERO ── */
+.hero {
+  background: linear-gradient(160deg, #0d1b2a 0%, #1a2e44 60%, #0f2233 100%);
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 20px 120px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 100px;
+  background: linear-gradient(to bottom, transparent, var(--bg-light));
+}
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 1.1;
+  color: #fff;
+}
+.hero-title span {
+  color: var(--teal);
+  display: block;
+}
+.hero-sub {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.05em;
+  margin-top: 1.1rem;
+}
+.hero-sub span { margin: 0 0.3rem; }
+.hero-btns { margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.btn-get-started {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.btn-get-started:hover { background: var(--teal-dark); color: #fff; }
+.btn-learn-more {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: 8px;
+  padding: 0.65rem 1.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-learn-more:hover { border-color: #fff; background: rgba(255,255,255,0.08); color: #fff; }
+
+/* ── HOW IT WORKS ── */
+.how-section {
+  background: var(--bg-light);
+  padding: 80px 20px 80px;
+  text-align: center;
+}
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 0.5rem;
+}
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+.steps-wrap {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+  margin-top: 3rem;
+}
+.step {
+  max-width: 220px;
+  text-align: center;
+}
+.step-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 4rem;
+  font-weight: 800;
+  color: rgba(29, 200, 154, 0.18);
+  line-height: 1;
+  margin-bottom: 0.6rem;
+}
+.step-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1a1a2e;
+  margin-bottom: 0.5rem;
+}
+.step-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted-light);
+  line-height: 1.6;
+}
+
+/* ── FOOTER ── */
+footer {
+  background: var(--navy);
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+  font-size: 0.78rem;
+  padding: 1.5rem;
+}
+footer a { color: var(--teal); text-decoration: none; }
