@@ -5,9 +5,9 @@
    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
    :root {
-     --teal:         #1DC89A;
-     --teal-dark:    #17a882;
-     --teal-light:   rgba(29, 200, 154, 0.12);
+     --teal:         #0D9676;
+     --teal-dark:    #0a7a60;
+     --teal-light:   rgba(13, 150, 118, 0.12);
      --navy:         #0d1b2a;
      --navy-mid:     #142233;
      --navy-text:    rgba(255,255,255,0.75);
@@ -137,6 +137,20 @@
      fill: none; stroke: currentColor;
      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
    }
+   .brand-icon i {
+  color: #fff;
+  font-size: 14px;
+}
+
+.nav-item i {
+  font-size: 14px;
+  width: 16px;
+  text-align: center;
+}
+
+.logout-btn i {
+  font-size: 14px;
+}
    
    /* =========================================
       MAIN CONTENT AREA

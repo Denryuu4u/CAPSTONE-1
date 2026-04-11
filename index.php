@@ -24,7 +24,7 @@
         <a class="nav-link" href="#">Services</a>
         <a class="nav-link" href="#">Contact</a>
         <a class="btn-login" href="login.php">Login</a>
-        <a class="btn-quote" href="#">Get a Quote</a>
+        <a class="btn-quote" href="login.php">Get a Quote</a>
       </div>
     </div>
   </nav>
