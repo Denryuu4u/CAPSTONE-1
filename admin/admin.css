@@ -2366,3 +2366,232 @@ body {
         justify-content: flex-start !important;
     }
 }
+
+/* ─── Summarization Upload Zone ─────────────────────────────── */
+
+.summ-upload-header {
+    padding: 1rem 1.2rem 0;
+}
+
+.summ-upload-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.summ-upload-body {
+    padding: 1rem 1.2rem 1.2rem;
+}
+
+.summ-dropzone {
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    background: #fafbfc;
+    padding: 2.2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+}
+
+.summ-dropzone:hover,
+.summ-dropzone--active {
+    border-color: var(--teal);
+    background: rgba(13, 150, 118, 0.04);
+}
+
+.summ-dropzone--loaded {
+    border-color: var(--teal);
+    background: rgba(13, 150, 118, 0.06);
+}
+
+.summ-drop-icon {
+    font-size: 1.7rem;
+    color: #9ca3af;
+    margin-bottom: 0.6rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.summ-dropzone:hover .summ-drop-icon,
+.summ-dropzone--active .summ-drop-icon,
+.summ-dropzone--loaded .summ-drop-icon {
+    color: var(--teal);
+}
+
+.summ-drop-label {
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 0.25rem;
+}
+
+.summ-drop-sub {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    margin: 0;
+}
+
+/* ─── Summarization Result Sections ─────────────────────────── */
+
+.summ-section-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+}
+
+.summ-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.summ-section-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: rgba(13, 150, 118, 0.1);
+    color: var(--teal);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.summ-section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.summ-section-badge {
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+}
+
+.summ-excel-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #374151;
+    background: #fff;
+    border: 1px solid #dbe1e8;
+    border-radius: 6px;
+    padding: 0.38rem 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.18s, color 0.18s, background 0.18s;
+    line-height: 1;
+}
+
+.summ-excel-btn:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: #f0fdfa;
+}
+
+/* ─── Summarization Table ────────────────────────────────────── */
+
+.summ-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.summ-table thead th {
+    background: #fafafa;
+    font-size: 0.6rem;
+    color: #9ca3af;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.7rem 1.1rem;
+    border-bottom: 1px solid #ececec;
+    white-space: nowrap;
+}
+
+.summ-table tbody td {
+    font-size: 0.78rem;
+    color: #374151;
+    padding: 0.8rem 1.1rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.summ-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.summ-table tbody td.text-muted {
+    color: #9ca3af !important;
+}
+
+/* ─── Summarization Action Buttons ───────────────────────────── */
+
+.summ-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.summ-zip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #374151;
+    background: #fff;
+    border: 1px solid #dbe1e8;
+    border-radius: 8px;
+    padding: 0.55rem 1.1rem;
+    cursor: pointer;
+    transition: border-color 0.18s, color 0.18s;
+    line-height: 1;
+}
+
+.summ-zip-btn:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+}
+
+.summ-fabrication-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--teal);
+    border: 1px solid var(--teal);
+    border-radius: 8px;
+    padding: 0.55rem 1.2rem;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+    line-height: 1;
+}
+
+.summ-fabrication-btn:hover:not(:disabled) {
+    background: var(--teal-dark);
+    border-color: var(--teal-dark);
+}
+
+/* ─── Fabrication Modal Icon ─────────────────────────────────── */
+
+.summ-modal-icon {
+    font-size: 2.2rem;
+    color: var(--teal);
+    line-height: 1;
+}

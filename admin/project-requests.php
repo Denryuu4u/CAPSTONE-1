@@ -346,22 +346,22 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                         <td>Panel - Base Cabinet</td>
                                         <td>18mm Melamine White</td>
                                         <td>12</td>
-                                        <td>$45.00</td>
-                                        <td>$540.00</td>
+                                        <td>₱45.00</td>
+                                        <td>₱540.00</td>
                                     </tr>
                                     <tr>
                                         <td>Hinge - Soft Close</td>
                                         <td>Blum 110°</td>
                                         <td>24</td>
-                                        <td>$8.75</td>
-                                        <td>$210.00</td>
+                                        <td>₱8.75</td>
+                                        <td>₱210.00</td>
                                     </tr>
                                     <tr>
                                         <td>Handle - Bar Pull</td>
                                         <td>Stainless 160mm</td>
                                         <td>18</td>
-                                        <td>$12.00</td>
-                                        <td>$216.00</td>
+                                        <td>₱12.00</td>
+                                        <td>₱216.00</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -428,12 +428,12 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
                         <div class="d-flex justify-content-end">
                             <div class="cost-summary text-end">
-                                <div>Material Total: $1,647.50</div>
-                                <div class="summary-markup">Markup (15%): $247.13</div>
-                                <div class="summary-contingency">Contingency (5%): $82.38</div>
-                                <div class="summary-service">Service (10%): $164.75</div>
-                                <div class="summary-protection">Protection (3%): $49.43</div>
-                                <div class="summary-total">Total: $2,191.18</div>
+                                <div>Material Total: ₱1,647.50</div>
+                                <div class="summary-markup">Markup (15%): ₱247.13</div>
+                                <div class="summary-contingency">Contingency (5%): ₱82.38</div>
+                                <div class="summary-service">Service (10%): ₱164.75</div>
+                                <div class="summary-protection">Protection (3%): ₱49.43</div>
+                                <div class="summary-total">Total: ₱2,191.18</div>
                             </div>
                         </div>
                     </div>
@@ -552,50 +552,50 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                         <td>Panel - Base Cabinet</td>
                                         <td>18mm Melamine White</td>
                                         <td>12</td>
-                                        <td>$45.00</td>
-                                        <td>$540.00</td>
+                                        <td>₱45.00</td>
+                                        <td>₱540.00</td>
                                     </tr>
                                     <tr>
                                         <td>Panel - Wall Cabinet</td>
                                         <td>18mm Melamine White</td>
                                         <td>8</td>
-                                        <td>$38.00</td>
-                                        <td>$304.00</td>
+                                        <td>₱38.00</td>
+                                        <td>₱304.00</td>
                                     </tr>
                                     <tr>
                                         <td>Drawer Box</td>
                                         <td>Plywood 12mm</td>
                                         <td>6</td>
-                                        <td>$22.50</td>
-                                        <td>$135.00</td>
+                                        <td>₱22.50</td>
+                                        <td>₱135.00</td>
                                     </tr>
                                     <tr>
                                         <td>Hinge - Soft Close</td>
                                         <td>Blum 110°</td>
                                         <td>24</td>
-                                        <td>$8.75</td>
-                                        <td>$210.00</td>
+                                        <td>₱8.75</td>
+                                        <td>₱210.00</td>
                                     </tr>
                                     <tr>
                                         <td>Drawer Slide</td>
                                         <td>Full Extension 18"</td>
                                         <td>12</td>
-                                        <td>$15.00</td>
-                                        <td>$180.00</td>
+                                        <td>₱15.00</td>
+                                        <td>₱180.00</td>
                                     </tr>
                                     <tr>
                                         <td>Edge Band</td>
                                         <td>PVC 2mm White</td>
                                         <td>50</td>
-                                        <td>$1.25</td>
-                                        <td>$62.50</td>
+                                        <td>₱1.25</td>
+                                        <td>₱62.50</td>
                                     </tr>
                                     <tr>
                                         <td>Handle - Bar Pull</td>
                                         <td>Stainless 160mm</td>
                                         <td>18</td>
-                                        <td>$12.00</td>
-                                        <td>$216.00</td>
+                                        <td>₱12.00</td>
+                                        <td>₱216.00</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -663,12 +663,12 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
                         <div class="d-flex justify-content-end">
                             <div class="cost-summary text-end">
-                                <div>Material Total: $1,647.50</div>
-                                <div class="summary-markup">Markup (15%): $247.13</div>
-                                <div class="summary-contingency">Contingency (5%): $82.38</div>
-                                <div class="summary-service">Service (10%): $164.75</div>
-                                <div class="summary-protection">Protection (3%): $49.43</div>
-                                <div class="summary-total">Total: $2,191.18</div>
+                                <div>Material Total: ₱1,647.50</div>
+                                <div class="summary-markup">Markup (15%): ₱247.13</div>
+                                <div class="summary-contingency">Contingency (5%): ₱82.38</div>
+                                <div class="summary-service">Service (10%): ₱164.75</div>
+                                <div class="summary-protection">Protection (3%): ₱49.43</div>
+                                <div class="summary-total">Total: ₱2,191.18</div>
                             </div>
                         </div>
                     </div>

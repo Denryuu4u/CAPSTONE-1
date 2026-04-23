@@ -95,7 +95,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td>Rivera Kitchens</td>
                                 <td class="quotation-project">Kitchen Reno Phase 1</td>
                                 <td>Mar 15, 2026</td>
-                                <td class="quotation-amount">$12,450.00</td>
+                                <td class="quotation-amount">₱12,450.00</td>
                                 <td>
                                     <span class="badge-status badge-waiting-approval">Waiting Approval</span>
                                 </td>
@@ -122,7 +122,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                                 data-customer="Rivera Kitchens"
                                                 data-project="Kitchen Reno Phase 1"
                                                 data-date="Mar 15, 2026"
-                                                data-total="$2,191.18">
+                                                data-total="₱2,191.18">
                                                 <i class="bi bi-eye"></i>
                                             </a>
                                             <a href="#" class="quotation-action" title="Download">
@@ -139,7 +139,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td>Mendoza Interiors</td>
                                 <td class="quotation-project">Office Cabinets</td>
                                 <td>Mar 12, 2026</td>
-                                <td class="quotation-amount">$8,920.00</td>
+                                <td class="quotation-amount">₱8,920.00</td>
                                 <td>
                                     <span class="badge-status badge-approved-soft">Approved</span>
                                 </td>
@@ -164,7 +164,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td>Kim Design Studio</td>
                                 <td class="quotation-project">Bathroom Vanity Set</td>
                                 <td>Mar 10, 2026</td>
-                                <td class="quotation-amount">$5,380.00</td>
+                                <td class="quotation-amount">₱5,380.00</td>
                                 <td>
                                     <span class="badge-status badge-waiting-approval">Waiting Approval</span>
                                 </td>
@@ -200,7 +200,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td>Park Residences</td>
                                 <td class="quotation-project">Lobby Display Unit</td>
                                 <td>Mar 08, 2026</td>
-                                <td class="quotation-amount">$18,750.00</td>
+                                <td class="quotation-amount">₱18,750.00</td>
                                 <td>
                                     <span class="badge-status badge-approved-soft">Approved</span>
                                 </td>
@@ -225,7 +225,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td>Lee Custom Homes</td>
                                 <td class="quotation-project">Master Closet System</td>
                                 <td>Mar 05, 2026</td>
-                                <td class="quotation-amount">$7,200.00</td>
+                                <td class="quotation-amount">₱7,200.00</td>
                                 <td>
                                     <span class="badge-status badge-rejected-soft">Rejected</span>
                                 </td>
@@ -299,15 +299,15 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td>Panel - Base Cabinet</td>
                                 <td>18mm Melamine White</td>
                                 <td>12</td>
-                                <td>$45.00</td>
-                                <td>$540.00</td>
+                                <td>₱45.00</td>
+                                <td>₱540.00</td>
                             </tr>
                             <tr>
                                 <td>Hinge - Soft Close</td>
                                 <td>Blum 110°</td>
                                 <td>24</td>
-                                <td>$8.75</td>
-                                <td>$210.00</td>
+                                <td>₱8.75</td>
+                                <td>₱210.00</td>
                             </tr>
                         </tbody>
                     </table>
@@ -315,12 +315,12 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
                 <!-- SUMMARY -->
                 <div class="text-end quotation-summary">
-                    <div>Material Total: $1,647.50</div>
-                    <div>Markup (15%): $247.13</div>
-                    <div>Contingency (5%): $82.38</div>
-                    <div>Service (10%): $164.75</div>
-                    <div>Protection (3%): $49.43</div>
-                    <div class="q-total">Total: <span id="viewQuotationTotal">$2,191.18</span></div>
+                    <div>Material Total: ₱1,647.50</div>
+                    <div>Markup (15%): ₱247.13</div>
+                    <div>Contingency (5%): ₱82.38</div>
+                    <div>Service (10%): ₱164.75</div>
+                    <div>Protection (3%): ₱49.43</div>
+                    <div class="q-total">Total: <span id="viewQuotationTotal">₱2,191.18</span></div>
                 </div>
 
             </div>
