@@ -3,12 +3,10 @@ if (!isset($active_page)) $active_page = '';
 ?>
 
 <aside class="sidebar">
-  <a class="sidebar-brand" href="dashboard.php">
-    <div class="brand-icon">
-      <i class="bi bi-shield-check"></i>
-    </div>
-    Vast Solutions
-  </a>
+  <a class="sidebar-brand" href="admin-dashboard.php">
+  <img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+  Vast Solutions
+</a>
 
   <nav class="sidebar-nav">
 

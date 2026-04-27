@@ -173,7 +173,7 @@ body {
   font-family: 'Syne', sans-serif;
   font-size: 4rem;
   font-weight: 800;
-  color: rgba(29, 200, 154, 0.18);
+  color: rgba(29, 200, 154, 0.603);
   line-height: 1;
   margin-bottom: 0.6rem;
 }
@@ -188,6 +188,119 @@ body {
   color: var(--text-muted-light);
   line-height: 1.6;
 }
+/* ── CONTACT SECTION (MATCHED DESIGN) ── */
+.contact-section {
+  background: var(--navy);
+  padding: 90px 20px;
+  position: relative;
+  color: #fff;
+}
+
+/* reuse your label but adapt */
+.contact-section .section-label {
+  text-align: center;
+}
+
+.contact-title {
+  text-align: center;
+  color: #fff;
+}
+
+/* layout */
+.contact-wrap {
+  display: flex;
+  gap: 3rem;
+  margin-top: 3rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* LEFT SIDE */
+.contact-info {
+  flex: 1;
+  min-width: 280px;
+  max-width: 420px;
+}
+
+.contact-info h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.contact-info p {
+  color: rgba(255,255,255,0.65);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.info-item {
+  margin-bottom: 0.9rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.75);
+}
+
+.info-item strong {
+  color: #fff;
+  margin-right: 6px;
+}
+
+/* RIGHT FORM CARD */
+.contact-form {
+  flex: 1;
+  min-width: 300px;
+  max-width: 450px;
+
+  background: #fff;
+  padding: 2rem;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+/* inputs */
+.contact-form input,
+.contact-form textarea {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  border-color: var(--teal);
+}
+
+/* button */
+.contact-form button {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.contact-form button:hover {
+  background: var(--teal-dark);
+}
+.section-fade {
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-light),
+    var(--navy)
+  );
+}
 
 /* ── FOOTER ── */
 footer {
@@ -197,4 +310,5 @@ footer {
   font-size: 0.78rem;
   padding: 1.5rem;
 }
+
 footer a { color: var(--teal); text-decoration: none; }

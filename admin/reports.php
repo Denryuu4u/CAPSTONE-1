@@ -41,7 +41,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         .rp-header { display:flex; align-items:center; gap:18px; padding-bottom:18px; border-bottom:3px solid #0D9676; margin-bottom:22px; }
         .rp-logo-box { width:52px; height:52px; background:#0d1b2a; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .rp-logo-box i { color:#0D9676; font-size:24px; }
-        .rp-company-name { font-family:'Syne',sans-serif; font-size:1.25rem; font-weight:800; color:#0d1b2a; line-height:1.1; }
+        .rp-company-name { font-family:'Syne',sans-serif; font-size:1.25rem; font-weight:700; color:#0d1b2a; line-height:1.1; }
         .rp-company-sub  { font-size:0.68rem; color:#6b7280; margin-top:2px; }
         .rp-title-block  { margin-left:auto; text-align:right; }
         .rp-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0D9676; text-transform:uppercase; letter-spacing:.04em; }
@@ -62,7 +62,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         .rp-summary-title { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; color:#0a7a60; margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em; }
         .rp-summary-grid  { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
         .rp-sum-item  { background:#fff; border-radius:6px; padding:10px 12px; border:1px solid #d1fae5; }
-        .rp-sum-num   { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800; color:#0D9676; }
+        .rp-sum-num   { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:700; color:#0D9676; }
         .rp-sum-label { font-size:0.62rem; color:#6b7280; margin-top:2px; }
         .rp-modal-actions { padding:.9rem 1.25rem; background:#f8fafc; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 12px 12px; }
 
@@ -74,7 +74,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         .summary-strip { display:none; gap:12px; flex-wrap:wrap; margin-top:16px; }
         .summary-strip.active { display:flex; }
         .sum-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px 18px; flex:1 1 120px; box-shadow:0 1px 3px rgba(15,23,42,.04); }
-        .sum-card-num   { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:#0D9676; }
+        .sum-card-num   { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:700; color:#0D9676; }
         .sum-card-label { font-size:0.65rem; color:#6b7280; margin-top:2px; }
 
         /* ── chart panels ── */
@@ -664,7 +664,7 @@ function renderCosting(){
 // ════════════════════════════════════════════════════
 function rpHeader(title){
     return `<div class="rp-header">
-        <div class="rp-logo-box"><i class="bi bi-shield-check"></i></div>
+        <div class="rp-logo-box"><img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:40px; height:40px; object-fit:contain;"></div>
         <div>
             <div class="rp-company-name">Vast Solutions</div>
             <div class="rp-company-sub">Aluminum &amp; Glass Fabrication Specialists</div>

@@ -4,11 +4,9 @@ if (!isset($active_page)) $active_page = '';
 
 <aside class="sidebar">
   <a class="sidebar-brand" href="admin-dashboard.php">
-    <div class="brand-icon">
-      <i class="bi bi-shield-check"></i>
-    </div>
-    Vast Solutions
-  </a>
+  <img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+  Vast Solutions
+</a>
 
   <nav class="sidebar-nav">
     <a href="admin-dashboard.php" class="nav-item <?= $active_page === 'dashboard' ? 'active' : '' ?>">
@@ -59,6 +57,10 @@ if (!isset($active_page)) $active_page = '';
     <a href="settings.php" class="nav-item <?= $active_page === 'settings' ? 'active' : '' ?>">
       <i class="bi bi-gear"></i>
       <span>Settings</span>
+    </a>
+    <a href="archive.php" class="nav-item <?= $active_page === 'archive' ? 'active' : '' ?>">
+      <i class="bi bi-archive"></i>
+      <span>Archives</span>
     </a>
   </nav>
 

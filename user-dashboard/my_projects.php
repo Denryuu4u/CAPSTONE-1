@@ -168,7 +168,7 @@ function peso($n) { return '₱'.number_format($n,2); }
       display: flex; align-items: flex-start; justify-content: space-between;
       padding: 18px 22px 14px; border-bottom: 1px solid #e5e7eb; background: #fff;
     }
-    .vm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; color:#0d1b2a; margin:0; }
+    .vm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; }
     .vm-subtitle { font-size:0.7rem; color:#6b7280; margin-top:2px; }
 
     /* Scrollable body */
@@ -255,7 +255,7 @@ function peso($n) { return '₱'.number_format($n,2); }
       border-radius:10px; padding:2.2rem 2.4rem; margin-bottom:14px;
     }
     .vm-paper-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.8rem; }
-    .vm-company-name { font-family:'Syne',sans-serif; font-weight:800; font-size:1.05rem; color:#111827; }
+    .vm-company-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem; color:#111827; }
     .vm-company-sub  { font-size:0.7rem; color:#6b7280; margin-top:2px; }
     .vm-word         { font-weight:700; font-size:0.88rem; letter-spacing:.1em; color:#111827; text-align:right; }
     .vm-q-number     { font-size:0.75rem; color:#6b7280; text-align:right; margin-top:2px; }
@@ -315,11 +315,11 @@ function peso($n) { return '₱'.number_format($n,2); }
     /* ══ VIEW MODAL (read-only monitoring) ════════ */
     .pvm-hero { background:#fff; padding:18px 22px 13px; border-bottom:1px solid #e5e7eb; }
     .pvm-hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-    .pvm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; color:#0d1b2a; margin:0; line-height:1.2; }
+    .pvm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; line-height:1.2; }
     .pvm-code  { font-size:0.7rem; color:#6b7280; margin-top:3px; }
     .pvm-progress-wrap { margin-top:11px; }
     .pvm-progress-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
-    .pvm-progress-pct { font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; color:#0D9676; }
+    .pvm-progress-pct { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; color:#0D9676; }
     .pvm-progress-track { height:10px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
     .pvm-progress-fill  { height:100%; border-radius:99px; background:linear-gradient(90deg,#0D9676,#1dc89a); transition:width .5s ease; }
 
@@ -377,14 +377,29 @@ function peso($n) { return '₱'.number_format($n,2); }
 
     /* Verify btn style */
     .btn-verify {
-      display:inline-flex; align-items:center; gap:4px;
-      font-size:.8rem; font-weight:600; color:#fff;
-      background:#0D9676; border:none; border-radius:7px;
-      padding:5px 12px; cursor:pointer; text-decoration:none;
-      transition:background .18s; font-family:'Inter',sans-serif;
+      display: inline-flex; align-items: center; gap: 4px;
+  font-size: .75rem; font-weight: 700; color: #fff;
+  background: #0D9676; border: none; border-radius: 999px;  /* pill shape */
+  padding: 5px 14px; cursor: pointer; text-decoration: none;
+  transition: background .18s, box-shadow .18s;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.01em;
     }
     .btn-verify:hover { background:#0a7a60; color:#fff; }
     .btn-verify svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+    .btn-view {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .75rem; font-weight: 600; color: #0D9676;
+  background: transparent; border: 1.5px solid #0D9676;
+  border-radius: 999px;                                      /* pill shape */
+  padding: 5px 14px; cursor: pointer; text-decoration: none;
+  transition: background .18s, color .18s, box-shadow .18s;
+  font-family: 'Inter', sans-serif;
+}
+.btn-view:hover {
+  background: #0D9676; color: #fff;
+  box-shadow: 0 2px 8px rgba(13,150,118,.25);
+}
   </style>
 </head>
 <body>

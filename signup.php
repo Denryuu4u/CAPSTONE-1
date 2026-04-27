@@ -13,9 +13,7 @@
   <!-- LEFT -->
   <div class="left-panel">
     <a class="brand" href="index.html">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      </div>
+      <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
       Vast Solutions
     </a>
     <h2 class="panel-title">Access Your Account</h2>

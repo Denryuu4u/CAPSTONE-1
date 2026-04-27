@@ -27,7 +27,7 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
         /* Hero header */
         .pvm-hero { background:#fff; padding:22px 26px 16px; border-bottom:1px solid #e5e7eb; }
         .pvm-hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-        .pvm-title { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:800; color:#0d1b2a; line-height:1.2; margin:0; }
+        .pvm-title { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; color:#0d1b2a; line-height:1.2; margin:0; }
         .pvm-code  { font-size:0.72rem; color:#6b7280; margin-top:3px; }
         .pvm-hero-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 
@@ -55,7 +55,7 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
         /* Progress bar */
         .pvm-progress-wrap { margin-top:14px; }
         .pvm-progress-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-        .pvm-progress-pct { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; color:#0D9676; }
+        .pvm-progress-pct { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; color:#0D9676; }
         .pvm-progress-track { height:11px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
         .pvm-progress-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#0D9676,#1dc89a); transition:width .6s ease; }
 

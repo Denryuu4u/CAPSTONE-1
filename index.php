@@ -1,28 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vast Solutions – Every Inch, Endless Possibilities</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style/index.css" />
 </head>
+
 <body>
 
   <!-- NAVBAR -->
   <nav class="navbar">
     <div class="container-fluid d-flex align-items-center gap-3">
       <a class="navbar-brand" href="index.html">
-        <div class="brand-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        </div>
+        <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
         Vast Solutions
       </a>
       <div class="d-flex align-items-center ms-auto gap-2">
-        <a class="nav-link" href="#">About</a>
-        <a class="nav-link" href="#">Services</a>
-        <a class="nav-link" href="#">Contact</a>
+        <a class="nav-link" href="#how">Services</a>
+        <a class="nav-link" href="#contact">Contact</a>
         <a class="btn-login" href="login.php">Login</a>
         <a class="btn-quote" href="login.php">Get a Quote</a>
       </div>
@@ -68,6 +67,51 @@
       </div>
     </div>
   </section>
+  <div class="section-fade"></div>
+  <!-- CONTACT SECTION -->
+  <section class="contact-section" id="contact">
+    <div class="container">
+
+      <p class="section-label">Get in Touch</p>
+      <h2 class="section-title contact-title">Contact Us</h2>
+
+      <div class="contact-wrap">
+
+        <!-- LEFT INFO -->
+        <div class="contact-info">
+          <h3>Let’s Talk</h3>
+          <p>
+            Have a project in mind? Send us a message and we’ll get back to you with a quotation.
+          </p>
+
+          <div class="info-item">
+            <strong>Email:</strong>
+            <span>support@vastsolutions.com</span>
+          </div>
+
+          <div class="info-item">
+            <strong>Phone:</strong>
+            <span>+63 900 000 0000</span>
+          </div>
+
+          <div class="info-item">
+            <strong>Location:</strong>
+            <span>Calamba, Laguna, Philippines</span>
+          </div>
+        </div>
+
+        <!-- RIGHT FORM -->
+        <form class="contact-form">
+          <input type="text" placeholder="Your Name" required />
+          <input type="email" placeholder="Your Email" required />
+          <input type="text" placeholder="Subject" />
+          <textarea placeholder="Your Message" rows="5" required></textarea>
+          <button type="submit">Send Message</button>
+        </form>
+
+      </div>
+    </div>
+  </section>
 
   <footer>
     &copy; 2025 Vast Solutions. All rights reserved. &nbsp;|&nbsp; <a href="#">Privacy Policy</a>
@@ -75,4 +119,5 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login – Vast Solutions</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style/login.css" />
 </head>
+
 <body>
 
   <!-- LEFT -->
   <div class="left-panel">
     <a class="brand" href="index.html">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      </div>
+      <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
       Vast Solutions
     </a>
     <h2 class="panel-title">Access Your Account</h2>
@@ -42,15 +42,15 @@
             <input type="password" name="password" id="loginPassword" class="form-control" placeholder="••••••••" required />
             <button type="button" class="toggle-pw" onclick="togglePw('loginPassword', this)">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
-                <circle cx="12" cy="12" r="3"/>
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
           </div>
         </div>
         <div class="row-extra">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="remember" id="rememberMe"/>
+            <input class="form-check-input" type="checkbox" name="remember" id="rememberMe" />
             <label class="form-check-label" for="rememberMe">Remember me</label>
           </div>
           <a href="forgot_password.php" class="forgot-link">Forgot password?</a>
@@ -71,4 +71,5 @@
     }
   </script>
 </body>
+
 </html>
