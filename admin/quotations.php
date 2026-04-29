@@ -253,83 +253,149 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
     </div>
     <div class="modal fade" id="viewQuotationModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content quotation-view-modal">
+        <div class="modal-content" style="border:none;border-radius:8px;overflow:hidden;font-family:'Syne', sans-serif;">
 
-            <!-- HEADER -->
-            <div class="modal-header quotation-view-header">
-                <div>
-                    <h5 class="quotation-view-title" id="viewQuotationProject">
-                        Kitchen Reno Phase 1
-                    </h5>
-                    <div class="quotation-view-sub">
-                        Quotation #: <span id="viewQuotationCode">QT-2026-001</span>
+            <!-- TOP GREEN BAR -->
+            <div style="height:10px;background:#2e4a45;"></div>
+
+            <div class="modal-body" style="background:#f3f4f2;padding:20px;font-family:'Syne', sans-serif;">
+
+                <div style="background:#fff;border:1px solid #ccc;font-family:'Syne', sans-serif;">
+
+                    <!-- HEADER -->
+                    <div style="display:flex;justify-content:space-between;padding:20px;border-bottom:1px solid #ccc;">
+
+                        <!-- LEFT -->
+                        <div style="display:flex;gap:15px;">
+                            <div style="width:80px;height:80px;background:#2e4a45;color:#fff;
+                                display:flex;align-items:center;justify-content:center;font-weight:bold;">
+                                <img src="../style/assets/logo.jpg" style="width:60px;height:60px;object-fit:contain;">
+                            </div>
+
+                            <div style="font-family:'Syne', sans-serif;">
+                                <div style="font-size:22px;font-weight:800;">VAST</div>
+                                <div style="font-size:13px;">B34 L1, Hibiscus St. Ceris 1, Calamba, Laguna</div>
+                                <div style="font-size:13px;">+639178850408</div>
+                                <div style="font-size:13px;">inquiries@vastsolutionsmanila.com</div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT -->
+                        <div style="text-align:right;font-family:'Syne', sans-serif;">
+                            <div style="font-size:18px;letter-spacing:2px;font-weight:700;">SALES QUOTATION</div>
+
+                            <div style="margin-top:10px;font-size:13px;">
+                                Date: <b id="vqDate">--</b><br>
+                                Reference #: <b id="vqCode">--</b><br>
+                                Valid Until: <b id="vqValid">--</b>
+                            </div>
+                        </div>
+
                     </div>
-                </div>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
 
-            <!-- BODY -->
-            <div class="modal-body quotation-view-body">
+                    <!-- BILL / SHIP -->
+                    <div style="display:flex;gap:40px;padding:20px;border-bottom:1px solid #ccc;font-family:'Syne', sans-serif;">
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="q-label">Customer</div>
-                        <div class="q-value" id="viewQuotationCustomer">Rivera Kitchens</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;border-bottom:2px solid #ccc;margin-bottom:10px;">BILL TO</div>
+                            <div id="vqCustomer">Client Name</div>
+                            <div id="vqAddress">Client Address</div>
+                        </div>
+
+                        <div style="flex:1;">
+                            <div style="font-weight:700;border-bottom:2px solid #ccc;margin-bottom:10px;">SHIP TO</div>
+                            <div id="vqShip">Client Name</div>
+                            <div id="vqShipAddr">Client Address</div>
+                        </div>
+
                     </div>
-                    <div class="col-md-6">
-                        <div class="q-label">Date</div>
-                        <div class="q-value" id="viewQuotationDate">Mar 15, 2026</div>
+
+                    <!-- TABLE -->
+                    <div style="padding:20px;font-family:'Syne', sans-serif;">
+
+                        <table style="width:100%;border-collapse:collapse;border:2px solid #1f2f2b;">
+
+                            <thead style="background:#2e4a45;color:#fff;font-weight:700;">
+                                <tr>
+                                    <th style="padding:10px;text-align:left;">DESCRIPTION</th>
+                                    <th style="padding:10px;width:80px;">QTY</th>
+                                    <th style="padding:10px;width:120px;text-align:right;">UNIT PRICE</th>
+                                    <th style="padding:10px;width:120px;text-align:right;">TOTAL</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="vqItems">
+                                <tr>
+                                    <td style="padding:10px;border-top:1px solid #ccc;">
+                                        <i>Description</i><br><br>
+
+                                        <b>Finishes:</b><br>
+                                        Carcass:<br>
+                                        Doors:<br><br>
+
+                                        <b>Inclusions:</b><br>
+                                        • Item name
+                                    </td>
+
+                                    <td style="text-align:center;border-top:1px solid #ccc;">1</td>
+                                    <td style="text-align:right;border-top:1px solid #ccc;">₱0.00</td>
+                                    <td style="text-align:right;border-top:1px solid #ccc;">₱0.00</td>
+                                </tr>
+                            </tbody>
+
+                        </table>
+
+                        <!-- TOTAL -->
+                        <div style="display:flex;justify-content:flex-end;margin-top:5px;">
+                            <div style="background:#dfe8dc;padding:10px 20px;font-weight:700;">
+                                Quote Total: <span id="vqTotal">₱0.00</span>
+                            </div>
+                        </div>
+
                     </div>
-                </div>
 
-                <!-- COST TABLE -->
-                <div class="table-responsive mb-3">
-                    <table class="table align-middle quotation-preview-table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Description</th>
-                                <th>Qty</th>
-                                <th>Unit Cost</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="quotationItems">
-                            <tr>
-                                <td>Panel - Base Cabinet</td>
-                                <td>18mm Melamine White</td>
-                                <td>12</td>
-                                <td>₱45.00</td>
-                                <td>₱540.00</td>
-                            </tr>
-                            <tr>
-                                <td>Hinge - Soft Close</td>
-                                <td>Blum 110°</td>
-                                <td>24</td>
-                                <td>₱8.75</td>
-                                <td>₱210.00</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <!-- TERMS -->
+                    <div style="padding:20px;font-size:13px;font-family:'Syne', sans-serif;">
 
-                <!-- SUMMARY -->
-                <div class="text-end quotation-summary">
-                    <div>Material Total: ₱1,647.50</div>
-                    <div>Markup (15%): ₱247.13</div>
-                    <div>Contingency (5%): ₱82.38</div>
-                    <div>Service (10%): ₱164.75</div>
-                    <div>Protection (3%): ₱49.43</div>
-                    <div class="q-total">Total: <span id="viewQuotationTotal">₱2,191.18</span></div>
-                </div>
+                        <b>Terms and Conditions:</b><br><br>
 
+                        1. Terms of payment:
+                        <div style="margin-left:20px;">
+                            50% downpayment is due upon acceptance of quote<br>
+                            25% is due upon delivery and installation<br>
+                            15% is due after installation<br>
+                            10% is due after punchlist and turnover
+                        </div><br>
+
+                        2. All prices are VAT EXCLUSIVE.<br>
+                        3. Cancellation is not allowed once production has started.<br>
+                        4. Change order will be subject to separate quotation.<br>
+                        5. Production leadtime is 5-6 weeks.<br>
+                        6. This quote is only valid for 30 days.<br>
+                        7. Warranty period of six months is provided.<br>
+                        8. Warranty does not cover water damage or wear and tear.<br>
+
+                    </div>
+
+                    <!-- SIGNATURE -->
+                    <div style="padding:20px;font-family:'Syne', sans-serif;">
+                        <div style="margin-bottom:40px;font-style:italic;">Conforme:</div>
+
+                        <div style="width:300px;border-top:2px solid #000;">
+                            <small>Signature over Printed Name / Date</small>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
             <!-- FOOTER -->
-            <div class="modal-footer quotation-view-footer">
+            <div style="height:10px;background:#2e4a45;"></div>
+
+            <div class="modal-footer" style="font-family:'Syne', sans-serif;">
                 <button class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                 <button class="btn btn-success">
-                    <i class="bi bi-download me-1"></i> Download PDF
+                    <i class="bi bi-download"></i> Download PDF
                 </button>
             </div>
 
@@ -339,22 +405,31 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", function() {
 
-    document.querySelectorAll(".view-quotation-btn").forEach(btn => {
-        btn.addEventListener("click", function () {
+            document.querySelectorAll(".view-quotation-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
 
-            document.getElementById("viewQuotationCode").textContent = this.dataset.code;
-            document.getElementById("viewQuotationCustomer").textContent = this.dataset.customer;
-            document.getElementById("viewQuotationProject").textContent = this.dataset.project;
-            document.getElementById("viewQuotationDate").textContent = this.dataset.date;
-            document.getElementById("viewQuotationTotal").textContent = this.dataset.total;
+        const today = new Date();
+        const valid = new Date();
+        valid.setDate(today.getDate() + 30);
+
+        function format(d){
+            return d.toLocaleDateString('en-PH');
+        }
+
+        document.getElementById("vqCode").textContent = this.dataset.code;
+        document.getElementById("vqCustomer").textContent = this.dataset.customer;
+        document.getElementById("vqShip").textContent = this.dataset.customer;
+        document.getElementById("vqDate").textContent = this.dataset.date;
+        document.getElementById("vqValid").textContent = format(valid);
+        document.getElementById("vqTotal").textContent = this.dataset.total;
+
+    });
+});
 
         });
-    });
-
-});
-</script>
+    </script>
 </body>
 
 </html>

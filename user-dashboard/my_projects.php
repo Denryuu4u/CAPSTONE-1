@@ -572,61 +572,114 @@ function peso($n) { return '₱'.number_format($n,2); }
           </button>
         </div>
 
-        <!-- ── Quotation paper (invoice) ── -->
-        <div class="vm-paper" id="vmPaper">
+        <!-- ── VAST Sales Quotation Document ── -->
+        <div id="vmPaper" style="background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:14px;">
 
-          <div class="vm-paper-header">
-            <div>
-              <div class="vm-company-name">VAST SOLUTIONS</div>
-              <div class="vm-company-sub">Custom Joinery &amp; Fitouts</div>
+          <!-- Top accent -->
+          <div style="height:6px;background:linear-gradient(90deg,#2e4a45,#4a7c72);"></div>
+
+          <!-- Logo + Company + Title -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 26px 12px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <div style="width:58px;height:58px;background:#1a2e2a;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:40px; height:40px; object-fit:contain;">
+              </div>
+              <div style="margin-top:3px;">
+                <div style="font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;color:#1a2e2a;line-height:1;">VAST</div>
+                <div style="font-size:.63rem;color:#6b7280;margin-top:3px;">B34 L1, Hibiscus St. Ceris 1, Calamba, Laguna</div>
+                <div style="font-size:.63rem;color:#6b7280;">+639178850408</div>
+                <div style="font-size:.63rem;color:#6b7280;">inquiries@vastsolutionsmanila.com</div>
+              </div>
             </div>
-            <div>
-              <div class="vm-word">QUOTATION</div>
-              <div class="vm-q-number" id="vmPaperQId">—</div>
+            <div style="text-align:right;min-width:200px;">
+              <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:#6b7280;letter-spacing:.14em;margin-bottom:10px;">SALES QUOTATION</div>
+              <table style="margin-left:auto;border-collapse:collapse;width:100%;">
+                <tr>
+                  <td style="font-size:.62rem;font-weight:700;color:#6b7280;padding:2px 6px 2px 0;text-align:left;">Date:</td>
+                  <td style="font-size:.68rem;font-weight:700;color:#1a2e2a;border-bottom:1px solid #ccc;min-width:120px;" id="vmPaperIssued">—</td>
+                </tr>
+                <tr>
+                  <td style="font-size:.62rem;font-weight:700;color:#6b7280;padding:2px 6px 2px 0;text-align:left;">Reference #:</td>
+                  <td style="font-size:.68rem;font-weight:700;color:#1a2e2a;border-bottom:1px solid #ccc;" id="vmPaperQId">—</td>
+                </tr>
+                <tr>
+                  <td style="font-size:.62rem;font-weight:700;color:#6b7280;padding:2px 6px 2px 0;text-align:left;">Valid Until:</td>
+                  <td style="font-size:.68rem;font-weight:700;color:#1a2e2a;border-bottom:1px solid #ccc;" id="vmPaperValid">—</td>
+                </tr>
+              </table>
             </div>
           </div>
 
-          <div class="vm-paper-meta">
+          <!-- Bill To / Ship To -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;padding:0 26px 14px;border-bottom:1px solid #e5e7eb;">
             <div>
-              <div class="vm-meta-label">Prepared For</div>
-              <div class="vm-meta-value" id="vmPaperFor">—</div>
-              <div class="vm-meta-label">Project</div>
-              <div class="vm-meta-value" id="vmPaperProject">—</div>
+              <div style="font-size:.63rem;font-weight:700;color:#2e4a45;letter-spacing:.08em;border-bottom:1.5px solid #2e4a45;padding-bottom:2px;margin-bottom:7px;display:inline-block;">BILL TO</div>
+              <div style="font-size:.73rem;font-weight:600;color:#1a2e2a;" id="vmPaperFor">—</div>
+              <div style="font-size:.68rem;color:#6b7280;" id="vmPaperProject">—</div>
             </div>
-            <div class="vm-meta-right">
-              <div class="vm-meta-label">Date Issued</div>
-              <div class="vm-meta-value" id="vmPaperIssued">—</div>
-              <div class="vm-meta-label">Valid Until</div>
-              <div class="vm-meta-value" id="vmPaperValid">—</div>
+            <div>
+              <div style="font-size:.63rem;font-weight:700;color:#2e4a45;letter-spacing:.08em;border-bottom:1.5px solid #2e4a45;padding-bottom:2px;margin-bottom:7px;display:inline-block;">SHIP TO</div>
+              <div style="font-size:.73rem;font-weight:600;color:#1a2e2a;" id="vmShipName">—</div>
+              <div style="font-size:.68rem;color:#6b7280;" id="vmShipAddr">—</div>
             </div>
           </div>
 
-          <table class="vm-q-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody id="vmPaperItems"></tbody>
-            <tfoot>
-              <tr class="vm-q-total">
-                <td colspan="3" style="text-align:right;">TOTAL</td>
-                <td id="vmPaperTotal">—</td>
-              </tr>
-            </tfoot>
-          </table>
+          <!-- Line items table -->
+          <div style="padding:0 26px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr style="background:#2e4a45;">
+                  <th style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#fff;padding:8px 10px;text-align:left;">DESCRIPTION</th>
+                  <th style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#fff;padding:8px 10px;text-align:center;width:60px;">QTY</th>
+                  <th style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#fff;padding:8px 10px;text-align:right;width:110px;">UNIT PRICE</th>
+                  <th style="font-size:.58rem;font-weight:700;letter-spacing:.08em;color:#fff;padding:8px 10px;text-align:right;width:110px;">TOTAL</th>
+                </tr>
+              </thead>
+              <tbody id="vmPaperItems"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" style="text-align:right;padding:9px 10px;font-size:.7rem;font-weight:700;color:#1a2e2a;border-top:1.5px solid #2e4a45;">Quote Total</td>
+                  <td style="padding:9px 10px;font-size:.8rem;font-weight:800;color:#1a2e2a;text-align:right;border-top:1.5px solid #2e4a45;background:#e8f0ee;" id="vmPaperTotal">—</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
-          <div class="vm-paper-notes" id="vmPaperNotesWrap">
+          <!-- Terms & Conditions -->
+          <div style="padding:16px 26px 10px;">
+            <div style="font-size:.68rem;font-weight:700;color:#1a2e2a;margin-bottom:7px;">Terms and Conditions:</div>
+            <div style="font-size:.63rem;color:#4b5563;line-height:1.85;">
+              <div><strong>1. Terms of payment:</strong></div>
+              <div style="padding-left:18px;">50% downpayment is due upon acceptance of quote</div>
+              <div style="padding-left:18px;">25% is due upon delivery and installation</div>
+              <div style="padding-left:18px;">15% is due after installation</div>
+              <div style="padding-left:18px;">10% is due after punchlist and turnover</div>
+              <div>2. All prices are VAT EXCLUSIVE.</div>
+              <div>3. Cancellation is not allowed once production has started.</div>
+              <div>4. Change order will be subject to separate quotation.</div>
+              <div>5. Production leadtime is 5-6 weeks.</div>
+              <div>6. This quote is only valid for 30 days.</div>
+              <div>7. Warranty period of six months is provided for boards and hardware following the turnover.</div>
+              <div>8. Warranty does not extend coverage of water damage or normal wear and tear.</div>
+            </div>
+          </div>
+
+          <!-- Notes (conditionally shown) -->
+          <div class="vm-paper-notes" id="vmPaperNotesWrap" style="margin:0 26px 14px;">
             <div class="vm-paper-notes-label">Notes</div>
             <div id="vmPaperNotes">—</div>
           </div>
 
-          <div class="vm-paper-footer">
-            Vast Solutions &nbsp;·&nbsp; info@vastsolutions.com &nbsp;·&nbsp; +63 912 345 6789
+          <!-- Conforme -->
+          <div style="padding:10px 26px 22px;">
+            <div style="font-size:.65rem;font-style:italic;color:#6b7280;margin-bottom:28px;">Conforme:</div>
+            <div style="width:200px;border-top:1.5px solid #1a2e2a;padding-top:4px;">
+              <div style="font-size:.6rem;color:#6b7280;">Signature over Printed Name / Date</div>
+            </div>
           </div>
+
+          <!-- Bottom accent -->
+          <div style="height:6px;background:linear-gradient(90deg,#2e4a45,#4a7c72);"></div>
 
         </div><!-- /vm-paper -->
 
@@ -883,6 +936,8 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     document.getElementById('vmPaperQId').textContent      = d.quoteId;
     document.getElementById('vmPaperFor').textContent      = d.quoteFor;
     document.getElementById('vmPaperProject').textContent  = d.name;
+    document.getElementById('vmShipName').textContent      = d.quoteFor;
+    document.getElementById('vmShipAddr').textContent      = d.name;
     document.getElementById('vmPaperIssued').textContent   = d.quoteIssued  || '—';
     document.getElementById('vmPaperValid').textContent    = d.quoteValid   || '—';
     document.getElementById('vmPaperNotes').textContent    = d.quoteNotes   || '—';
@@ -891,12 +946,12 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     const items = JSON.parse(d.quoteItems || '[]');
     document.getElementById('vmPaperItems').innerHTML = items.length
       ? items.map(i=>`<tr>
-          <td>${i.desc}</td>
-          <td>${i.qty}</td>
-          <td>${peso(i.unit)}</td>
-          <td>${peso(i.amount)}</td>
+          <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;">${i.desc}</td>
+          <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;text-align:center;">${i.qty}</td>
+          <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;text-align:right;">${peso(i.unit)}</td>
+          <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;text-align:right;">${peso(i.amount)}</td>
         </tr>`).join('')
-      : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:16px;">No items listed.</td></tr>';
+      : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:16px;font-size:.72rem;">No items listed.</td></tr>';
 
     // Hide paper notes wrap if empty
     document.getElementById('vmPaperNotesWrap').style.display = d.quoteNotes ? '' : 'none';

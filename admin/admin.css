@@ -25,6 +25,7 @@ body {
     font-family: 'Inter', sans-serif;
     background: #f5f6f8;
     margin: 0;
+    
 }
 
 .main {
@@ -851,6 +852,18 @@ body {
     color: #9ca3af;
 }
 
+.quotation-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.quotation-table thead th,
+.quotation-table tbody td {
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
 .quotation-table thead th {
     background: #fafafa;
     font-size: 0.58rem;
@@ -859,7 +872,7 @@ body {
     letter-spacing: 0.03em;
     border-bottom: 1px solid #ececec;
     padding: 0.9rem 1rem;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .quotation-table tbody td {
@@ -868,7 +881,15 @@ body {
     padding: 0.92rem 1rem;
     border-bottom: 1px solid #f0f0f0;
     vertical-align: middle;
-    white-space: nowrap;
+    white-space: normal;
+}
+
+@media (max-width: 991.98px) {
+    .quotation-table thead th,
+    .quotation-table tbody td {
+        padding: 0.7rem 0.65rem;
+        font-size: 0.65rem;
+    }
 }
 
 .quotation-table tbody tr:last-child td {
