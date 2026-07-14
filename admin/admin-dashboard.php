@@ -1,8 +1,19 @@
 <?php
 session_start();
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'dashboard';
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
+
+// Mirrors the rows in monitoring.php — same codes, same canonical statuses.
+$recent_projects = [
+  ['code'=>'PRJ-2026-042', 'customer'=>'Rivera Kitchens',   'status'=>'production',      'target'=>'Mar 15, 2026'],
+  ['code'=>'PRJ-2026-041', 'customer'=>'Mendoza Interiors', 'status'=>'approved',        'target'=>'Mar 12, 2026'],
+  ['code'=>'PRJ-2026-040', 'customer'=>'Kim Design Studio', 'status'=>'quote_submitted', 'target'=>'Mar 10, 2026'],
+  ['code'=>'PRJ-2026-039', 'customer'=>'Park Residences',   'status'=>'completed',       'target'=>'Mar 08, 2026'],
+  ['code'=>'PRJ-2026-038', 'customer'=>'Lee Custom Homes',  'status'=>'rejected',        'target'=>'Mar 05, 2026'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -95,7 +106,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 <span class="text-muted small">↗</span>
               </div>
               <h3 class="stat-number mb-1">12</h3>
-              <div class="stat-label">In Fabrication</div>
+              <div class="stat-label">In Production</div>
               <div class="stat-sub text-orange small mt-1">On schedule</div>
             </div>
           </div>
@@ -134,7 +145,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
               <div class="row text-center g-2">
                 <div class="col-6 col-md-3">
                   <div class="fw-bold">5</div>
-                  <div class="text-muted small">Waiting Approval</div>
+                  <div class="text-muted small">Quote Submitted</div>
                 </div>
                 <div class="col-6 col-md-3">
                   <div class="fw-bold">8</div>
@@ -142,7 +153,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 </div>
                 <div class="col-6 col-md-3">
                   <div class="fw-bold">12</div>
-                  <div class="text-muted small">Fabrication</div>
+                  <div class="text-muted small">Production in Progress</div>
                 </div>
                 <div class="col-6 col-md-3">
                   <div class="fw-bold">7</div>
@@ -183,43 +194,17 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 </tr>
               </thead>
               <tbody>
+                <?php foreach ($recent_projects as $p): ?>
                 <tr>
-                  <td>PRJ-2026-842</td>
-                  <td>Rivera Kitchens</td>
-                  <td><span class="badge rounded-pill badge-fabrication">Fabrication</span></td>
-                  <td>Mar 15, 2026</td>
-                  <td class="text-end"><a href="monitoring.php?project=PRJ-2026-842&open=view" class="table-link">
-                      View
-                    </a></td>
+                  <td><?= $p['code'] ?></td>
+                  <td><?= htmlspecialchars($p['customer']) ?></td>
+                  <td><?= project_status_badge($p['status'], 'badge rounded-pill') ?></td>
+                  <td><?= htmlspecialchars($p['target']) ?></td>
+                  <td class="text-end">
+                    <a href="monitoring.php?project=<?= $p['code'] ?>&open=view" class="table-link">View</a>
+                  </td>
                 </tr>
-                <tr>
-                  <td>PRJ-2026-841</td>
-                  <td>Mendoza Interiors</td>
-                  <td><span class="badge rounded-pill badge-approved">Approved</span></td>
-                  <td>Mar 12, 2026</td>
-                  <td class="text-end"><a href="#" class="table-link">View</a></td>
-                </tr>
-                <tr>
-                  <td>PRJ-2026-840</td>
-                  <td>Kim Design Studio</td>
-                  <td><span class="badge rounded-pill badge-waiting">Waiting Approval</span></td>
-                  <td>Mar 10, 2026</td>
-                  <td class="text-end"><a href="#" class="table-link">View</a></td>
-                </tr>
-                <tr>
-                  <td>PRJ-2026-839</td>
-                  <td>Park Residences</td>
-                  <td><span class="badge rounded-pill badge-completed">Completed</span></td>
-                  <td>Mar 08, 2026</td>
-                  <td class="text-end"><a href="#" class="table-link">View</a></td>
-                </tr>
-                <tr>
-                  <td>PRJ-2026-838</td>
-                  <td>Lee Custom Homes</td>
-                  <td><span class="badge rounded-pill badge-rejected">Rejected</span></td>
-                  <td>Mar 05, 2026</td>
-                  <td class="text-end"><a href="#" class="table-link">View</a></td>
-                </tr>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>

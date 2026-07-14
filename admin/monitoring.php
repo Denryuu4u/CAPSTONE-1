@@ -2,9 +2,38 @@
 session_start();
 // if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'monitoring';
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 $user_initial = strtoupper(substr($user_name, 0, 1));
+
+$monitor_projects = [
+    ['code'=>'PRJ-2026-042', 'project'=>'Kitchen Reno Phase 1', 'customer'=>'Rivera Kitchens',
+     'status'=>'production', 'target'=>'Mar 15, 2026', 'start'=>'2026-02-01', 'progress'=>65,
+     'approver'=>'Engr. Marco Reyes', 'materials_key'=>'042', 'updates_key'=>'042',
+     'details'=>'Custom kitchen cabinetry with soft-close hinges, melamine panels, and PVC edge banding. Includes island countertop support structure.'],
+
+    ['code'=>'PRJ-2026-041', 'project'=>'Office Cabinets', 'customer'=>'Mendoza Interiors',
+     'status'=>'approved', 'target'=>'Mar 12, 2026', 'start'=>'2026-02-10', 'progress'=>20,
+     'approver'=>'Engr. Marco Reyes', 'materials_key'=>'041', 'updates_key'=>'041',
+     'details'=>'Floor-to-ceiling office cabinetry in white laminate finish. Includes adjustable shelving and lockable lower cabinets.'],
+
+    ['code'=>'PRJ-2026-040', 'project'=>'Bathroom Vanity Set', 'customer'=>'Kim Design Studio',
+     'status'=>'quote_submitted', 'target'=>'Mar 10, 2026', 'start'=>'', 'progress'=>0,
+     'approver'=>'', 'materials_key'=>'', 'updates_key'=>'',
+     'details'=>'Freestanding bathroom vanity with integrated sink, mirror cabinet, and chrome fittings. Material: moisture-resistant MDF.'],
+
+    ['code'=>'PRJ-2026-039', 'project'=>'Lobby Display Unit', 'customer'=>'Park Residences',
+     'status'=>'completed', 'target'=>'Mar 08, 2026', 'start'=>'2026-01-15', 'progress'=>100,
+     'approver'=>'Engr. Sofia Lim', 'materials_key'=>'039', 'updates_key'=>'039',
+     'details'=>'Custom lobby display unit with back-lit acrylic panels and tempered glass shelves. Powder-coated steel frame in matte black.'],
+
+    ['code'=>'PRJ-2026-037', 'project'=>'Pantry Cabinets', 'customer'=>'Garcia Build Co',
+     'status'=>'production', 'target'=>'Mar 01, 2026', 'start'=>'2026-01-20', 'progress'=>85,
+     'approver'=>'Engr. Marco Reyes', 'materials_key'=>'037', 'updates_key'=>'037',
+     'details'=>'Full-height pantry cabinets with pull-out shelves, soft-close doors, and ventilation slats. Material: E1-grade particle board.'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,12 +81,17 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
         }
         .pvm-edit-btn:hover { border-color:#0D9676; color:#0D9676; }
 
-        /* Progress bar */
-        .pvm-progress-wrap { margin-top:14px; }
-        .pvm-progress-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-        .pvm-progress-pct { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; color:#0D9676; }
-        .pvm-progress-track { height:11px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
-        .pvm-progress-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#0D9676,#1dc89a); transition:width .6s ease; }
+        /* Step tracker */
+        .pvm-step-tracker { margin-top:14px; overflow-x:auto; padding-bottom:4px; }
+        .pvm-steps { display:flex; align-items:flex-start; min-width:600px; }
+        .pvm-step { display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
+        .pvm-step-dot { width:24px; height:24px; border-radius:50%; background:#e5e7eb; color:#9ca3af; display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-weight:700; flex-shrink:0; }
+        .pvm-step.done .pvm-step-dot { background:#0D9676; color:#fff; }
+        .pvm-step.active .pvm-step-dot { background:#0D9676; color:#fff; box-shadow:0 0 0 4px rgba(13,150,118,.18); }
+        .pvm-step-label { font-size:0.56rem; text-align:center; color:#9ca3af; margin-top:5px; line-height:1.3; padding:0 2px; }
+        .pvm-step.done .pvm-step-label, .pvm-step.active .pvm-step-label { color:#0D9676; font-weight:600; }
+        .pvm-step-connector { flex:1; height:2px; background:#e5e7eb; margin-top:12px; align-self:flex-start; min-width:6px; }
+        .pvm-step-connector.done { background:#0D9676; }
 
         /* Body */
         #viewProjectModal .modal-body { padding:0; max-height:72vh; overflow-y:auto; }
@@ -155,12 +189,10 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
         </div>
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
             <div class="monitor-filters">
-                <a href="#" class="monitor-pill active">All</a>
-                <a href="#" class="monitor-pill">Waiting</a>
-                <a href="#" class="monitor-pill">Approved</a>
-                <a href="#" class="monitor-pill">Fabrication</a>
-                <a href="#" class="monitor-pill">Completed</a>
-                <a href="#" class="monitor-pill">Rejected</a>
+                <a href="#" class="monitor-pill active" data-filter="all">All</a>
+                <?php foreach (project_statuses() as $key => $label): ?>
+                <a href="#" class="monitor-pill" data-filter="<?= $key ?>"><?= htmlspecialchars($label) ?></a>
+                <?php endforeach; ?>
             </div>
             <div class="monitor-search-wrap">
                 <i class="bi bi-search monitor-search-icon"></i>
@@ -178,131 +210,43 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                         </tr>
                     </thead>
                     <tbody>
-
-                        <tr data-project="PRJ-2026-842">
-                            <td>PRJ-2026-042</td>
-                            <td class="monitor-project">Kitchen Reno Phase 1</td>
-                            <td class="monitor-customer">Rivera Kitchens</td>
-                            <td><span class="monitor-badge badge-fabrication">Fabrication</span></td>
-                            <td class="monitor-target">Mar 15, 2026</td>
+                        <?php foreach ($monitor_projects as $p):
+                            $step = project_step_index($p['status']);
+                            // "Complete" is offered once a project is actually in production.
+                            $can_complete = $step !== null && $step >= 2 && $p['status'] !== 'completed';
+                        ?>
+                        <tr data-project="<?= $p['code'] ?>" data-status="<?= project_status_key($p['status']) ?>">
+                            <td><?= $p['code'] ?></td>
+                            <td class="monitor-project"><?= htmlspecialchars($p['project']) ?></td>
+                            <td class="monitor-customer"><?= htmlspecialchars($p['customer']) ?></td>
+                            <td><?= project_status_badge($p['status']) ?></td>
+                            <td class="monitor-target"><?= htmlspecialchars($p['target']) ?></td>
                             <td class="text-center">
                                 <div class="monitor-actions">
-                                    <div class="action-left"><a href="#" class="monitor-action complete"><i class="bi bi-check-circle"></i><span>Complete</span></a></div>
+                                    <div class="action-left">
+                                        <?php if ($can_complete): ?>
+                                        <a href="#" class="monitor-action complete"><i class="bi bi-check-circle"></i><span>Complete</span></a>
+                                        <?php endif; ?>
+                                    </div>
                                     <div class="action-right">
                                         <a href="#" class="monitor-action view-project-btn"
-                                            data-code="PRJ-2026-042" data-project="Kitchen Reno Phase 1"
-                                            data-customer="Rivera Kitchens" data-target="Mar 15, 2026"
-                                            data-status="Fabrication" data-status-class="badge-fabrication"
-                                            data-details="Custom kitchen cabinetry with soft-close hinges, melamine panels, and PVC edge banding. Includes island countertop support structure."
-                                            data-start="2026-02-01" data-progress="65"
-                                            data-approver="Engr. Marco Reyes"
-                                            data-materials-key="042" data-updates-key="042">
+                                            data-code="<?= $p['code'] ?>"
+                                            data-project="<?= htmlspecialchars($p['project']) ?>"
+                                            data-customer="<?= htmlspecialchars($p['customer']) ?>"
+                                            data-target="<?= htmlspecialchars($p['target']) ?>"
+                                            data-status="<?= project_status_key($p['status']) ?>"
+                                            data-details="<?= htmlspecialchars($p['details']) ?>"
+                                            data-start="<?= $p['start'] ?>" data-progress="<?= $p['progress'] ?>"
+                                            data-approver="<?= htmlspecialchars($p['approver']) ?>"
+                                            data-materials-key="<?= $p['materials_key'] ?>"
+                                            data-updates-key="<?= $p['updates_key'] ?>">
                                             <i class="bi bi-eye"></i><span>View</span>
                                         </a>
                                     </div>
                                 </div>
                             </td>
                         </tr>
-
-                        <tr>
-                            <td>PRJ-2026-041</td>
-                            <td class="monitor-project">Office Cabinets</td>
-                            <td class="monitor-customer">Mendoza Interiors</td>
-                            <td><span class="monitor-badge badge-approved-soft">Approved</span></td>
-                            <td class="monitor-target">Mar 12, 2026</td>
-                            <td class="text-center">
-                                <div class="monitor-actions">
-                                    <div class="action-left"></div>
-                                    <div class="action-right">
-                                        <a href="#" class="monitor-action view-project-btn"
-                                            data-code="PRJ-2026-041" data-project="Office Cabinets"
-                                            data-customer="Mendoza Interiors" data-target="Mar 12, 2026"
-                                            data-status="Approved" data-status-class="badge-approved-soft"
-                                            data-details="Floor-to-ceiling office cabinetry in white laminate finish. Includes adjustable shelving and lockable lower cabinets."
-                                            data-start="2026-02-10" data-progress="20"
-                                            data-approver="Engr. Marco Reyes"
-                                            data-materials-key="041" data-updates-key="041">
-                                            <i class="bi bi-eye"></i><span>View</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>PRJ-2026-040</td>
-                            <td class="monitor-project">Bathroom Vanity Set</td>
-                            <td class="monitor-customer">Kim Design Studio</td>
-                            <td><span class="monitor-badge badge-waiting-soft">Waiting Approval</span></td>
-                            <td class="monitor-target">Mar 10, 2026</td>
-                            <td class="text-center">
-                                <div class="monitor-actions">
-                                    <div class="action-left"></div>
-                                    <div class="action-right">
-                                        <a href="#" class="monitor-action view-project-btn"
-                                            data-code="PRJ-2026-040" data-project="Bathroom Vanity Set"
-                                            data-customer="Kim Design Studio" data-target="Mar 10, 2026"
-                                            data-status="Waiting Approval" data-status-class="badge-waiting-soft"
-                                            data-details="Freestanding bathroom vanity with integrated sink, mirror cabinet, and chrome fittings. Material: moisture-resistant MDF."
-                                            data-start="" data-progress="0" data-approver=""
-                                            data-materials-key="" data-updates-key="">
-                                            <i class="bi bi-eye"></i><span>View</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>PRJ-2026-039</td>
-                            <td class="monitor-project">Lobby Display Unit</td>
-                            <td class="monitor-customer">Park Residences</td>
-                            <td><span class="monitor-badge badge-completed-soft">Completed</span></td>
-                            <td class="monitor-target">Mar 08, 2026</td>
-                            <td class="text-center">
-                                <div class="monitor-actions">
-                                    <div class="action-left"></div>
-                                    <div class="action-right">
-                                        <a href="#" class="monitor-action view-project-btn"
-                                            data-code="PRJ-2026-039" data-project="Lobby Display Unit"
-                                            data-customer="Park Residences" data-target="Mar 08, 2026"
-                                            data-status="Completed" data-status-class="badge-completed-soft"
-                                            data-details="Custom lobby display unit with back-lit acrylic panels and tempered glass shelves. Powder-coated steel frame in matte black."
-                                            data-start="2026-01-15" data-progress="100"
-                                            data-approver="Engr. Sofia Lim"
-                                            data-materials-key="039" data-updates-key="039">
-                                            <i class="bi bi-eye"></i><span>View</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>PRJ-2026-037</td>
-                            <td class="monitor-project">Pantry Cabinets</td>
-                            <td class="monitor-customer">Garcia Build Co</td>
-                            <td><span class="monitor-badge badge-fabrication">Fabrication</span></td>
-                            <td class="monitor-target">Mar 01, 2026</td>
-                            <td class="text-center">
-                                <div class="monitor-actions">
-                                    <div class="action-left"><a href="#" class="monitor-action complete"><i class="bi bi-check-circle"></i><span>Complete</span></a></div>
-                                    <div class="action-right">
-                                        <a href="#" class="monitor-action view-project-btn"
-                                            data-code="PRJ-2026-037" data-project="Pantry Cabinets"
-                                            data-customer="Garcia Build Co" data-target="Mar 01, 2026"
-                                            data-status="Fabrication" data-status-class="badge-fabrication"
-                                            data-details="Full-height pantry cabinets with pull-out shelves, soft-close doors, and ventilation slats. Material: E1-grade particle board."
-                                            data-start="2026-01-20" data-progress="85"
-                                            data-approver="Engr. Marco Reyes"
-                                            data-materials-key="037" data-updates-key="037">
-                                            <i class="bi bi-eye"></i><span>View</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
@@ -334,15 +278,10 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
                     </div>
                 </div>
-                <!-- Progress bar -->
-                <div class="pvm-progress-wrap">
-                    <div class="pvm-progress-header">
-                        <span class="pvm-progress-pct" id="viewProgressPct">0%</span>
-                        <span class="monitor-badge" id="viewProjectStatus">—</span>
-                    </div>
-                    <div class="pvm-progress-track">
-                        <div class="pvm-progress-fill" id="viewProgressFill" style="width:0%"></div>
-                    </div>
+                <!-- Step tracker -->
+                <div class="pvm-step-tracker">
+                    <div style="margin-bottom:8px;"><span class="monitor-badge" id="viewProjectStatus">—</span></div>
+                    <div class="pvm-steps" id="pvmStepTracker"></div>
                 </div>
             </div>
 
@@ -440,6 +379,7 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?= project_status_js() ?>
 <script>
 const MATERIALS = {
     '042': [
@@ -510,6 +450,22 @@ const SEED_UPDATES = {
          attachments:[]},
     ],
 };
+
+// PROJECT_STEPS / getStepIdx / statusLabel / statusClass come from project_status_js().
+// An off-track status (On Hold, Rejected) yields stepIdx -1: no step is marked active.
+function renderStepTracker(containerId,stepIdx){
+    let html='';
+    PROJECT_STEPS.forEach(function(label,i){
+        if(i>0) html+='<div class="pvm-step-connector'+(i<=stepIdx?' done':'')+'"></div>';
+        const cls=i<stepIdx?'done':i===stepIdx?'active':'';
+        const dot=i<stepIdx?'<i class="bi bi-check2" style="font-size:0.62rem"></i>':(i+1);
+        html+='<div class="pvm-step '+cls+'">'
+            +'<div class="pvm-step-dot">'+dot+'</div>'
+            +'<div class="pvm-step-label">'+label+'</div>'
+            +'</div>';
+    });
+    document.getElementById(containerId).innerHTML=html;
+}
 
 const liveUpdates = {};
 const CHIPS = ['chip-green','chip-blue','chip-yellow','chip-purple','chip-pink'];
@@ -582,17 +538,17 @@ function fillProjectModal(btn){
     document.getElementById('viewProjectModalLabel').textContent = d.project||'—';
     document.getElementById('viewProjectCode').textContent       = d.code||'—';
 
-    // Reset state
+    // An on-hold project shows as Paused; everything else is Active.
+    const paused=statusKey(d.status)==='on_hold';
     const sel=document.getElementById('pvmStateSelect');
-    sel.value='active'; sel.className='pvm-state-select state-active';
+    sel.value=paused?'paused':'active';
+    sel.className='pvm-state-select '+(paused?'state-paused':'state-active');
 
-    // Status + progress
+    // Status + step tracker
     const badge=document.getElementById('viewProjectStatus');
-    badge.textContent=d.status||'—';
-    badge.className='monitor-badge '+(d.statusClass||'');
-    const pct=parseInt(d.progress)||0;
-    document.getElementById('viewProgressFill').style.width=pct+'%';
-    document.getElementById('viewProgressPct').textContent=pct+'%';
+    badge.textContent=statusLabel(d.status);
+    badge.className='monitor-badge '+statusClass(d.status);
+    renderStepTracker('pvmStepTracker', getStepIdx(d.status));
 
     // Fields
     document.getElementById('viewProjectCustomer').textContent = d.customer||'—';
@@ -638,6 +594,19 @@ document.addEventListener('DOMContentLoaded',function(){
         });
     });
     document.getElementById('btnOpenMaterials').addEventListener('click',openMaterialsModal);
+
+    // Status filter pills — match on the row's canonical status key.
+    document.querySelectorAll('.monitor-pill').forEach(pill=>{
+        pill.addEventListener('click',function(e){
+            e.preventDefault();
+            document.querySelectorAll('.monitor-pill').forEach(p=>p.classList.remove('active'));
+            this.classList.add('active');
+            const want=this.dataset.filter;
+            document.querySelectorAll('.monitor-table tbody tr').forEach(row=>{
+                row.style.display=(want==='all'||row.dataset.status===want)?'':'none';
+            });
+        });
+    });
 
     const params=new URLSearchParams(window.location.search);
     const projectId=params.get('project'), open=params.get('open');

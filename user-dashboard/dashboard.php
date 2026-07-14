@@ -4,6 +4,8 @@ session_start();
 // if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
 
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'dashboard';
 
 $user_name = $_SESSION['full_name'] ?? 'John Doe';
@@ -86,21 +88,21 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
             <div class="project-name">Kitchen Cabinets - Unit 4B</div>
             <div class="project-time">2 hours ago</div>
           </div>
-          <span class="badge-status in-progress">In Progress</span>
+          <?= project_status_badge('production', 'badge-status') ?>
         </div>
         <div class="project-row">
           <div>
             <div class="project-name">Office Built-ins - Floor 3</div>
             <div class="project-time">1 day ago</div>
           </div>
-          <span class="badge-status pending">Pending Quote</span>
+          <?= project_status_badge('approved', 'badge-status') ?>
         </div>
         <div class="project-row">
           <div>
             <div class="project-name">Bathroom Vanity - Residence</div>
             <div class="project-time">3 days ago</div>
           </div>
-          <span class="badge-status approved">Approved</span>
+          <?= project_status_badge('quote_submitted', 'badge-status') ?>
         </div>
       </div>
     </div>

@@ -16,6 +16,169 @@ $active_page = 'request_quote';
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    /* ── Reference trigger row ── */
+    .btn-browse-ref {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1.1rem;
+      background: var(--teal, #2da89a);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .btn-browse-ref:hover { background: #248a7e; }
+    .ref-trigger-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .ref-preview-box {
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .ref-preview-box img {
+      width: 60px;
+      height: 45px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 2px solid var(--teal, #2da89a);
+    }
+    .ref-preview-box .ref-remove-btn {
+      font-size: 0.75rem;
+      color: #999;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      display: block;
+    }
+    .ref-preview-box .ref-remove-btn:hover { color: #c0392b; }
+
+    /* ── Reference modal grid ── */
+    .reference-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.8rem;
+    }
+    .reference-item {
+      cursor: pointer;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      text-align: center;
+      background: #fff;
+      user-select: none;
+    }
+    .ref-img-wrap { position: relative; overflow: hidden; }
+    .reference-item img {
+      width: 100%;
+      height: 110px;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.2s;
+    }
+    .reference-item:hover img { transform: scale(1.04); }
+    .ref-zoom-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: rgba(0,0,0,0.55);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 2;
+    }
+    .ref-img-wrap:hover .ref-zoom-btn { opacity: 1; }
+    .ref-label {
+      display: block;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.2rem;
+      color: #666;
+    }
+    .reference-item.selected {
+      border-color: var(--teal, #2da89a);
+      box-shadow: 0 0 0 2px var(--teal, #2da89a);
+      background: #e8f7f5;
+    }
+    .reference-item.selected .ref-label {
+      color: var(--teal, #2da89a);
+      font-weight: 600;
+    }
+
+    /* ── Lightbox overlay ── */
+    #lightboxOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    #lightboxOverlay.active { display: flex; }
+    #lightboxOverlay img {
+      max-width: 88vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: 6px;
+    }
+    #lightboxOverlay .lb-label {
+      color: #ccc;
+      font-size: 0.85rem;
+      margin-top: 0.7rem;
+    }
+    .lb-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.6rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .lb-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.12);
+      border: none;
+      color: #fff;
+      font-size: 1.4rem;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .lb-nav:hover { background: rgba(255,255,255,0.28); }
+    .lb-prev { left: 16px; }
+    .lb-next { right: 16px; }
+  </style>
 </head>
 <body>
 
@@ -73,6 +236,18 @@ $active_page = 'request_quote';
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="material_type">Material Type</label>
+            <select id="material_type" name="material_type" class="form-control">
+              <option value="" disabled selected>Select material</option>
+              <option value="Plywood">Plywood</option>
+              <option value="MDF">MDF</option>
+              <option value="Particle Board">Particle Board</option>
+              <option value="Aluminum">Aluminum</option>
+              <option value="Steel">Steel</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="budget">Estimated Budget</label>
             <input type="text" id="budget" name="budget" class="form-control" placeholder="$0.00"/>
           </div>
@@ -86,10 +261,81 @@ $active_page = 'request_quote';
         </div>
 
       </div>
+
+      <!-- REFERENCE DESIGN TRIGGER -->
+      <div class="section-card" style="padding: 1rem 1.6rem; margin-top: 1.2rem;">
+        <div class="ref-trigger-row">
+          <div>
+            <div style="font-weight: 700; font-size: 0.9rem;">Reference Design <span style="font-weight: 400; color: #888; font-size: 0.8rem;">(Optional)</span></div>
+            <div style="font-size: 0.8rem; color: #888; margin-top: 0.15rem;">No design file? Browse our catalog for a reference style.</div>
+          </div>
+          <button type="button" class="btn-browse-ref" id="openRefModal">
+            <i class="bi bi-images"></i> Browse Designs
+          </button>
+          <div class="ref-preview-box" id="refPreview">
+            <img id="refPreviewImg" src="" alt="Selected reference"/>
+            <div>
+              <div id="refPreviewName" style="font-size: 0.85rem; font-weight: 600;"></div>
+              <button type="button" class="ref-remove-btn" id="clearRefBtn">Remove</button>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" name="reference_design" id="referenceDesignInput" value=""/>
+      </div>
+
     </form>
   </div>
 </div>
 
+<!-- ── Reference Design Modal ── -->
+<div class="modal fade" id="referenceModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Select a Reference Design</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
+          Click a thumbnail to select it as your reference.
+          Use the <i class="bi bi-arrows-fullscreen"></i> icon to view the image full size.
+        </p>
+        <div class="reference-grid" id="referenceGrid">
+          <?php for ($i = 1; $i <= 18; $i++): ?>
+          <div class="reference-item"
+               data-value="cabinet_image<?= $i ?>.jpg"
+               data-label="Design <?= $i ?>"
+               data-src="../cabinet_image/cabinet_image<?= $i ?>.jpg"
+               data-index="<?= $i - 1 ?>">
+            <div class="ref-img-wrap">
+              <img src="../cabinet_image/cabinet_image<?= $i ?>.jpg" alt="Cabinet Design <?= $i ?>"/>
+              <button type="button" class="ref-zoom-btn" data-index="<?= $i - 1 ?>" title="View larger">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>
+            </div>
+            <span class="ref-label">Design <?= $i ?></span>
+          </div>
+          <?php endfor; ?>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="confirmRefBtn" class="btn btn-primary" disabled>Use Selected Design</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Lightbox Overlay ── -->
+<div id="lightboxOverlay" role="dialog" aria-modal="true">
+  <button class="lb-close-btn" id="lbClose" title="Close">&times;</button>
+  <button class="lb-nav lb-prev" id="lbPrev"><i class="bi bi-chevron-left"></i></button>
+  <img id="lightboxImg" src="" alt=""/>
+  <div class="lb-label" id="lightboxLabel"></div>
+  <button class="lb-nav lb-next" id="lbNext"><i class="bi bi-chevron-right"></i></button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   const dropZone  = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
@@ -120,6 +366,97 @@ $active_page = 'request_quote';
     });
   }
   function removeFile(i) { selectedFiles.splice(i, 1); renderList(); }
+
+  // ── Reference Design Modal ──
+  const TOTAL_REFS = 18;
+  const refImages = Array.from({length: TOTAL_REFS}, (_, i) => ({
+    src:   `../cabinet_image/cabinet_image${i+1}.jpg`,
+    label: `Design ${i+1}`,
+    value: `cabinet_image${i+1}.jpg`
+  }));
+
+  let confirmedRef = null;
+  let pendingRef   = null;
+  let lbIndex      = 0;
+
+  const refModal = new bootstrap.Modal(document.getElementById('referenceModal'));
+
+  document.getElementById('openRefModal').addEventListener('click', () => refModal.show());
+
+  // Restore visual state when modal re-opens
+  document.getElementById('referenceModal').addEventListener('show.bs.modal', () => {
+    pendingRef = confirmedRef;
+    document.querySelectorAll('.reference-item').forEach(item => {
+      const isSelected = confirmedRef && item.dataset.value === confirmedRef.value;
+      item.classList.toggle('selected', isSelected);
+    });
+    document.getElementById('confirmRefBtn').disabled = !confirmedRef;
+  });
+
+  // Select a thumbnail
+  document.querySelectorAll('.reference-item').forEach(item => {
+    item.addEventListener('click', e => {
+      if (e.target.closest('.ref-zoom-btn')) return;
+      document.querySelectorAll('.reference-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      pendingRef = { value: item.dataset.value, label: item.dataset.label, src: item.dataset.src };
+      document.getElementById('confirmRefBtn').disabled = false;
+    });
+  });
+
+  // Confirm selection
+  document.getElementById('confirmRefBtn').addEventListener('click', () => {
+    confirmedRef = pendingRef;
+    document.getElementById('referenceDesignInput').value = confirmedRef.value;
+    document.getElementById('refPreviewImg').src          = confirmedRef.src;
+    document.getElementById('refPreviewName').textContent = confirmedRef.label;
+    document.getElementById('refPreview').style.display   = 'flex';
+    refModal.hide();
+  });
+
+  // Remove confirmed selection
+  document.getElementById('clearRefBtn').addEventListener('click', () => {
+    confirmedRef = pendingRef = null;
+    document.getElementById('referenceDesignInput').value = '';
+    document.getElementById('refPreview').style.display   = 'none';
+    document.querySelectorAll('.reference-item').forEach(i => i.classList.remove('selected'));
+    document.getElementById('confirmRefBtn').disabled = true;
+  });
+
+  // ── Lightbox ──
+  const lbOverlay = document.getElementById('lightboxOverlay');
+  const lbImg     = document.getElementById('lightboxImg');
+  const lbLbl     = document.getElementById('lightboxLabel');
+
+  function openLightbox(index) {
+    lbIndex = (index + TOTAL_REFS) % TOTAL_REFS;
+    lbImg.src          = refImages[lbIndex].src;
+    lbLbl.textContent  = refImages[lbIndex].label;
+    lbOverlay.classList.add('active');
+  }
+  function closeLightbox() { lbOverlay.classList.remove('active'); lbImg.src = ''; }
+
+  document.querySelectorAll('.ref-zoom-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openLightbox(parseInt(btn.dataset.index));
+    });
+  });
+
+  document.getElementById('lbClose').addEventListener('click', closeLightbox);
+  document.getElementById('lbPrev').addEventListener('click', () => openLightbox(lbIndex - 1));
+  document.getElementById('lbNext').addEventListener('click', () => openLightbox(lbIndex + 1));
+
+  // Close lightbox on overlay background click
+  lbOverlay.addEventListener('click', e => { if (e.target === lbOverlay) closeLightbox(); });
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (!lbOverlay.classList.contains('active')) return;
+    if (e.key === 'ArrowLeft')  openLightbox(lbIndex - 1);
+    if (e.key === 'ArrowRight') openLightbox(lbIndex + 1);
+    if (e.key === 'Escape')     closeLightbox();
+  });
 </script>
 </body>
 </html>

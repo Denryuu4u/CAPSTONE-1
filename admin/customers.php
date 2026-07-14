@@ -2,6 +2,8 @@
 session_start();
 // if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'customers';
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 ?>
@@ -93,7 +95,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td class="customer-email">info@riverakitchens.com</td>
                                 <td class="customer-phone">+1 555-0101</td>
                                 <td class="customer-projects">5</td>
-                                <td><span class="customer-badge badge-fabrication">Fabrication</span></td>
+                                <td><?= project_status_badge('production', 'customer-badge') ?></td>
                                 <td class="text-center">
                                     <div class="customer-actions">
                                         <a href="#"
@@ -129,7 +131,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td class="customer-email">carlos@mendoza.com</td>
                                 <td class="customer-phone">+1 555-0102</td>
                                 <td class="customer-projects">3</td>
-                                <td><span class="customer-badge badge-approved-soft">Approved</span></td>
+                                <td><?= project_status_badge('approved', 'customer-badge') ?></td>
                                 <td class="text-center">
                                     <div class="customer-actions">
                                         <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
@@ -148,7 +150,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td class="customer-email">sarah@kimdesign.com</td>
                                 <td class="customer-phone">+1 555-0103</td>
                                 <td class="customer-projects">7</td>
-                                <td><span class="customer-badge badge-waiting-soft">Waiting Approval</span></td>
+                                <td><?= project_status_badge('quote_submitted', 'customer-badge') ?></td>
                                 <td class="text-center">
                                     <div class="customer-actions">
                                         <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
@@ -167,7 +169,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td class="customer-email">mgmt@parkres.com</td>
                                 <td class="customer-phone">+1 555-0104</td>
                                 <td class="customer-projects">2</td>
-                                <td><span class="customer-badge badge-completed-soft">Completed</span></td>
+                                <td><?= project_status_badge('completed', 'customer-badge') ?></td>
                                 <td class="text-center">
                                     <div class="customer-actions">
                                         <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
@@ -186,7 +188,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                                 <td class="customer-email">lee@customhomes.com</td>
                                 <td class="customer-phone">+1 555-0105</td>
                                 <td class="customer-projects">4</td>
-                                <td><span class="customer-badge badge-rejected-soft">Rejected</span></td>
+                                <td><?= project_status_badge('rejected', 'customer-badge') ?></td>
                                 <td class="text-center">
                                     <div class="customer-actions">
                                         <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>

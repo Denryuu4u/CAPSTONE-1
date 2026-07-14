@@ -247,7 +247,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             <i class="bi bi-download"></i> Download All (ZIP)
                         </button>
                         <button class="summ-fabrication-btn" id="summMarkFabrication">
-                            <i class="bi bi-check-circle"></i> Mark Ready for Fabrication
+                            <i class="bi bi-check-circle"></i> Mark Ready for Production
                         </button>
                     </div>
 
@@ -266,8 +266,8 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                     <div class="summ-modal-icon mb-3">
                         <i class="bi bi-check-circle-fill"></i>
                     </div>
-                    <h6 class="fw-bold mb-1" style="font-family:'Syne',sans-serif;">Mark Ready for Fabrication?</h6>
-                    <p class="text-muted mb-4" style="font-size:0.8rem;">This will notify the fabrication team and lock the material list for <strong id="fabricationProjectName"></strong>.</p>
+                    <h6 class="fw-bold mb-1" style="font-family:'Syne',sans-serif;">Mark Ready for Production?</h6>
+                    <p class="text-muted mb-4" style="font-size:0.8rem;">This will move <strong id="fabricationProjectName"></strong> to <em>Production in Progress</em>, notify the production team, and lock the material list.</p>
                     <div class="d-flex gap-2 justify-content-center">
                         <button class="btn btn-light btn-sm px-4" data-bs-dismiss="modal" style="font-size:0.75rem; border-radius:6px;">Cancel</button>
                         <button class="btn btn-sm px-4 summ-fabrication-confirm" data-bs-dismiss="modal" style="font-size:0.75rem; border-radius:6px; background:var(--teal); color:#fff; border:none;">Confirm</button>

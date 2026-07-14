@@ -2,6 +2,8 @@
 session_start();
 // if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'my_projects';
 
 
@@ -17,7 +19,7 @@ $active_page = 'my_projects';
 $project = [
   'name'      => 'Kitchen Cabinets - Unit 4B',
   'category'  => 'Kitchen Cabinets',
-  'status'    => 'Quote Received',
+  'status'    => 'production',
   'submitted' => '2026-03-01',
   'notes'     => 'Modern shaker-style, soft-close hinges, matte white finish.',
   'files'     => ['kitchen-layout-v2.pdf', 'material-specs.pdf'],
@@ -82,7 +84,7 @@ $quotation = [
           <div>
             <div class="detail-field-label">Status</div>
             <div class="detail-field-value">
-              <span class="badge-status quote-received"><?= htmlspecialchars($project['status']) ?></span>
+              <?= project_status_badge($project['status'], 'badge-status') ?>
             </div>
           </div>
           <div>

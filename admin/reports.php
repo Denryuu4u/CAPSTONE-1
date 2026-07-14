@@ -2,6 +2,8 @@
 session_start();
 // if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'reports';
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 ?>
@@ -53,10 +55,9 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         .rp-table tbody tr:last-child td { border-bottom:none; }
         .rp-table tbody tr:nth-child(even) td { background:#f9fafb; }
         .rp-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.6rem; font-weight:700; }
+        /* Quotation statuses only — project statuses use .status-* from admin.css. */
         .rp-badge-pending    { background:rgba(245,158,11,.12); color:#d97706; }
         .rp-badge-approved   { background:rgba(59,130,246,.12);  color:#2563eb; }
-        .rp-badge-fabrication{ background:rgba(249,115,22,.12);  color:#ea580c; }
-        .rp-badge-completed  { background:rgba(34,197,94,.12);   color:#16a34a; }
         .rp-badge-rejected   { background:rgba(239,68,68,.12);   color:#dc2626; }
         .rp-summary       { margin-top:22px; background:#f0fdf9; border:1px solid #6ee7d0; border-radius:8px; padding:14px 18px; }
         .rp-summary-title { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; color:#0a7a60; margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em; }
@@ -93,10 +94,9 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         .inline-tbl tbody td { padding:9px 16px; border-bottom:1px solid #f5f5f5; color:#374151; vertical-align:middle; }
         .inline-tbl tbody tr:last-child td { border-bottom:none; }
         .it-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.6rem; font-weight:700; }
+        /* Quotation statuses only — project statuses use .status-* from admin.css. */
         .it-pending    { background:rgba(245,158,11,.12); color:#d97706; }
         .it-approved   { background:rgba(59,130,246,.12);  color:#2563eb; }
-        .it-fabrication{ background:rgba(249,115,22,.12);  color:#ea580c; }
-        .it-completed  { background:rgba(34,197,94,.12);   color:#16a34a; }
         .it-rejected   { background:rgba(239,68,68,.12);   color:#dc2626; }
         .it-cat        { background:#f0f9ff; color:#0369a1; }
     </style>
@@ -163,12 +163,9 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         </div>
 
         <!-- ════ SUMMARY STRIPS ════ -->
+        <!-- Per-phase cards are appended by renderProject() — one per status actually present. -->
         <div class="summary-strip active" id="strip-project">
             <div class="sum-card"><div class="sum-card-num" id="sc-prj-total">0</div><div class="sum-card-label">Total Projects</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-prj-pending">0</div><div class="sum-card-label">Pending</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-prj-approved">0</div><div class="sum-card-label">Approved</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-prj-fabrication">0</div><div class="sum-card-label">Fabrication</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-prj-completed">0</div><div class="sum-card-label">Completed</div></div>
         </div>
 
         <div class="summary-strip" id="strip-quotation">
@@ -347,18 +344,19 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<?= project_status_js() ?>
 <script>
 // ════════════════════════════════════════════════════
 //  DATA  — swap with PHP-injected JSON / fetch later
 // ════════════════════════════════════════════════════
 const SAMPLE = {
     project: [
-        { code:'PRJ-2026-041', customer:'Juan dela Cruz',  project:'Aluminum Window Frame', submitted:'2026-01-10', request:'2026-01-15', status:'completed'   },
-        { code:'PRJ-2026-042', customer:'Maria Santos',    project:'Glass Curtain Wall',    submitted:'2026-02-03', request:'2026-02-10', status:'fabrication'  },
-        { code:'PRJ-2026-043', customer:'Carlos Reyes',    project:'Steel Door Set',        submitted:'2026-02-18', request:'2026-02-25', status:'approved'     },
-        { code:'PRJ-2026-044', customer:'Ana Lim',         project:'Sliding Door System',   submitted:'2026-03-05', request:'2026-03-12', status:'pending'      },
-        { code:'PRJ-2026-045', customer:'Pedro Bautista',  project:'Window Grille Install', submitted:'2026-03-20', request:'2026-03-28', status:'completed'    },
-        { code:'PRJ-2026-046', customer:'Rosa Villanueva', project:'Shopfront Facade',      submitted:'2026-04-02', request:'2026-04-10', status:'fabrication'  },
+        { code:'PRJ-2026-041', customer:'Juan dela Cruz',  project:'Aluminum Window Frame', submitted:'2026-01-10', request:'2026-01-15', status:'completed'       },
+        { code:'PRJ-2026-042', customer:'Maria Santos',    project:'Glass Curtain Wall',    submitted:'2026-02-03', request:'2026-02-10', status:'production'      },
+        { code:'PRJ-2026-043', customer:'Carlos Reyes',    project:'Steel Door Set',        submitted:'2026-02-18', request:'2026-02-25', status:'approved'        },
+        { code:'PRJ-2026-044', customer:'Ana Lim',         project:'Sliding Door System',   submitted:'2026-03-05', request:'2026-03-12', status:'quote_submitted' },
+        { code:'PRJ-2026-045', customer:'Pedro Bautista',  project:'Window Grille Install', submitted:'2026-03-20', request:'2026-03-28', status:'installation'    },
+        { code:'PRJ-2026-046', customer:'Rosa Villanueva', project:'Shopfront Facade',      submitted:'2026-04-02', request:'2026-04-10', status:'quality_check'   },
     ],
     quotation: [
         { code:'QT-2026-041', customer:'Juan dela Cruz',  project:'Aluminum Window Frame', created:'2026-01-08', status:'approved', amount:85000  },
@@ -423,14 +421,31 @@ function filterDate(rows, field){
     });
 }
 
-function itBadge(s){
-    const m={pending:'it-pending',approved:'it-approved',fabrication:'it-fabrication',completed:'it-completed',rejected:'it-rejected'};
-    return `<span class="it-badge ${m[s]||''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`;
+// Project badges use the canonical phase vocabulary (statusLabel/statusClass).
+// Quotation badges are a separate vocabulary — a quote is Pending/Approved/Rejected,
+// which is NOT a project phase, so it must not be routed through statusKey().
+function itProjBadge(s){ return `<span class="it-badge ${statusClass(s)}">${statusLabel(s)}</span>`; }
+function rpProjBadge(s){ return `<span class="rp-badge ${statusClass(s)}">${statusLabel(s)}</span>`; }
+
+const QUOTE_LABELS = {pending:'Pending', approved:'Approved', rejected:'Rejected'};
+function itQuoteBadge(s){
+    const m={pending:'it-pending',approved:'it-approved',rejected:'it-rejected'};
+    return `<span class="it-badge ${m[s]||''}">${QUOTE_LABELS[s]||s}</span>`;
 }
-function rpBadge(s){
-    const m={pending:'rp-badge-pending',approved:'rp-badge-approved',fabrication:'rp-badge-fabrication',completed:'rp-badge-completed',rejected:'rp-badge-rejected'};
-    return `<span class="rp-badge ${m[s]||''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`;
+function rpQuoteBadge(s){
+    const m={pending:'rp-badge-pending',approved:'rp-badge-approved',rejected:'rp-badge-rejected'};
+    return `<span class="rp-badge ${m[s]||''}">${QUOTE_LABELS[s]||s}</span>`;
 }
+
+/** Chart colours, keyed by canonical status. Mirrors the .status-* CSS. */
+const STATUS_COLORS = {
+    quote_submitted:'rgba(245,158,11,.8)', approved:'rgba(59,130,246,.8)',
+    production:'rgba(249,115,22,.8)',      mockup:'rgba(139,92,246,.8)',
+    delivery:'rgba(14,165,233,.8)',        installation:'rgba(99,102,241,.8)',
+    quality_check:'rgba(13,150,118,.8)',   punchlist:'rgba(236,72,153,.8)',
+    final_approval:'rgba(132,204,22,.8)',  completed:'rgba(34,197,94,.8)',
+    on_hold:'rgba(100,116,139,.8)',        rejected:'rgba(239,68,68,.8)',
+};
 
 const _charts = {};
 function makeChart(id, cfg){
@@ -444,28 +459,34 @@ function makeChart(id, cfg){
 // ════════════════════════════════════════════════════
 function renderProject(){
     const rows = filterDate(SAMPLE.project, 'submitted');
-    const cnt  = {pending:0,approved:0,fabrication:0,completed:0};
+    const cnt  = {};
     const byM  = {};
     rows.forEach(r=>{
-        cnt[r.status] = (cnt[r.status]||0)+1;
+        cnt[statusKey(r.status)] = (cnt[statusKey(r.status)]||0)+1;
         const m = MONTHS[new Date(r.submitted+'T00:00:00').getMonth()];
         byM[m] = (byM[m]||0)+1;
     });
 
-    // summary strip
-    document.getElementById('sc-prj-total').textContent       = rows.length;
-    document.getElementById('sc-prj-pending').textContent     = cnt.pending;
-    document.getElementById('sc-prj-approved').textContent    = cnt.approved;
-    document.getElementById('sc-prj-fabrication').textContent = cnt.fabrication;
-    document.getElementById('sc-prj-completed').textContent   = cnt.completed;
+    // summary strip — total, then one card per status actually present
+    document.getElementById('sc-prj-total').textContent = rows.length;
+    const strip = document.getElementById('strip-project');
+    strip.querySelectorAll('.sum-card[data-status]').forEach(el=>el.remove());
+    const present = Object.keys(PROJECT_ALL).filter(k=>cnt[k]);
+    present.forEach(k=>{
+        const card=document.createElement('div');
+        card.className='sum-card';
+        card.dataset.status=k;
+        card.innerHTML=`<div class="sum-card-num">${cnt[k]}</div><div class="sum-card-label">${PROJECT_ALL[k]}</div>`;
+        strip.appendChild(card);
+    });
 
-    // donut chart — status distribution
+    // donut chart — distribution across the phases in play
     makeChart('chart-prj-status',{
         type:'doughnut',
         data:{
-            labels:['Pending','Approved','Fabrication','Completed'],
-            datasets:[{data:[cnt.pending,cnt.approved,cnt.fabrication,cnt.completed],
-                backgroundColor:[C.pending,C.approved,C.fabrication,C.completed],
+            labels: present.map(k=>PROJECT_ALL[k]),
+            datasets:[{data:present.map(k=>cnt[k]),
+                backgroundColor:present.map(k=>STATUS_COLORS[k]),
                 borderWidth:2, borderColor:'#fff'}]
         },
         options:{responsive:true,maintainAspectRatio:false,
@@ -492,7 +513,7 @@ function renderProject(){
         ? rows.map(r=>`<tr>
             <td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td>
             <td>${fmtDate(r.submitted)}</td><td>${fmtDate(r.request)}</td>
-            <td>${itBadge(r.status)}</td></tr>`).join('')
+            <td>${itProjBadge(r.status)}</td></tr>`).join('')
         : '<tr><td colspan="6" class="text-center text-muted py-3">No data for selected range.</td></tr>';
 }
 
@@ -544,7 +565,7 @@ function renderQuotation(){
     document.getElementById('tbl-quotation').innerHTML = rows.length
         ? rows.map(r=>`<tr>
             <td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td>
-            <td>${fmtDate(r.created)}</td><td>${itBadge(r.status)}</td>
+            <td>${fmtDate(r.created)}</td><td>${itQuoteBadge(r.status)}</td>
             <td>${peso(r.amount)}</td></tr>`).join('')
         : '<tr><td colspan="6" class="text-center text-muted py-3">No data for selected range.</td></tr>';
 }
@@ -683,10 +704,10 @@ function rpHeader(title){
 
 function buildProject(){
     const rows=filterDate(SAMPLE.project,'submitted');
-    const cnt={};rows.forEach(r=>cnt[r.status]=(cnt[r.status]||0)+1);
-    const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td><td>${fmtDate(r.submitted)}</td><td>${fmtDate(r.request)}</td><td>${rpBadge(r.status)}</td></tr>`).join('');
+    const cnt={};rows.forEach(r=>cnt[statusKey(r.status)]=(cnt[statusKey(r.status)]||0)+1);
+    const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td><td>${fmtDate(r.submitted)}</td><td>${fmtDate(r.request)}</td><td>${rpProjBadge(r.status)}</td></tr>`).join('');
     let sum=`<div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Total Projects</div></div>`;
-    ['pending','approved','fabrication','completed'].forEach(s=>sum+=`<div class="rp-sum-item"><div class="rp-sum-num">${cnt[s]||0}</div><div class="rp-sum-label">${s.charAt(0).toUpperCase()+s.slice(1)}</div></div>`);
+    Object.keys(PROJECT_ALL).filter(k=>cnt[k]).forEach(k=>sum+=`<div class="rp-sum-item"><div class="rp-sum-num">${cnt[k]}</div><div class="rp-sum-label">${PROJECT_ALL[k]}</div></div>`);
     return `<div class="rp-doc">${rpHeader('Project Report')}
         <table class="rp-table"><thead><tr><th>Project Code</th><th>Customer Name</th><th>Project Name</th><th>Date Submitted</th><th>Request Date</th><th>Status</th></tr></thead><tbody>${trs||'<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px">No records</td></tr>'}</tbody></table>
         <div class="rp-summary"><div class="rp-summary-title">Summary</div><div class="rp-summary-grid">${sum}</div></div></div>`;
@@ -696,7 +717,7 @@ function buildQuotation(){
     const rows=filterDate(SAMPLE.quotation,'created');
     const app=rows.filter(r=>r.status==='approved'),rej=rows.filter(r=>r.status==='rejected');
     const rev=app.reduce((s,r)=>s+r.amount,0);
-    const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td><td>${fmtDate(r.created)}</td><td>${rpBadge(r.status)}</td><td>${peso(r.amount)}</td></tr>`).join('');
+    const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td><td>${fmtDate(r.created)}</td><td>${rpQuoteBadge(r.status)}</td><td>${peso(r.amount)}</td></tr>`).join('');
     const sum=`<div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Total Quotations</div></div>
         <div class="rp-sum-item"><div class="rp-sum-num">${app.length}</div><div class="rp-sum-label">Approved</div></div>
         <div class="rp-sum-item"><div class="rp-sum-num">${rej.length}</div><div class="rp-sum-label">Rejected</div></div>

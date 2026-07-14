@@ -2,12 +2,20 @@
 session_start();
 // if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
 
+require_once __DIR__ . '/../includes/project_status.php';
+
 $active_page = 'my_projects';
 
+/**
+ * 'status' is the project's monitoring phase (see includes/project_status.php) and is
+ * the only project status — it drives the table badge, the modal badge and the step
+ * tracker alike. 'quote_status' is separate: it tracks the quotation document
+ * (Pending / Approved / Rejected), not the project.
+ */
 $projects = [
   ['id'=>1,
    'name'=>'Kitchen Cabinets - Unit 4B',  'category'=>'Kitchen Cabinets',
-   'status'=>'Quote Received',             'submitted'=>'2026-03-01', 'updated'=>'2 hours ago',
+   'status'=>'production',                 'submitted'=>'2026-03-01', 'updated'=>'2 hours ago',
    'notes'=>'Modern shaker-style, soft-close hinges, matte white finish.',
    'files'=>['kitchen-layout-v2.pdf','material-specs.pdf'],
    'activity'=>[
@@ -29,12 +37,11 @@ $projects = [
    'code'=>'PRJ-2026-042', 'customer'=>'Rivera Kitchens', 'target'=>'Mar 15, 2026',
    'start'=>'2026-02-01', 'progress'=>65, 'approver'=>'Engr. Marco Reyes',
    'details'=>'Custom kitchen cabinetry with soft-close hinges, melamine panels, and PVC edge banding.',
-   'materials_key'=>'042', 'updates_key'=>'042',
-   'status_class'=>'badge-fabrication', 'status_label'=>'Fabrication'],
+   'materials_key'=>'042', 'updates_key'=>'042'],
 
   ['id'=>2,
    'name'=>'Office Built-ins - Floor 3',  'category'=>'Office Built-ins',
-   'status'=>'Pending Quote',              'submitted'=>'2026-03-10', 'updated'=>'1 day ago',
+   'status'=>'approved',                   'submitted'=>'2026-03-10', 'updated'=>'1 day ago',
    'notes'=>'Ceiling-height, white laminate, lockable lower cabinets.',
    'files'=>['office-floor-plan.pdf'],
    'activity'=>[
@@ -46,12 +53,11 @@ $projects = [
    'code'=>'PRJ-2026-041', 'customer'=>'Mendoza Interiors', 'target'=>'Mar 12, 2026',
    'start'=>'2026-02-10', 'progress'=>20, 'approver'=>'Engr. Marco Reyes',
    'details'=>'Floor-to-ceiling office cabinetry in white laminate finish.',
-   'materials_key'=>'041', 'updates_key'=>'041',
-   'status_class'=>'badge-approved-soft', 'status_label'=>'Approved'],
+   'materials_key'=>'041', 'updates_key'=>'041'],
 
   ['id'=>3,
    'name'=>'Bathroom Vanity - Residence', 'category'=>'Bathroom Vanity',
-   'status'=>'In Progress',               'submitted'=>'2026-02-15', 'updated'=>'3 days ago',
+   'status'=>'quote_submitted',           'submitted'=>'2026-02-15', 'updated'=>'3 days ago',
    'notes'=>'Freestanding with integrated sink, mirror cabinet, chrome fittings.',
    'files'=>['vanity-sketch.pdf'],
    'activity'=>[
@@ -70,12 +76,11 @@ $projects = [
    'code'=>'PRJ-2026-040', 'customer'=>'Kim Design Studio', 'target'=>'Mar 10, 2026',
    'start'=>'', 'progress'=>0, 'approver'=>'',
    'details'=>'Moisture-resistant MDF with integrated sink and mirror cabinet.',
-   'materials_key'=>'', 'updates_key'=>'',
-   'status_class'=>'badge-waiting-soft', 'status_label'=>'Waiting Approval'],
+   'materials_key'=>'', 'updates_key'=>''],
 
   ['id'=>4,
    'name'=>'Custom Shelving - Library',   'category'=>'Custom Furniture',
-   'status'=>'Completed',                  'submitted'=>'2026-01-20', 'updated'=>'1 week ago',
+   'status'=>'completed',                  'submitted'=>'2026-01-20', 'updated'=>'1 week ago',
    'notes'=>'Back-lit acrylic panels, tempered glass shelves, matte black steel frame.',
    'files'=>['shelving-plan.pdf','material-list.pdf'],
    'activity'=>[
@@ -96,12 +101,11 @@ $projects = [
    'code'=>'PRJ-2026-039', 'customer'=>'Park Residences', 'target'=>'Mar 08, 2026',
    'start'=>'2026-01-15', 'progress'=>100, 'approver'=>'Engr. Sofia Lim',
    'details'=>'Custom lobby display unit with back-lit acrylic panels and tempered glass shelves.',
-   'materials_key'=>'039', 'updates_key'=>'039',
-   'status_class'=>'badge-completed-soft', 'status_label'=>'Completed'],
+   'materials_key'=>'039', 'updates_key'=>'039'],
 
   ['id'=>5,
    'name'=>'Reception Desk - Lobby',      'category'=>'Custom Furniture',
-   'status'=>'Quote Received',             'submitted'=>'2026-03-08', 'updated'=>'5 hours ago',
+   'status'=>'production',                 'submitted'=>'2026-03-08', 'updated'=>'5 hours ago',
    'notes'=>'L-shaped reception desk, engineered stone top, white body.',
    'files'=>['reception-layout.pdf'],
    'activity'=>[
@@ -121,18 +125,12 @@ $projects = [
    'code'=>'PRJ-2026-037', 'customer'=>'Garcia Build Co', 'target'=>'Mar 01, 2026',
    'start'=>'2026-01-20', 'progress'=>85, 'approver'=>'Engr. Marco Reyes',
    'details'=>'Full-height pantry cabinets with pull-out shelves and ventilation slats.',
-   'materials_key'=>'037', 'updates_key'=>'037',
-   'status_class'=>'badge-fabrication', 'status_label'=>'Fabrication'],
+   'materials_key'=>'037', 'updates_key'=>'037'],
 ];
 
-function statusClass($s) {
-  return match($s) {
-    'In Progress'    => 'in-progress',
-    'Pending Quote'  => 'pending',
-    'Completed'      => 'completed',
-    'Quote Received' => 'quote-received',
-    default          => ''
-  };
+/** A quote is awaiting the client's decision once it has been issued and not yet acted on. */
+function awaitingClientDecision(array $p): bool {
+  return $p['quote_status'] === 'Pending' && $p['quote_issued'] !== '';
 }
 
 function peso($n) { return '₱'.number_format($n,2); }
@@ -317,11 +315,17 @@ function peso($n) { return '₱'.number_format($n,2); }
     .pvm-hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
     .pvm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; line-height:1.2; }
     .pvm-code  { font-size:0.7rem; color:#6b7280; margin-top:3px; }
-    .pvm-progress-wrap { margin-top:11px; }
-    .pvm-progress-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
-    .pvm-progress-pct { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; color:#0D9676; }
-    .pvm-progress-track { height:10px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
-    .pvm-progress-fill  { height:100%; border-radius:99px; background:linear-gradient(90deg,#0D9676,#1dc89a); transition:width .5s ease; }
+    /* Step tracker */
+    .pvm-step-tracker { margin-top:12px; overflow-x:auto; padding-bottom:4px; }
+    .pvm-steps { display:flex; align-items:flex-start; min-width:580px; }
+    .pvm-step { display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
+    .pvm-step-dot { width:22px; height:22px; border-radius:50%; background:#e5e7eb; color:#9ca3af; display:flex; align-items:center; justify-content:center; font-size:0.58rem; font-weight:700; flex-shrink:0; }
+    .pvm-step.done .pvm-step-dot { background:#0D9676; color:#fff; }
+    .pvm-step.active .pvm-step-dot { background:#0D9676; color:#fff; box-shadow:0 0 0 4px rgba(13,150,118,.18); }
+    .pvm-step-label { font-size:0.56rem; text-align:center; color:#9ca3af; margin-top:5px; line-height:1.3; padding:0 2px; }
+    .pvm-step.done .pvm-step-label, .pvm-step.active .pvm-step-label { color:#0D9676; font-weight:600; }
+    .pvm-step-connector { flex:1; height:2px; background:#e5e7eb; margin-top:11px; align-self:flex-start; min-width:6px; }
+    .pvm-step-connector.done { background:#0D9676; }
 
     #viewModal .modal-body { padding:0; max-height:72vh; overflow-y:auto; }
 
@@ -362,11 +366,7 @@ function peso($n) { return '₱'.number_format($n,2); }
     .pvm-empty-updates { text-align:center; padding:22px 0; color:#9ca3af; font-size:.75rem; }
     .pvm-empty-updates i { font-size:1.4rem; display:block; margin-bottom:6px; opacity:.4; }
 
-    /* Shared badge aliases */
-    .badge-fabrication    { background:rgba(249,115,22,.12); color:#ea580c; font-size:.62rem; font-weight:700; padding:3px 9px; border-radius:999px; display:inline-block; }
-    .badge-approved-soft  { background:rgba(59,130,246,.12);  color:#2563eb; font-size:.62rem; font-weight:700; padding:3px 9px; border-radius:999px; display:inline-block; }
-    .badge-waiting-soft   { background:rgba(245,158,11,.12);  color:#d97706; font-size:.62rem; font-weight:700; padding:3px 9px; border-radius:999px; display:inline-block; }
-    .badge-completed-soft { background:rgba(34,197,94,.12);   color:#16a34a; font-size:.62rem; font-weight:700; padding:3px 9px; border-radius:999px; display:inline-block; }
+    /* Status badge colours live in dashboard.css (.status-*), paired with .badge-status. */
 
     /* Materials modal */
     #materialsModal .modal-header { background:#0d1b2a; color:#fff; border-radius:12px 12px 0 0; }
@@ -435,14 +435,14 @@ function peso($n) { return '₱'.number_format($n,2); }
           <tr>
             <td class="fw-semibold"><?= htmlspecialchars($p['name']) ?></td>
             <td class="muted"><?= htmlspecialchars($p['category']) ?></td>
-            <td><span class="badge-status <?= statusClass($p['status']) ?>"><?= htmlspecialchars($p['status']) ?></span></td>
+            <td><?= project_status_badge($p['status'], 'badge-status') ?></td>
             <td class="muted"><?= $p['submitted'] ?></td>
             <td class="muted"><?= $p['updated'] ?></td>
             <td style="text-align:right">
               <div style="display:inline-flex;gap:8px;align-items:center;">
 
-                <?php if ($p['status'] === 'Quote Received'): ?>
-                <!-- VERIFY — only for Quote Received rows -->
+                <?php if (awaitingClientDecision($p)): ?>
+                <!-- VERIFY — only while the issued quote still needs a client decision -->
                 <button class="btn-verify verify-btn"
                   data-id="<?= $p['id'] ?>"
                   data-name="<?= htmlspecialchars($p['name']) ?>"
@@ -450,7 +450,7 @@ function peso($n) { return '₱'.number_format($n,2); }
                   data-category="<?= htmlspecialchars($p['category']) ?>"
                   data-submitted="<?= $p['submitted'] ?>"
                   data-updated="<?= htmlspecialchars($p['updated']) ?>"
-                  data-status="<?= htmlspecialchars($p['status']) ?>"
+                  data-status="<?= project_status_key($p['status']) ?>"
                   data-notes="<?= htmlspecialchars($p['notes']) ?>"
                   data-files="<?= htmlspecialchars(json_encode($p['files'])) ?>"
                   data-activity="<?= htmlspecialchars(json_encode($p['activity'])) ?>"
@@ -473,8 +473,7 @@ function peso($n) { return '₱'.number_format($n,2); }
                   data-id="<?= $p['id'] ?>"
                   data-name="<?= htmlspecialchars($p['name']) ?>"
                   data-code="<?= htmlspecialchars($p['code']) ?>"
-                  data-status="<?= htmlspecialchars($p['status_label']) ?>"
-                  data-status-class="<?= htmlspecialchars($p['status_class']) ?>"
+                  data-status="<?= project_status_key($p['status']) ?>"
                   data-customer="<?= htmlspecialchars($p['customer']) ?>"
                   data-target="<?= htmlspecialchars($p['target']) ?>"
                   data-start="<?= $p['start'] ?>"
@@ -720,14 +719,9 @@ function peso($n) { return '₱'.number_format($n,2); }
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="pvm-progress-wrap">
-          <div class="pvm-progress-header">
-            <span class="pvm-progress-pct" id="viewProgressPct">0%</span>
-            <span id="viewStatusBadge">—</span>
-          </div>
-          <div class="pvm-progress-track">
-            <div class="pvm-progress-fill" id="viewProgressFill" style="width:0%"></div>
-          </div>
+        <div class="pvm-step-tracker">
+          <div style="margin-bottom:8px;"><span id="viewStatusBadge">—</span></div>
+          <div class="pvm-steps" id="viewStepTracker"></div>
         </div>
       </div>
 
@@ -808,6 +802,7 @@ function peso($n) { return '₱'.number_format($n,2); }
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?= project_status_js() ?>
 <script>
 // ── MATERIALS DATA ─────────────────────────────────
 const MATERIALS = {
@@ -901,8 +896,8 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
 
     // Status badge in detail card
     const stBadge = document.getElementById('vmStatus');
-    stBadge.textContent = d.status;
-    stBadge.className   = 'badge-status ' + (d.status==='Quote Received'?'quote-received':'');
+    stBadge.textContent = statusLabel(d.status);
+    stBadge.className   = 'badge-status ' + statusClass(d.status);
 
     // Fields
     document.getElementById('vmCategory').textContent  = d.category;
@@ -977,6 +972,22 @@ document.getElementById('vmDownloadBtn').addEventListener('click', function(){
 });
 
 // ══ VIEW MODAL ═════════════════════════════════════
+// PROJECT_STEPS / getStepIdx / statusLabel / statusClass come from project_status_js().
+// An off-track status (On Hold, Rejected) yields stepIdx -1: no step is marked active.
+function renderStepTracker(containerId,stepIdx){
+  let html='';
+  PROJECT_STEPS.forEach(function(label,i){
+    if(i>0) html+='<div class="pvm-step-connector'+(i<=stepIdx?' done':'')+'"></div>';
+    const cls=i<stepIdx?'done':i===stepIdx?'active':'';
+    const dot=i<stepIdx?'<i class="bi bi-check2" style="font-size:0.6rem"></i>':(i+1);
+    html+='<div class="pvm-step '+cls+'">'
+      +'<div class="pvm-step-dot">'+dot+'</div>'
+      +'<div class="pvm-step-label">'+label+'</div>'
+      +'</div>';
+  });
+  document.getElementById(containerId).innerHTML=html;
+}
+
 let currentMatsKey='', currentMatName='';
 
 function renderFeed(key){
@@ -1016,12 +1027,10 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     document.getElementById('viewCode').textContent  = d.code;
 
     const badge = document.getElementById('viewStatusBadge');
-    badge.textContent = d.status;
-    badge.className   = d.statusClass;
+    badge.textContent = statusLabel(d.status);
+    badge.className   = 'badge-status ' + statusClass(d.status);
 
-    const pct = parseInt(d.progress)||0;
-    document.getElementById('viewProgressFill').style.width = pct+'%';
-    document.getElementById('viewProgressPct').textContent  = pct+'%';
+    renderStepTracker('viewStepTracker', getStepIdx(d.status));
 
     document.getElementById('viewCustomer').textContent = d.customer;
     document.getElementById('viewTarget').textContent   = d.target;
