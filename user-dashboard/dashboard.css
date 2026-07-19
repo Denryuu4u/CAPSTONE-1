@@ -18,15 +18,21 @@
      --text:         #111827;
      --text-muted:   #6b7280;
      --text-sm:      #9ca3af;
-     --sidebar-w:    192px;
-   
+     --sidebar-w:    12rem;
+
      /* status colors */
      --blue:   #3b82f6;
      --amber:  #f59e0b;
      --green:  #22c55e;
      --slate:  #64748b;
    }
-   
+
+   /* Global UI scale — roughly 125% larger. rem-based sizing scales from
+      this root value, eased down on smaller screens to avoid overflow. */
+   html { font-size: 125%; }
+   @media (max-width: 991.98px) { html { font-size: 118.75%; } }
+   @media (max-width: 575.98px) { html { font-size: 112.5%; } }
+
    /* ── RESET ── */
    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
    body {
@@ -676,16 +682,134 @@
    .d-flex { display: flex; }
    .align-center { align-items: center; }
    .justify-between { justify-content: space-between; }
+
+   /* =========================================
+      SETTINGS CARD (mirrors admin styling)
+      ========================================= */
+   .settings-card {
+     background: #fff;
+     border: 1px solid #e5e7eb;
+     border-radius: 10px;
+     box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+     padding: 1rem;
+   }
+   .settings-card-title {
+     font-size: 0.92rem;
+     font-weight: 600;
+     color: #1f2937;
+     margin-bottom: 1rem;
+   }
+   .settings-card-sub {
+     font-size: 0.7rem;
+     color: #6b7280;
+     margin: -0.6rem 0 1rem;
+     line-height: 1.5;
+   }
+   .settings-label {
+     display: block;
+     font-size: 0.68rem;
+     font-weight: 500;
+     color: #374151;
+     margin-bottom: 0.4rem;
+   }
+   .settings-input {
+     width: 100%;
+     height: 32px;
+     border: 1px solid #dbe1e8;
+     border-radius: 5px;
+     background: #f8fafc;
+     font-size: 0.68rem;
+     color: #374151;
+     padding: 0 10px;
+     box-shadow: none;
+     font-family: 'Inter', sans-serif;
+   }
+   .settings-input:focus {
+     border-color: var(--teal);
+     box-shadow: 0 0 0 0.12rem rgba(13,150,118,0.12);
+     background: #fff;
+     outline: none;
+   }
+   .settings-input-group { position: relative; display: flex; align-items: center; }
+   .settings-input-group > i {
+     position: absolute; left: 10px;
+     font-size: 0.8rem; color: #9ca3af; pointer-events: none;
+   }
+   .settings-input-group .settings-input { padding-left: 30px; }
+   .settings-input-group:focus-within > i { color: var(--teal); }
+   .settings-input.has-toggle { padding-right: 34px; }
+   .settings-pw-toggle {
+     position: absolute; right: 6px;
+     display: flex; align-items: center; justify-content: center;
+     width: 24px; height: 24px; padding: 0;
+     border: none; background: none; color: #9ca3af;
+     font-size: 0.82rem; cursor: pointer; border-radius: 4px;
+   }
+   .settings-pw-toggle:hover { color: var(--teal); }
+   .settings-save-btn {
+     background: var(--teal);
+     border: 1px solid var(--teal);
+     color: #fff;
+     font-size: 0.72rem;
+     font-weight: 600;
+     border-radius: 6px;
+     padding: 0.55rem 0.95rem;
+     display: inline-flex;
+     align-items: center;
+     gap: 0.45rem;
+     line-height: 1;
+     text-decoration: none;
+     cursor: pointer;
+   }
+   .settings-save-btn:hover { background: var(--teal-dark); border-color: var(--teal-dark); color: #fff; }
    
    /* =========================================
-      RESPONSIVE (basic)
+      RESPONSIVE
       ========================================= */
+   /* Mobile controls hidden on desktop */
+   .sidebar-toggle, .sidebar-overlay { display: none; }
+
+   /* ── Off-canvas sidebar for tablets & phones ── */
+   @media (max-width: 991.98px) {
+     .sidebar {
+       transform: translateX(-100%);
+       transition: transform 0.25s ease;
+       box-shadow: 0 0 45px rgba(0,0,0,0.25);
+     }
+     body.sidebar-open .sidebar { transform: translateX(0); }
+     body.sidebar-open { overflow: hidden; }
+
+     .main { margin-left: 0; }
+     .topbar { padding-left: 3.6rem; }
+
+     .sidebar-toggle {
+       display: inline-flex; align-items: center; justify-content: center;
+       position: fixed; top: 0.6rem; left: 0.6rem; z-index: 45;
+       width: 2.4rem; height: 2.4rem;
+       border: none; border-radius: 8px;
+       background: var(--navy); color: #fff;
+       font-size: 1.2rem; cursor: pointer;
+       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+     }
+     body.sidebar-open .sidebar-overlay {
+       display: block; position: fixed; inset: 0;
+       background: rgba(0,0,0,0.45); z-index: 40;
+     }
+   }
+
    @media (max-width: 900px) {
      .stats-row { grid-template-columns: 1fr 1fr; }
      .quote-grid, .detail-grid, .settings-grid { grid-template-columns: 1fr; }
    }
+
    @media (max-width: 640px) {
-     :root { --sidebar-w: 0px; }
-     .sidebar { display: none; }
      .stats-row { grid-template-columns: 1fr; }
+     .detail-fields, .form-row, .q-meta { grid-template-columns: 1fr; }
+     .page-content { padding: 1.3rem 1rem; }
+     .quotation-paper { padding: 1.6rem 1.2rem; }
+     .table-header-row { flex-direction: column; align-items: stretch; gap: 0.7rem; }
+     .action-bar { flex-direction: column; gap: 0.7rem; align-items: stretch; }
+     .action-bar-btns .btn-accept, .action-bar-btns .btn-reject { flex: 1; justify-content: center; }
+     /* Let wide tables scroll horizontally instead of breaking the layout */
+     .projects-table, .q-table { display: block; overflow-x: auto; white-space: nowrap; }
    }

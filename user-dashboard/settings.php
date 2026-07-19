@@ -101,8 +101,9 @@ $error_password   = isset($_GET['pw_error']) ? urldecode($_GET['pw_error']) : ''
       </div>
 
       <!-- CHANGE PASSWORD -->
-      <div class="section-card" style="padding: 1.5rem 1.6rem;">
-        <div class="section-card-title">Change Password</div>
+      <div class="settings-card">
+        <div class="settings-card-title">Change Password</div>
+        <p class="settings-card-sub">Use at least 8 characters. You'll stay signed in after updating.</p>
 
         <?php if ($success_password): ?>
         <div class="alert alert-success">Password changed successfully.</div>
@@ -111,20 +112,44 @@ $error_password   = isset($_GET['pw_error']) ? urldecode($_GET['pw_error']) : ''
         <?php endif; ?>
 
         <form method="POST" action="change_password.php" id="pwForm">
-          <div class="form-group">
-            <label class="form-label">Current Password</label>
-            <input type="password" name="current_password" class="form-control" required/>
+          <div class="mb-2">
+            <label class="settings-label">Current Password</label>
+            <div class="settings-input-group">
+              <i class="bi bi-lock"></i>
+              <input type="password" name="current_password" class="settings-input has-toggle" id="currentPassword" placeholder="Enter current password" required>
+              <button type="button" class="settings-pw-toggle" data-target="currentPassword" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">New Password</label>
-            <input type="password" name="new_password" id="newPw" class="form-control" required minlength="8"/>
+
+          <div class="mb-2">
+            <label class="settings-label">New Password</label>
+            <div class="settings-input-group">
+              <i class="bi bi-key"></i>
+              <input type="password" name="new_password" class="settings-input has-toggle" id="newPassword" placeholder="Enter new password" required minlength="8">
+              <button type="button" class="settings-pw-toggle" data-target="newPassword" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Confirm New Password</label>
-            <input type="password" name="confirm_password" id="confirmPw" class="form-control" required/>
+
+          <div class="mb-2">
+            <label class="settings-label">Confirm New Password</label>
+            <div class="settings-input-group">
+              <i class="bi bi-key"></i>
+              <input type="password" name="confirm_password" class="settings-input has-toggle" id="confirmPassword" placeholder="Re-enter new password" required>
+              <button type="button" class="settings-pw-toggle" data-target="confirmPassword" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
-          <div id="pw-mismatch" style="display:none; font-size:0.75rem; color:#dc2626; margin-bottom:0.6rem;">Passwords do not match.</div>
-          <button type="submit" class="btn-save">Save Changes</button>
+
+          <div id="pw-mismatch" style="display:none; font-size:0.72rem; color:#dc2626; margin-bottom:0.6rem;">Passwords do not match.</div>
+          <button type="submit" class="settings-save-btn">
+            <i class="bi bi-shield-lock"></i>
+            <span>Update Password</span>
+          </button>
         </form>
       </div>
 
@@ -133,14 +158,29 @@ $error_password   = isset($_GET['pw_error']) ? urldecode($_GET['pw_error']) : ''
 </div>
 
 <script>
+  // Password mismatch guard
   document.getElementById('pwForm').addEventListener('submit', function(e) {
     const msg = document.getElementById('pw-mismatch');
-    if (document.getElementById('newPw').value !== document.getElementById('confirmPw').value) {
+    if (document.getElementById('newPassword').value !== document.getElementById('confirmPassword').value) {
       e.preventDefault();
       msg.style.display = 'block';
     } else {
       msg.style.display = 'none';
     }
+  });
+
+  // Show/hide password fields
+  document.querySelectorAll('.settings-pw-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.dataset.target);
+      var icon = btn.querySelector('i');
+      if (!input) return;
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      icon.classList.toggle('bi-eye', !show);
+      icon.classList.toggle('bi-eye-slash', show);
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
   });
 </script>
 

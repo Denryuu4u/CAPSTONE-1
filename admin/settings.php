@@ -130,9 +130,81 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             <input type="text" class="settings-input" value="+1 (555) 123-4567">
                         </div>
                     </div>
+
+                    <div class="settings-card mt-3">
+                        <div class="settings-card-title">Change Password</div>
+                        <p class="settings-card-sub">Use at least 8 characters. You'll stay signed in after updating.</p>
+
+                        <div class="mb-2">
+                            <label class="settings-label">Current Password</label>
+                            <div class="settings-input-group">
+                                <i class="bi bi-lock"></i>
+                                <input type="password" class="settings-input has-toggle" id="currentPassword" placeholder="Enter current password">
+                                <button type="button" class="settings-pw-toggle" data-target="currentPassword" aria-label="Show password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="settings-label">New Password</label>
+                            <div class="settings-input-group">
+                                <i class="bi bi-key"></i>
+                                <input type="password" class="settings-input has-toggle" id="newPassword" placeholder="Enter new password">
+                                <button type="button" class="settings-pw-toggle" data-target="newPassword" aria-label="Show password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="settings-label">Confirm New Password</label>
+                            <div class="settings-input-group">
+                                <i class="bi bi-key"></i>
+                                <input type="password" class="settings-input has-toggle" id="confirmPassword" placeholder="Re-enter new password">
+                                <button type="button" class="settings-pw-toggle" data-target="confirmPassword" aria-label="Show password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" class="settings-save-btn">
+                            <i class="bi bi-shield-lock"></i>
+                            <span>Update Password</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="col-lg-6">
+                    <div class="settings-card mb-3">
+                        <div class="settings-card-title">Website Contact Information</div>
+                        <p class="settings-card-sub">These details appear in the “Contact Us” section of the public landing page.</p>
+
+                        <div class="mb-2">
+                            <label class="settings-label">Email</label>
+                            <div class="settings-input-group">
+                                <i class="bi bi-envelope"></i>
+                                <input type="email" class="settings-input" value="support@vastsolutions.com">
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="settings-label">Phone</label>
+                            <div class="settings-input-group">
+                                <i class="bi bi-telephone"></i>
+                                <input type="text" class="settings-input" value="+63 900 000 0000">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="settings-label">Location</label>
+                            <div class="settings-input-group">
+                                <i class="bi bi-geo-alt"></i>
+                                <input type="text" class="settings-input" value="Calamba, Laguna, Philippines">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="settings-card">
                         <div class="settings-card-title">Default Costing Settings</div>
 
@@ -165,6 +237,21 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show/hide password fields in the Change Password card
+        document.querySelectorAll('.settings-pw-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = document.getElementById(btn.dataset.target);
+                var icon = btn.querySelector('i');
+                if (!input) return;
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                icon.classList.toggle('bi-eye', !show);
+                icon.classList.toggle('bi-eye-slash', show);
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
 </body>
 
 </html>

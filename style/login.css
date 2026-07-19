@@ -10,6 +10,11 @@
   box-sizing: border-box;
 }
 
+/* Global UI scale — roughly 125% larger, eased on smaller screens */
+html { font-size: 125%; }
+@media (max-width: 991.98px) { html { font-size: 118.75%; } }
+@media (max-width: 575.98px) { html { font-size: 112.5%; } }
+
 body {
   font-family: 'Inter', sans-serif;
   min-height: 100vh;

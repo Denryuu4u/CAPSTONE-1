@@ -39,3 +39,10 @@ if (!isset($active_page)) $active_page = '';
     </a>
   </div>
 </aside>
+
+<!-- Mobile navigation controls (shown on small screens via CSS) -->
+<button class="sidebar-toggle" type="button" aria-label="Toggle menu"
+        onclick="document.body.classList.toggle('sidebar-open')">
+  <i class="bi bi-list"></i>
+</button>
+<div class="sidebar-overlay" onclick="document.body.classList.remove('sidebar-open')"></div>

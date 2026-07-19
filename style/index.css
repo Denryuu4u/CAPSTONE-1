@@ -9,6 +9,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Global UI scale — roughly 125% larger, eased on smaller screens */
+html { font-size: 125%; }
+@media (max-width: 991.98px) { html { font-size: 118.75%; } }
+@media (max-width: 575.98px) { html { font-size: 112.5%; } }
+
 body {
   font-family: 'Inter', sans-serif;
   background: var(--bg-light);
@@ -77,7 +82,9 @@ body {
 /* ── HERO ── */
 .hero {
   background: linear-gradient(160deg, #0d1b2a 0%, #1a2e44 60%, #0f2233 100%);
-  min-height: 480px;
+  /* Fill the viewport (minus the sticky navbar) so the gallery stays below
+     the fold and the headline is seen first. */
+  min-height: calc(100vh - 66px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,13 +103,15 @@ body {
 .hero-title {
   font-family: 'Syne', sans-serif;
   font-weight: 800;
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  line-height: 1.1;
+  font-size: clamp(2.1rem, 4.5vw, 3.15rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
   color: #fff;
 }
 .hero-title span {
   color: var(--teal);
   display: block;
+  margin-top: 0.2rem;
 }
 .hero-sub {
   font-size: 0.9rem;
@@ -188,6 +197,90 @@ body {
   color: var(--text-muted-light);
   line-height: 1.6;
 }
+/* ── BROWSE DESIGNS (view only) ── */
+.designs-section {
+  background: var(--bg-light);
+  padding: 70px 20px 80px;
+  text-align: center;
+}
+.designs-intro {
+  max-width: 560px;
+  margin: 0.8rem auto 2.5rem;
+  font-size: 0.88rem;
+  color: var(--text-muted-light);
+  line-height: 1.6;
+}
+.designs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.design-card {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 4 / 3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.design-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+.design-card:hover img { transform: scale(1.06); }
+.design-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(13, 27, 42, 0.45);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.design-card:hover .design-overlay { opacity: 1; }
+
+/* Lightbox */
+.design-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 30px;
+}
+.design-lightbox.open { display: flex; }
+.design-lightbox img {
+  max-width: 90vw;
+  max-height: 88vh;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.design-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 26px;
+  color: #fff;
+  font-size: 2.4rem;
+  line-height: 1;
+  cursor: pointer;
+  font-weight: 300;
+}
+
 /* ── CONTACT SECTION (MATCHED DESIGN) ── */
 .contact-section {
   background: var(--navy);
@@ -312,3 +405,23 @@ footer {
 }
 
 footer a { color: var(--teal); text-decoration: none; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 767.98px) {
+  .steps-wrap { gap: 2rem; }
+  .contact-wrap { gap: 2rem; }
+  .designs-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 479.98px) {
+  .designs-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 575.98px) {
+  .navbar { padding: 0.65rem 1rem; }
+  .navbar .container-fluid { flex-wrap: wrap; row-gap: 0.5rem; }
+  .navbar .d-flex.ms-auto { flex-wrap: wrap; gap: 0.4rem !important; }
+  .navbar .nav-link { padding: 0.35rem 0.55rem; }
+  .btn-login, .btn-quote { padding: 0.35rem 0.8rem; }
+  .hero { padding: 60px 18px 90px; }
+  .how-section, .contact-section { padding: 60px 18px; }
+}
