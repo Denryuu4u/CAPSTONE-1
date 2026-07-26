@@ -39,6 +39,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
                     <div class="user-avatar-sm">
                         <?= strtoupper(substr($user_name, 0, 1)); ?>
                     </div>

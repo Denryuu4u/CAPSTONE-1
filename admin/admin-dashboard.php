@@ -47,13 +47,18 @@ $recent_projects = [
           <span>Dashboard</span>
         </div>
 
-        <div class="d-flex align-items-center gap-2">
-          <div class="user-avatar-sm">
-            <?= strtoupper(substr($user_name, 0, 1)); ?>
-          </div>
-          <div class="lh-sm">
-            <div class="fw-semibold small text-dark"><?= htmlspecialchars($user_name); ?></div>
-            <div class="text-muted" style="font-size: 12px;">Administrator</div>
+        <div class="d-flex align-items-center gap-3">
+
+          <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+
+          <div class="d-flex align-items-center gap-2">
+            <div class="user-avatar-sm">
+              <?= strtoupper(substr($user_name, 0, 1)); ?>
+            </div>
+            <div class="lh-sm">
+              <div class="fw-semibold small text-dark"><?= htmlspecialchars($user_name); ?></div>
+              <div class="text-muted" style="font-size: 12px;">Administrator</div>
+            </div>
           </div>
         </div>
 
@@ -64,7 +69,7 @@ $recent_projects = [
       <h1 class="page-title mb-4">Dashboard</h1>
 
       <div class="row g-3 mb-4">
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-6 col-xl-3">
           <div class="card dashboard-stat h-100 border-0 shadow-sm">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-3">
@@ -80,7 +85,7 @@ $recent_projects = [
           </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-6 col-xl-3">
           <div class="card dashboard-stat h-100 border-0 shadow-sm">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-3">
@@ -96,7 +101,7 @@ $recent_projects = [
           </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-6 col-xl-3">
           <div class="card dashboard-stat h-100 border-0 shadow-sm">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-3">
@@ -112,7 +117,7 @@ $recent_projects = [
           </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-6 col-xl-3">
           <div class="card dashboard-stat h-100 border-0 shadow-sm">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-3">
@@ -142,7 +147,7 @@ $recent_projects = [
                 <div class="pipeline-line bg-success rounded-pill flex-fill"></div>
               </div>
 
-              <div class="row text-center g-2">
+              <div class="row text-center g-2 pipeline-stats">
                 <div class="col-6 col-md-3">
                   <div class="fw-bold">5</div>
                   <div class="text-muted small">Quote Submitted</div>

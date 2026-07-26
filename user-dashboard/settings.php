@@ -51,6 +51,7 @@ $error_password   = isset($_GET['pw_error']) ? urldecode($_GET['pw_error']) : ''
     <a href="dashboard.php">Portal</a>
     <span class="sep">›</span>
     <span>Settings</span>
+    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
   </div>
 
   <div class="page-content">
@@ -59,8 +60,8 @@ $error_password   = isset($_GET['pw_error']) ? urldecode($_GET['pw_error']) : ''
     <div class="settings-grid">
 
       <!-- PROFILE INFO -->
-      <div class="section-card" style="padding: 1.5rem 1.6rem;">
-        <div class="section-card-title">Profile Information</div>
+      <div class="settings-card">
+        <div class="settings-card-title">Profile Information</div>
 
         <?php if ($success_profile): ?>
         <div class="alert alert-success">Profile updated successfully.</div>
@@ -72,31 +73,31 @@ $error_password   = isset($_GET['pw_error']) ? urldecode($_GET['pw_error']) : ''
         </div>
 
         <form method="POST" action="save_profile.php">
-          <div class="form-row mb-3">
-            <div class="form-group mb-0">
-              <label class="form-label">First Name</label>
-              <input type="text" name="first_name" class="form-control" value="<?= htmlspecialchars($user['first_name']) ?>" required/>
+          <div class="form-row mb-2">
+            <div class="mb-0">
+              <label class="settings-label">First Name</label>
+              <input type="text" name="first_name" class="settings-input" value="<?= htmlspecialchars($user['first_name']) ?>" required/>
             </div>
-            <div class="form-group mb-0">
-              <label class="form-label">Last Name</label>
-              <input type="text" name="last_name" class="form-control" value="<?= htmlspecialchars($user['last_name']) ?>" required/>
+            <div class="mb-0">
+              <label class="settings-label">Last Name</label>
+              <input type="text" name="last_name" class="settings-input" value="<?= htmlspecialchars($user['last_name']) ?>" required/>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required/>
+          <div class="mb-2">
+            <label class="settings-label">Email</label>
+            <input type="email" name="email" class="settings-input" value="<?= htmlspecialchars($user['email']) ?>" required/>
           </div>
-          <div class="form-group">
-            <label class="form-label">Phone</label>
-            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($user['phone']) ?>"/>
+          <div class="mb-2">
+            <label class="settings-label">Phone</label>
+            <input type="text" name="phone" class="settings-input" value="<?= htmlspecialchars($user['phone']) ?>"/>
           </div>
-          <div class="form-group">
-            <label class="form-label">Company</label>
-            <input type="text" name="company" class="form-control" value="<?= htmlspecialchars($user['company']) ?>"/>
+          <div class="mb-3">
+            <label class="settings-label">Company</label>
+            <input type="text" name="company" class="settings-input" value="<?= htmlspecialchars($user['company']) ?>"/>
           </div>
 
-          <button type="submit" class="btn-save">Save Changes</button>
+          <button type="submit" class="settings-save-btn">Save Changes</button>
         </form>
       </div>
 

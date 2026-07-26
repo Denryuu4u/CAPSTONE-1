@@ -34,6 +34,7 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
     <a href="#">Portal</a>
     <span class="sep">›</span>
     <span>Dashboard</span>
+    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
   </div>
 
   <div class="page-content">

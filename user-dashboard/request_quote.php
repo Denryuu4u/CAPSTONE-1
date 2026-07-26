@@ -111,9 +111,17 @@ $active_page = 'request_quote';
     .ref-label {
       display: block;
       font-size: 0.75rem;
-      padding: 0.35rem 0.2rem;
+      padding: 0.35rem 0.2rem 0.1rem;
       color: #666;
+      font-weight: 600;
     }
+    .ref-dim {
+      display: block;
+      font-size: 0.66rem;
+      color: #9ca3af;
+      padding: 0 0.2rem 0.4rem;
+    }
+    .reference-item.selected .ref-dim { color: var(--teal, #2da89a); }
     .reference-item.selected {
       border-color: var(--teal, #2da89a);
       box-shadow: 0 0 0 2px var(--teal, #2da89a);
@@ -189,6 +197,7 @@ $active_page = 'request_quote';
     <a href="dashboard.php">Portal</a>
     <span class="sep">›</span>
     <span>Request Quote</span>
+    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
   </div>
 
   <div class="page-content">
@@ -248,6 +257,11 @@ $active_page = 'request_quote';
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="dimensions">Dimensions <span style="font-weight:400;color:#9ca3af;">(Optional)</span></label>
+            <input type="text" id="dimensions" name="dimensions" class="form-control" placeholder="e.g. 2400 × 720 × 600 mm (W × H × D)"/>
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="budget">Estimated Budget</label>
             <input type="text" id="budget" name="budget" class="form-control" placeholder="$0.00"/>
           </div>
@@ -301,10 +315,18 @@ $active_page = 'request_quote';
           Use the <i class="bi bi-arrows-fullscreen"></i> icon to view the image full size.
         </p>
         <div class="reference-grid" id="referenceGrid">
-          <?php for ($i = 1; $i <= 18; $i++): ?>
+          <?php
+          // Sample reference dimensions (W × H × D) — placeholder catalog data.
+          $refDims = [
+            '2400 × 720 × 600 mm', '1800 × 2100 × 580 mm', '1500 × 900 × 450 mm',
+            '3000 × 750 × 620 mm', '2100 × 2400 × 600 mm', '1200 × 800 × 400 mm',
+          ];
+          for ($i = 1; $i <= 18; $i++):
+            $dim = $refDims[($i - 1) % count($refDims)]; ?>
           <div class="reference-item"
                data-value="cabinet_image<?= $i ?>.jpg"
                data-label="Design <?= $i ?>"
+               data-dim="<?= $dim ?>"
                data-src="../cabinet_image/cabinet_image<?= $i ?>.jpg"
                data-index="<?= $i - 1 ?>">
             <div class="ref-img-wrap">
@@ -314,6 +336,7 @@ $active_page = 'request_quote';
               </button>
             </div>
             <span class="ref-label">Design <?= $i ?></span>
+            <span class="ref-dim"><i class="bi bi-rulers"></i> <?= $dim ?></span>
           </div>
           <?php endfor; ?>
         </div>
@@ -399,7 +422,7 @@ $active_page = 'request_quote';
       if (e.target.closest('.ref-zoom-btn')) return;
       document.querySelectorAll('.reference-item').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
-      pendingRef = { value: item.dataset.value, label: item.dataset.label, src: item.dataset.src };
+      pendingRef = { value: item.dataset.value, label: item.dataset.label, src: item.dataset.src, dim: item.dataset.dim };
       document.getElementById('confirmRefBtn').disabled = false;
     });
   });
@@ -409,7 +432,8 @@ $active_page = 'request_quote';
     confirmedRef = pendingRef;
     document.getElementById('referenceDesignInput').value = confirmedRef.value;
     document.getElementById('refPreviewImg').src          = confirmedRef.src;
-    document.getElementById('refPreviewName').textContent = confirmedRef.label;
+    document.getElementById('refPreviewName').textContent =
+      confirmedRef.label + (confirmedRef.dim ? ' · ' + confirmedRef.dim : '');
     document.getElementById('refPreview').style.display   = 'flex';
     refModal.hide();
   });

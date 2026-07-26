@@ -99,6 +99,17 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         .it-approved   { background:rgba(59,130,246,.12);  color:#2563eb; }
         .it-rejected   { background:rgba(239,68,68,.12);   color:#dc2626; }
         .it-cat        { background:#f0f9ff; color:#0369a1; }
+
+        /* ── responsive: report preview document ── */
+        #reportPreviewBody { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 768px) {
+            .rp-doc { padding: 18px 16px; }
+            .rp-header { flex-wrap: wrap; gap: 12px; }
+            .rp-title-block { margin-left: 0; text-align: left; width: 100%; }
+            .rp-table { font-size: 0.66rem; min-width: 520px; }
+            .rp-summary-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+            .chart-card { flex: 1 1 100%; }
+        }
     </style>
 </head>
 <body>
@@ -112,7 +123,8 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 <a href="#">Portal</a><span class="sep">›</span><span>Reports</span>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar-sm"><?= strtoupper(substr($user_name,0,1)); ?></div>
+                <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+                    <div class="user-avatar-sm"><?= strtoupper(substr($user_name,0,1)); ?></div>
                 <div class="lh-sm">
                     <div class="fw-semibold small text-dark"><?= htmlspecialchars($user_name); ?></div>
                     <div class="text-muted" style="font-size:12px;">Administrator</div>

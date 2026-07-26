@@ -174,7 +174,8 @@ $monitor_projects = [
                 <a href="#">Portal</a><span class="sep">›</span><span>Project Monitoring</span>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar-sm"><?= strtoupper(substr($user_name,0,1)); ?></div>
+                <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+                    <div class="user-avatar-sm"><?= strtoupper(substr($user_name,0,1)); ?></div>
                 <div class="lh-sm">
                     <div class="fw-semibold small text-dark"><?= htmlspecialchars($user_name); ?></div>
                     <div class="text-muted" style="font-size:12px;">Administrator</div>

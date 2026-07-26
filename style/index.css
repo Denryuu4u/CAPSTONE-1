@@ -79,6 +79,20 @@ body {
 }
 .btn-quote:hover { background: var(--teal-dark); color: #fff; }
 
+/* Nav menu + mobile hamburger */
+.nav-menu { display: flex; align-items: center; gap: 0.5rem; }
+.nav-toggle {
+  display: none;
+  background: none;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  width: 40px; height: 40px;
+  align-items: center; justify-content: center;
+  font-size: 1.35rem; color: #1a1a2e; cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.nav-toggle:hover { border-color: var(--teal); color: var(--teal); }
+
 /* ── HERO ── */
 .hero {
   background: linear-gradient(160deg, #0d1b2a 0%, #1a2e44 60%, #0f2233 100%);
@@ -281,6 +295,31 @@ body {
   font-weight: 300;
 }
 
+/* Gallery pagination */
+.designs-pagination {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 2.2rem;
+}
+.page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 0.65rem;
+  border: 1px solid #e2e5ea;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.page-btn.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+.page-btn:disabled { opacity: .4; cursor: default; }
+
 /* ── CONTACT SECTION (MATCHED DESIGN) ── */
 .contact-section {
   background: var(--navy);
@@ -412,16 +451,32 @@ footer a { color: var(--teal); text-decoration: none; }
   .contact-wrap { gap: 2rem; }
   .designs-grid { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 479.98px) {
-  .designs-grid { grid-template-columns: 1fr; }
-}
 
 @media (max-width: 575.98px) {
   .navbar { padding: 0.65rem 1rem; }
-  .navbar .container-fluid { flex-wrap: wrap; row-gap: 0.5rem; }
-  .navbar .d-flex.ms-auto { flex-wrap: wrap; gap: 0.4rem !important; }
-  .navbar .nav-link { padding: 0.35rem 0.55rem; }
-  .btn-login, .btn-quote { padding: 0.35rem 0.8rem; }
+
+  /* Collapse links into a hamburger dropdown */
+  .nav-toggle { display: inline-flex; margin-left: auto; }
+  .nav-menu {
+    display: none;
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    background: #fff;
+    border-bottom: 1px solid #e8eaed;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+    padding: 0.7rem 1rem 1rem;
+    margin: 0;
+  }
+  .nav-menu.open { display: flex; }
+  .nav-menu .nav-link { padding: 0.55rem 0.4rem; }
+  .nav-menu .btn-login,
+  .nav-menu .btn-quote { text-align: center; padding: 0.55rem; }
+
+  /* Gallery: 2×2 on phones */
+  .designs-grid { grid-template-columns: repeat(2, 1fr); gap: 0.7rem; }
   .hero { padding: 60px 18px 90px; }
-  .how-section, .contact-section { padding: 60px 18px; }
+  .contact-section { padding: 60px 18px; }
 }

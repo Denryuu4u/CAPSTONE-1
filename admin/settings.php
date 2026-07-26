@@ -39,6 +39,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
                     <div class="user-avatar-sm">
                         <?= strtoupper(substr($user_name, 0, 1)); ?>
                     </div>
@@ -55,13 +56,6 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h1 class="page-title mb-0">Settings</h1>
-
-                <div class="d-flex align-items-center settings-topbar-actions">
-                    <a href="#" class="settings-save-btn">
-                        <i class="bi bi-floppy"></i>
-                        <span>Save Changes</span>
-                    </a>
-                </div>
             </div>
 
             <div class="row g-3">
@@ -231,6 +225,13 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div class="settings-save-bar">
+                <a href="#" class="settings-save-btn">
+                    <i class="bi bi-floppy"></i>
+                    <span>Save Changes</span>
+                </a>
             </div>
 
         </div>

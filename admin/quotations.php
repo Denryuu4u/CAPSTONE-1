@@ -21,6 +21,18 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <link rel="stylesheet" href="admin.css">
+    <style>
+        /* Quotation preview — responsive overrides for the inline-styled document */
+        .qd-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .qd-table-wrap table { min-width: 480px; }
+        @media (max-width: 640px) {
+            #viewQuotationModal .modal-body { padding: 12px !important; }
+            .qd-row-header { flex-direction: column !important; gap: 14px !important; }
+            .qd-row-header > div:last-child { text-align: left !important; }
+            .qd-billship { flex-direction: column !important; gap: 16px !important; }
+            .qd-sign { width: 100% !important; }
+        }
+    </style>
 </head>
 
 <body>
@@ -40,6 +52,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
                     <div class="user-avatar-sm">
                         <?= strtoupper(substr($user_name, 0, 1)); ?>
                     </div>
@@ -263,7 +276,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                 <div style="background:#fff;border:1px solid #ccc;font-family:'Syne', sans-serif;">
 
                     <!-- HEADER -->
-                    <div style="display:flex;justify-content:space-between;padding:20px;border-bottom:1px solid #ccc;">
+                    <div class="qd-row-header" style="display:flex;justify-content:space-between;padding:20px;border-bottom:1px solid #ccc;">
 
                         <!-- LEFT -->
                         <div style="display:flex;gap:15px;">
@@ -294,7 +307,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                     </div>
 
                     <!-- BILL / SHIP -->
-                    <div style="display:flex;gap:40px;padding:20px;border-bottom:1px solid #ccc;font-family:'Syne', sans-serif;">
+                    <div class="qd-billship" style="display:flex;gap:40px;padding:20px;border-bottom:1px solid #ccc;font-family:'Syne', sans-serif;">
 
                         <div style="flex:1;">
                             <div style="font-weight:700;border-bottom:2px solid #ccc;margin-bottom:10px;">BILL TO</div>
@@ -311,7 +324,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                     </div>
 
                     <!-- TABLE -->
-                    <div style="padding:20px;font-family:'Syne', sans-serif;">
+                    <div class="qd-table-wrap" style="padding:20px;font-family:'Syne', sans-serif;">
 
                         <table style="width:100%;border-collapse:collapse;border:2px solid #1f2f2b;">
 
@@ -381,7 +394,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                     <div style="padding:20px;font-family:'Syne', sans-serif;">
                         <div style="margin-bottom:40px;font-style:italic;">Conforme:</div>
 
-                        <div style="width:300px;border-top:2px solid #000;">
+                        <div class="qd-sign" style="width:300px;border-top:2px solid #000;">
                             <small>Signature over Printed Name / Date</small>
                         </div>
                     </div>

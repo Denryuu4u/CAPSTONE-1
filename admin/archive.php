@@ -435,6 +435,21 @@ function industryIcon($i){
       transition: border-color .18s, color .18s;
     }
     .btn-close-lg:hover { border-color: #9ca3af; color: #374151; }
+
+    /* ══ RESPONSIVE ══════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .arch-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .arch-tab-btn { flex-shrink: 0; white-space: nowrap; }
+      .arch-toolbar { flex-direction: column; align-items: stretch; }
+      .arch-search-wrap { width: 100%; }
+      .arch-filter-select { width: 100%; }
+      .arch-stats { flex-wrap: wrap; }
+      /* Wide tables scroll sideways instead of overflowing the page */
+      .arch-table { display: block; overflow-x: auto; white-space: nowrap; }
+      .avm-footer { flex-direction: column; align-items: stretch; }
+      .avm-footer-btns { justify-content: stretch; }
+      .avm-footer-btns .btn-restore-lg, .avm-footer-btns .btn-close-lg { flex: 1; justify-content: center; }
+    }
   </style>
 </head>
 <body>
@@ -450,7 +465,8 @@ function industryIcon($i){
                 <a href="#">Portal</a><span class="sep">›</span><span>Archives</span>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar-sm"><?= strtoupper(substr($user_name,0,1)); ?></div>
+                <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+                    <div class="user-avatar-sm"><?= strtoupper(substr($user_name,0,1)); ?></div>
                 <div class="lh-sm">
                     <div class="fw-semibold small text-dark"><?= htmlspecialchars($user_name); ?></div>
                     <div class="text-muted" style="font-size:12px;">Administrator</div>

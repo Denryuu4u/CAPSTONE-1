@@ -63,6 +63,7 @@ $quotation = [
     <a href="dashboard.php">Portal</a>
     <span class="sep">›</span>
     <a href="my_projects.php">Kitchen Cabinets - Unit 4B</a>
+    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
   </div>
 
   <div class="page-content">

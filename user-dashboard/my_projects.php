@@ -400,6 +400,27 @@ function peso($n) { return '₱'.number_format($n,2); }
   background: #0D9676; color: #fff;
   box-shadow: 0 2px 8px rgba(13,150,118,.25);
 }
+
+/* ══ RESPONSIVE (My Projects) ══════════════════════ */
+.mp-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 640px) {
+  /* Real table kept with a min-width; the wrapper handles the sideways scroll */
+  .projects-table { display: table !important; white-space: nowrap; min-width: 680px; margin: 0; }
+  .projects-table th, .projects-table td { white-space: nowrap; }
+}
+@media (max-width: 600px) {
+  /* Verify / View modals — quotation paper reflows on small screens */
+  #verifyModal .modal-body, #viewModal .modal-body { padding-left: 12px; padding-right: 12px; }
+  .vmp-header { flex-direction: column; gap: 12px; }
+  .vmp-header > div:last-child { text-align: left !important; min-width: 0 !important; }
+  .vmp-billship { grid-template-columns: 1fr !important; gap: 12px; }
+  .vmp-items { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .vmp-items table { min-width: 440px; }
+  .vm-action-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .vm-action-btns { display: flex; }
+  .vm-action-btns .vm-accept-btn, .vm-action-btns .vm-reject-btn { flex: 1; justify-content: center; }
+  .vm-action-hint { display: none; }
+}
   </style>
 </head>
 <body>
@@ -411,6 +432,7 @@ function peso($n) { return '₱'.number_format($n,2); }
     <a href="dashboard.php">Portal</a>
     <span class="sep">›</span>
     <span>Projects</span>
+    <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
   </div>
 
   <div class="page-content">
@@ -422,6 +444,7 @@ function peso($n) { return '₱'.number_format($n,2); }
         <a href="request_quote.php" class="btn-new">+ New Quote Request</a>
       </div>
 
+      <div class="mp-scroll">
       <table class="projects-table">
         <thead>
           <tr>
@@ -492,6 +515,7 @@ function peso($n) { return '₱'.number_format($n,2); }
           <?php endforeach; ?>
         </tbody>
       </table>
+      </div><!-- /mp-scroll -->
     </div>
   </div>
 </div>
@@ -578,7 +602,7 @@ function peso($n) { return '₱'.number_format($n,2); }
           <div style="height:6px;background:linear-gradient(90deg,#2e4a45,#4a7c72);"></div>
 
           <!-- Logo + Company + Title -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 26px 12px;">
+          <div class="vmp-header" style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 26px 12px;">
             <div style="display:flex;align-items:flex-start;gap:12px;">
               <div style="width:58px;height:58px;background:#1a2e2a;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:40px; height:40px; object-fit:contain;">
@@ -610,7 +634,7 @@ function peso($n) { return '₱'.number_format($n,2); }
           </div>
 
           <!-- Bill To / Ship To -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;padding:0 26px 14px;border-bottom:1px solid #e5e7eb;">
+          <div class="vmp-billship" style="display:grid;grid-template-columns:1fr 1fr;padding:0 26px 14px;border-bottom:1px solid #e5e7eb;">
             <div>
               <div style="font-size:.63rem;font-weight:700;color:#2e4a45;letter-spacing:.08em;border-bottom:1.5px solid #2e4a45;padding-bottom:2px;margin-bottom:7px;display:inline-block;">BILL TO</div>
               <div style="font-size:.73rem;font-weight:600;color:#1a2e2a;" id="vmPaperFor">—</div>
@@ -624,7 +648,7 @@ function peso($n) { return '₱'.number_format($n,2); }
           </div>
 
           <!-- Line items table -->
-          <div style="padding:0 26px;">
+          <div class="vmp-items" style="padding:0 26px;">
             <table style="width:100%;border-collapse:collapse;">
               <thead>
                 <tr style="background:#2e4a45;">

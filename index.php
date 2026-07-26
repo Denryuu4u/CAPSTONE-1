@@ -16,11 +16,15 @@
   <!-- NAVBAR -->
   <nav class="navbar">
     <div class="container-fluid d-flex align-items-center gap-3">
-      <a class="navbar-brand" href="index.html">
+      <a class="navbar-brand" href="index.php">
         <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
         Vast Solutions
       </a>
-      <div class="d-flex align-items-center ms-auto gap-2">
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle menu"
+              onclick="document.getElementById('navMenu').classList.toggle('open')">
+        <i class="bi bi-list"></i>
+      </button>
+      <div class="nav-menu ms-auto" id="navMenu">
         <a class="nav-link" href="#designs">Browse Designs</a>
         <a class="nav-link" href="#contact">Contact</a>
         <a class="btn-login" href="login.php">Login</a>
@@ -64,6 +68,8 @@
         </button>
       <?php endfor; ?>
     </div>
+
+    <div class="designs-pagination" id="designsPager"></div>
   </section>
   <div class="section-fade"></div>
   <!-- CONTACT SECTION -->
@@ -134,6 +140,65 @@
     }
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') closeDesign();
+    });
+
+    // ── Browse Designs pagination (responsive page size) ──
+    (function () {
+      const grid = document.querySelector('.designs-grid');
+      const pager = document.getElementById('designsPager');
+      if (!grid || !pager) return;
+      const cards = Array.from(grid.querySelectorAll('.design-card'));
+
+      function pageSizeFor() {
+        const w = window.innerWidth;
+        if (w <= 575) return 4;   // phone: 2×2
+        if (w <= 767) return 6;   // tablet: 2×3
+        return 9;                 // desktop: 3×3
+      }
+      let pageSize = pageSizeFor();
+      let page = 1;
+      const pageCount = () => Math.max(1, Math.ceil(cards.length / pageSize));
+
+      function render() {
+        const pc = pageCount();
+        if (page > pc) page = pc;
+        const start = (page - 1) * pageSize, end = start + pageSize;
+        cards.forEach((c, i) => { c.style.display = (i >= start && i < end) ? '' : 'none'; });
+
+        let html = `<button class="page-btn nav" data-go="prev" ${page === 1 ? 'disabled' : ''} aria-label="Previous">&lsaquo;</button>`;
+        for (let p = 1; p <= pc; p++) html += `<button class="page-btn ${p === page ? 'active' : ''}" data-go="${p}">${p}</button>`;
+        html += `<button class="page-btn nav" data-go="next" ${page === pc ? 'disabled' : ''} aria-label="Next">&rsaquo;</button>`;
+        pager.innerHTML = pc > 1 ? html : '';
+      }
+
+      pager.addEventListener('click', function (e) {
+        const b = e.target.closest('.page-btn');
+        if (!b) return;
+        const go = b.dataset.go;
+        if (go === 'prev') page = Math.max(1, page - 1);
+        else if (go === 'next') page = Math.min(pageCount(), page + 1);
+        else page = parseInt(go, 10);
+        render();
+        document.getElementById('designs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      let rt;
+      window.addEventListener('resize', function () {
+        clearTimeout(rt);
+        rt = setTimeout(function () {
+          const ns = pageSizeFor();
+          if (ns !== pageSize) { pageSize = ns; page = 1; render(); }
+        }, 150);
+      });
+
+      render();
+    })();
+
+    // Close the mobile nav menu after tapping a link
+    document.querySelectorAll('#navMenu a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        document.getElementById('navMenu').classList.remove('open');
+      });
     });
   </script>
 </body>

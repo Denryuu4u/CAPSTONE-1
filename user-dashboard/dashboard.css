@@ -35,6 +35,8 @@
 
    /* ── RESET ── */
    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+   /* Consistent typography across controls */
+   button, input, select, textarea { font-family: 'Inter', sans-serif; }
    body {
      font-family: 'Inter', sans-serif;
      background: var(--bg);
@@ -164,6 +166,10 @@
    .main {
      margin-left: var(--sidebar-w);
      flex: 1;
+     /* min-width:0 lets this flex child shrink below its content on small
+        screens so wide tables scroll inside their card instead of pushing
+        the whole page sideways. */
+     min-width: 0;
      display: flex;
      flex-direction: column;
      min-height: 100vh;
@@ -183,6 +189,8 @@
    .topbar a { color: var(--text-muted); text-decoration: none; }
    .topbar a:hover { color: var(--teal); }
    .topbar .sep { color: #d1d5db; }
+   /* Whole topbar stays pinned on scroll (not just the hamburger) */
+   .topbar { position: sticky; top: 0; z-index: 30; }
    
    /* Page content wrapper */
    .page-content {
@@ -762,6 +770,60 @@
      cursor: pointer;
    }
    .settings-save-btn:hover { background: var(--teal-dark); border-color: var(--teal-dark); color: #fff; }
+
+   /* =========================================
+      DELAY NOTIFICATIONS (topbar bell)
+      ========================================= */
+   .topbar .notif-dropdown { margin-left: auto; }
+   .notif-dropdown { position: relative; }
+   .notif-bell {
+     position: relative;
+     width: 34px; height: 34px;
+     border: 1px solid var(--border);
+     background: #fff;
+     border-radius: 9px;
+     color: #4b5563;
+     font-size: 1rem;
+     display: inline-flex; align-items: center; justify-content: center;
+     cursor: pointer;
+     transition: border-color .18s, color .18s;
+   }
+   .notif-bell:hover { border-color: var(--teal); color: var(--teal); }
+   .notif-badge {
+     position: absolute; top: -5px; right: -5px;
+     min-width: 16px; height: 16px; padding: 0 4px;
+     border-radius: 99px; background: #ef4444; color: #fff;
+     font-size: 0.6rem; font-weight: 700;
+     display: flex; align-items: center; justify-content: center; line-height: 1;
+   }
+   .notif-menu {
+     display: none;
+     position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
+     width: 320px; max-width: 86vw; padding: 0;
+     background: #fff; border: 1px solid var(--border); border-radius: 12px;
+     box-shadow: 0 12px 32px rgba(15,23,42,.14); overflow: hidden;
+   }
+   .notif-dropdown.open .notif-menu { display: block; }
+   .notif-head {
+     display: flex; align-items: center; justify-content: space-between;
+     padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--border);
+     font-size: 0.8rem; font-weight: 700; color: #111827;
+   }
+   .notif-head-count { font-size: 0.66rem; font-weight: 600; color: #ef4444; }
+   .notif-item {
+     display: flex; gap: 0.6rem; padding: 0.7rem 0.95rem;
+     border-bottom: 1px solid #f3f4f6; text-decoration: none; transition: background .15s;
+   }
+   .notif-item:hover { background: #f9fafb; }
+   .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-top: 5px; flex-shrink: 0; }
+   .notif-item-body { display: flex; flex-direction: column; min-width: 0; }
+   .notif-item-title { font-size: 0.76rem; font-weight: 600; color: #111827; }
+   .notif-item-sub { font-size: 0.68rem; color: #6b7280; margin-top: 1px; }
+   .notif-foot {
+     display: block; text-align: center; padding: 0.6rem;
+     font-size: 0.72rem; font-weight: 600; color: var(--teal); text-decoration: none;
+   }
+   .notif-foot:hover { background: #f0fdf9; color: var(--teal-dark); }
    
    /* =========================================
       RESPONSIVE
@@ -803,9 +865,16 @@
    }
 
    @media (max-width: 640px) {
-     .stats-row { grid-template-columns: 1fr; }
+     /* Stat cards → compact 2×2 squares */
+     .stats-row { grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+     .stat-card { padding: 0.85rem 0.9rem; gap: 0.65rem; }
+     .stat-icon { width: 32px; height: 32px; }
+     .stat-icon svg { width: 15px; height: 15px; }
+     .stat-num { font-size: 1.3rem; }
+     .stat-label { font-size: 0.66rem; }
      .detail-fields, .form-row, .q-meta { grid-template-columns: 1fr; }
      .page-content { padding: 1.3rem 1rem; }
+     .section-card { padding: 1.1rem 1.1rem !important; }
      .quotation-paper { padding: 1.6rem 1.2rem; }
      .table-header-row { flex-direction: column; align-items: stretch; gap: 0.7rem; }
      .action-bar { flex-direction: column; gap: 0.7rem; align-items: stretch; }
