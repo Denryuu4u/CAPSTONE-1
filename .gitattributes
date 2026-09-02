@@ -1,0 +1,7 @@
+# Normalize line endings: store LF in the repo, let Git handle checkout locally.
+* text=auto
+
+# These MUST stay LF (they run on Linux; CRLF would break them).
+Dockerfile      text eol=lf
+*.sh            text eol=lf
+.dockerignore   text eol=lf
