@@ -11,10 +11,12 @@ RUN apt-get update \
  && docker-php-ext-install pdo_mysql mbstring \
  && rm -rf /var/lib/apt/lists/*
 
-# Apache must load exactly ONE MPM. The apt layer can pull in mpm_event next to
-# the image's mpm_prefork, which crashes with "More than one MPM loaded".
-# Force prefork only, then (re)enable rewrite. Use ';' so a no-op disable is fine.
-RUN a2dismod mpm_event mpm_worker 2>/dev/null; a2enmod mpm_prefork rewrite
+# Apache must load exactly ONE MPM. The apt layer can pull in mpm_event/worker
+# next to the image's mpm_prefork, which crashes with "More than one MPM loaded".
+# Remove the extra MPM symlinks outright, then ensure prefork + rewrite are on.
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
+ && a2enmod mpm_prefork rewrite \
+ && echo "=== mods-enabled MPM check ===" && ls /etc/apache2/mods-enabled/ | grep mpm
 
 # Copy the app into Apache's document root.
 COPY . /var/www/html/
