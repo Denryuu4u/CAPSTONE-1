@@ -1,43 +1,67 @@
 <?php
 /**
- * Shared delay-notification bell for topbars (design-only sample data).
- * Auto-detects admin vs. customer context from the running script path,
- * and uses a self-contained toggle so it works without Bootstrap's JS.
+ * Shared notification bell for topbars — reads the `notifications` table for
+ * the current user (personal + role-broadcast). Badge shows the unread count.
  */
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/auth.php';
+
+$__u    = current_user();
+$__uid  = $__u['id']   ?? 0;
+$__role = $__u['role'] ?? '';
 $__isAdmin = strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false;
+
+$__items = [];
+$__count = 0;
+try {
+    $stmt = db()->prepare(
+        "SELECT * FROM notifications
+          WHERE user_id = :uid OR (user_id IS NULL AND target_role = :role)
+          ORDER BY is_read ASC, created_at DESC
+          LIMIT 12"
+    );
+    $stmt->execute([':uid' => $__uid, ':role' => $__role]);
+    $__items = $stmt->fetchAll();
+
+    $cnt = db()->prepare(
+        "SELECT COUNT(*) FROM notifications
+          WHERE (user_id = :uid OR (user_id IS NULL AND target_role = :role)) AND is_read = 0"
+    );
+    $cnt->execute([':uid' => $__uid, ':role' => $__role]);
+    $__count = (int) $cnt->fetchColumn();
+} catch (Throwable $e) {
+    $__items = [];
+}
+
+$__sevDot = ['danger' => '#dc2626', 'warning' => '#d97706', 'info' => '#0D9676'];
 $__allLink = $__isAdmin ? 'monitoring.php' : 'my_projects.php';
-$__items = $__isAdmin
-  ? [
-      ['t' => 'PRJ-2026-037 · Pantry Cabinets', 's' => 'Overdue — target was Mar 01, 2026 (Garcia Build Co)', 'l' => 'monitoring.php?project=PRJ-2026-037&open=view'],
-      ['t' => 'PRJ-2026-041 · Office Cabinets',  's' => 'At risk — only 20% done, target Mar 12, 2026',        'l' => 'monitoring.php?project=PRJ-2026-041&open=view'],
-    ]
-  : [
-      ['t' => 'Reception Desk - Lobby',      's' => 'Production is running behind the Mar 01 target date.',      'l' => 'my_projects.php'],
-      ['t' => 'Kitchen Cabinets - Unit 4B',  's' => 'Awaiting your quote decision before work can continue.',     'l' => 'my_projects.php'],
-    ];
-$__count = count($__items);
 ?>
 <div class="notif-dropdown">
-  <button class="notif-bell" type="button" aria-label="Delay notifications"
+  <button class="notif-bell" type="button" aria-label="Notifications"
           onclick="this.parentNode.classList.toggle('open')">
     <i class="bi bi-bell"></i>
-    <span class="notif-badge"><?= $__count ?></span>
+    <?php if ($__count > 0): ?><span class="notif-badge"><?= $__count ?></span><?php endif; ?>
   </button>
   <div class="notif-menu">
     <div class="notif-head">
-      <span>Delay Alerts</span>
-      <span class="notif-head-count"><?= $__count ?> delayed</span>
+      <span>Notifications</span>
+      <span class="notif-head-count"><?= $__count ?> unread</span>
     </div>
-    <?php foreach ($__items as $__n): ?>
-    <a href="<?= $__n['l'] ?>" class="notif-item">
-      <span class="notif-dot"></span>
+    <?php if (empty($__items)): ?>
+      <div class="notif-item"><span class="notif-item-body"><span class="notif-item-sub">You're all caught up.</span></span></div>
+    <?php else: foreach ($__items as $n):
+        $dot = $__sevDot[$n['severity']] ?? '#0D9676';
+        $link = $n['link'] ?: $__allLink;
+    ?>
+    <a href="<?= htmlspecialchars($link) ?>" class="notif-item" style="<?= $n['is_read'] ? 'opacity:.6;' : '' ?>">
+      <span class="notif-dot" style="background:<?= $dot ?>;box-shadow:0 0 0 2px <?= $dot ?>33;"></span>
       <span class="notif-item-body">
-        <span class="notif-item-title"><?= htmlspecialchars($__n['t']) ?></span>
-        <span class="notif-item-sub"><?= htmlspecialchars($__n['s']) ?></span>
+        <span class="notif-item-title"><?= htmlspecialchars($n['title']) ?></span>
+        <span class="notif-item-sub"><?= htmlspecialchars($n['message'] ?? '') ?></span>
       </span>
     </a>
-    <?php endforeach; ?>
-    <a href="<?= $__allLink ?>" class="notif-foot">View all in <?= $__isAdmin ? 'Monitoring' : 'My Projects' ?></a>
+    <?php endforeach; endif; ?>
+    <a href="#" class="notif-foot" onclick="markNotifsRead(event)">Mark all as read</a>
   </div>
 </div>
 <script>
@@ -49,5 +73,10 @@ $__count = count($__items);
       if (!d.contains(e.target)) d.classList.remove('open');
     });
   });
+  window.markNotifsRead = function (ev) {
+    ev.preventDefault();
+    var base = location.pathname.indexOf('/admin/') !== -1 ? 'mark_notifications_read.php' : '../admin/mark_notifications_read.php';
+    fetch(base, { method: 'POST' }).then(function () { location.reload(); });
+  };
 })();
 </script>

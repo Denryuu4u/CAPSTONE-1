@@ -56,8 +56,10 @@ CREATE TABLE `users` (
   `password_hash` VARCHAR(255) NOT NULL,
   `phone`         VARCHAR(40)  DEFAULT NULL,
   `location`      VARCHAR(150) DEFAULT NULL,
-  `role`          ENUM('Admin','Staff','Client') NOT NULL DEFAULT 'Client',
+  `role`          ENUM('Super Admin','Admin','Staff','Client') NOT NULL DEFAULT 'Client',
   `status`        ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+  `email_verified` TINYINT(1) NOT NULL DEFAULT 0,  -- client signup verifies via OTP
+  `verified_at`   DATETIME DEFAULT NULL,
   `avatar`        VARCHAR(255) DEFAULT NULL,
   `last_login`    DATETIME DEFAULT NULL,
   `is_archived`   TINYINT(1) NOT NULL DEFAULT 0,
@@ -72,6 +74,24 @@ CREATE TABLE `users` (
   KEY `ix_users_archived` (`is_archived`),
   CONSTRAINT `fk_users_archived_by` FOREIGN KEY (`archived_by`)
     REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- otp_codes — one-time codes for client sign-up email verification.
+-- ---------------------------------------------------------------------
+CREATE TABLE `otp_codes` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`     INT UNSIGNED DEFAULT NULL,
+  `email`       VARCHAR(150) NOT NULL,
+  `code`        VARCHAR(6)   NOT NULL,
+  `purpose`     ENUM('signup') NOT NULL DEFAULT 'signup',
+  `expires_at`  DATETIME NOT NULL,
+  `consumed_at` DATETIME DEFAULT NULL,
+  `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_otp_email_purpose` (`email`, `purpose`),
+  CONSTRAINT `fk_otp_user` FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
@@ -204,15 +224,19 @@ CREATE TABLE `quotations` (
   `installation_address` VARCHAR(255) DEFAULT NULL,
   `date_created`   DATE NOT NULL,
   `valid_until`    DATE DEFAULT NULL,                  -- typically date_created + 30 days
-  `status`         ENUM('Waiting Approval','Approved','Rejected')
-                     NOT NULL DEFAULT 'Waiting Approval',
+  -- Lifecycle: Sent (to client) -> Accepted (by client) -> Approved (by admin) / Rejected
+  `status`         ENUM('Sent','Accepted','Approved','Rejected')
+                     NOT NULL DEFAULT 'Sent',
   -- costing inputs (from the Costing Preview panel)
-  `qty_boards`     INT DEFAULT 0,
-  `qty_glass`      INT DEFAULT 0,
+  `qty_boards`     INT DEFAULT 0,                        -- retained (legacy); no longer collected
+  `qty_glass`      INT DEFAULT 0,                        -- retained (legacy); no longer collected
   `markup_pct`     DECIMAL(5,2) DEFAULT 15.00,
   `contingency_pct` DECIMAL(5,2) DEFAULT 5.00,
   `service_pct`    DECIMAL(5,2) DEFAULT 10.00,
   `protection_pct` DECIMAL(5,2) DEFAULT 3.00,
+  `labor_cost`     DECIMAL(12,2) NOT NULL DEFAULT 0.00,  -- 50% of material_total
+  `substrate`      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `out_of_town_pct` DECIMAL(5,2) NOT NULL DEFAULT 0.00,  -- % of material_total
   `special_works`  DECIMAL(12,2) DEFAULT 0.00,
   `accessories`    DECIMAL(12,2) DEFAULT 0.00,
   -- computed totals
@@ -265,6 +289,7 @@ CREATE TABLE `project_updates` (
   `author_id`   INT UNSIGNED DEFAULT NULL,
   `author_name` VARCHAR(120) DEFAULT NULL,             -- denormalised for display
   `update_text` TEXT NOT NULL,
+  `attachment_path` VARCHAR(255) DEFAULT NULL,          -- optional uploaded image
   `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `ix_upd_project` (`project_id`),
@@ -430,6 +455,9 @@ CREATE TABLE `company_settings` (
   `contact_number`   VARCHAR(40)  DEFAULT NULL,
   `address`          VARCHAR(255) DEFAULT NULL,
   `logo_path`        VARCHAR(255) DEFAULT NULL,
+  `web_email`        VARCHAR(150) DEFAULT NULL,
+  `web_phone`        VARCHAR(40)  DEFAULT NULL,
+  `web_location`     VARCHAR(255) DEFAULT NULL,
   `default_markup_pct`      DECIMAL(5,2) NOT NULL DEFAULT 15.00,
   `default_contingency_pct` DECIMAL(5,2) NOT NULL DEFAULT 5.00,
   `default_service_pct`     DECIMAL(5,2) NOT NULL DEFAULT 10.00,
@@ -440,15 +468,82 @@ CREATE TABLE `company_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- ---------------------------------------------------------------------
+--  gallery_images — design gallery shown on index.php + request_quote.php,
+--  managed from admin Settings (Design Gallery card).
+-- ---------------------------------------------------------------------
+CREATE TABLE `gallery_images` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `file_path`  VARCHAR(255) NOT NULL,             -- relative to project root
+  `label`      VARCHAR(150) DEFAULT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ---------------------------------------------------------------------
+--  legal_documents — editable Terms & Conditions and Privacy Policy.
+--  Edited by Super Admin (admin/settings.php). `version` bumps on every
+--  content change, which forces clients to re-accept (user_agreements).
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `user_agreements`;
+DROP TABLE IF EXISTS `legal_documents`;
+
+CREATE TABLE `legal_documents` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `doc_key`    ENUM('terms','privacy') NOT NULL,
+  `title`      VARCHAR(150) NOT NULL,
+  `body`       LONGTEXT NOT NULL,                 -- simple markup: # heading, - bullet, -- sub-bullet
+  `version`    INT UNSIGNED NOT NULL DEFAULT 1,
+  `updated_by` INT UNSIGNED DEFAULT NULL,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_legal_doc_key` (`doc_key`),
+  CONSTRAINT `fk_legal_updated_by` FOREIGN KEY (`updated_by`)
+    REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+--  user_agreements — which legal document version each user has accepted.
+--  A client is "up to date" when a row exists for the current version of
+--  every legal_documents row; otherwise they hit the acceptance gate.
+-- ---------------------------------------------------------------------
+CREATE TABLE `user_agreements` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`     INT UNSIGNED NOT NULL,
+  `doc_key`     ENUM('terms','privacy') NOT NULL,
+  `version`     INT UNSIGNED NOT NULL,
+  `ip_address`  VARCHAR(45) DEFAULT NULL,
+  `accepted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_doc_ver` (`user_id`, `doc_key`, `version`),
+  KEY `ix_agree_user` (`user_id`),
+  CONSTRAINT `fk_agree_user` FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- =====================================================================
 --  SEED DATA
 -- =====================================================================
 
--- Default admin account.  Password = "admin123"  (bcrypt hash below).
--- Change this after first login.
-INSERT INTO `users` (`full_name`, `email`, `password_hash`, `role`, `status`)
+-- Default back-office accounts (pre-verified). Passwords in comments.
+-- Change these after first login.
+--   admin@vastsolutions.com  / admin123  (Super Admin)
+--   admin2@vastsolutions.com / admin123  (Admin)
+--   staff@vastsolutions.com  / admin123  (Staff)
+INSERT INTO `users` (`full_name`, `email`, `password_hash`, `role`, `status`, `email_verified`)
 VALUES ('Admin User', 'admin@vastsolutions.com',
-        '$2y$10$6X4e8BYtjB.arLlyNVYo1OnHXCGkhW0g6qvJE0r1ouXxpnvezfiGK', 'Admin', 'Active');
+        '$2y$10$6X4e8BYtjB.arLlyNVYo1OnHXCGkhW0g6qvJE0r1ouXxpnvezfiGK', 'Super Admin', 'Active', 1);
+
+INSERT INTO `users` (`full_name`, `email`, `password_hash`, `role`, `status`, `email_verified`)
+VALUES ('Alex Admin', 'admin2@vastsolutions.com',
+        '$2y$10$6X4e8BYtjB.arLlyNVYo1OnHXCGkhW0g6qvJE0r1ouXxpnvezfiGK', 'Admin', 'Active', 1);
+
+INSERT INTO `users` (`full_name`, `email`, `password_hash`, `role`, `status`, `email_verified`)
+VALUES ('Sam Staff', 'staff@vastsolutions.com',
+        '$2y$10$6X4e8BYtjB.arLlyNVYo1OnHXCGkhW0g6qvJE0r1ouXxpnvezfiGK', 'Staff', 'Active', 1);
 
 -- Company profile (single row).
 INSERT INTO `company_settings`
@@ -479,25 +574,46 @@ INSERT INTO `material_library` (`code`, `normalized_name`) VALUES
   ('16777797', 'MP18 HPL'),
   ('16777798', 'PB15 HPL');
 
--- Edging library (migrated from legacy edging.dbf: raw code -> grouped code).
-INSERT INTO `edging_library` (`code`, `normalized_name`) VALUES
-  ('2WE2LE', '2W2L'),
-  ('2LE',    '2L'),
-  ('2WE',    '2W'),
-  ('2WE1LE', '2W1L'),
-  ('1WE2LE', '1W2L'),
-  ('1WE',    '1W'),
-  ('1LE',    '1L'),
-  ('2LE2WE', '2W2L'),
-  ('1LE1WE', '1W1L'),
-  ('1WE1LE', '1W1L'),
-  ('2LE1WE', '1W2L'),
-  ('2WG2LG', ''),
-  ('2WC2LE', '2L'),
-  ('2WJ2LJ', ''),
-  ('2WH2LB', '2L'),
-  ('2WB2LB', '2W2L'),
-  ('2WC2LC', '2L');
+-- Edging library — intentionally left EMPTY so edge codes pass through raw
+-- (e.g. 2WE2LE, 2WC2LE), matching the legacy CVProcess .xls output.
+-- The table is kept so admins can add groupings via the Custom Edge Library
+-- (summarization Page 2); any code with no row here is exported unchanged.
+-- Reference: the legacy edging.dbf mapped 2WE2LE->2W2L, 2WC2LE->2L,
+-- 2WG2LG->'', etc. Re-add those rows only if grouped edges are wanted.
+
+-- ---------------------------------------------------------------------
+--  Sample dev data — supports the DEV_MODE "View as Client" identity
+--  (see includes/auth.php) and gives DB-backed views something to show.
+--  Client login (once real auth exists): client@demo.test / client123
+-- ---------------------------------------------------------------------
+INSERT INTO `users` (`full_name`, `email`, `password_hash`, `phone`, `role`, `status`, `email_verified`)
+VALUES ('Juan Dela Cruz', 'client@demo.test',
+        '$2y$10$AqjiskjZF/jj4sT6q9Y8PeVGcctY8nl1RMFwnOjVl4RTO1dK6oQwq',
+        '+63 917 555 0110', 'Client', 'Active', 1);
+SET @client_user_id = LAST_INSERT_ID();
+
+INSERT INTO `customers` (`user_id`, `name`, `contact_person`, `email`, `phone`, `address`, `industry`)
+VALUES (@client_user_id, 'Chua Residence', 'Juan Dela Cruz', 'client@demo.test',
+        '+63 917 555 0110', '12 Narra St., Quezon City', 'Real Estate');
+SET @client_customer_id = LAST_INSERT_ID();
+
+INSERT INTO `projects`
+    (`project_code`, `customer_id`, `project_name`, `category`, `description`,
+     `installation_address`, `status`, `progress`, `start_date`, `target_completion`, `approver`)
+VALUES
+    ('PRJ-2026-001', @client_customer_id, 'Chua Kitchen', 'Kitchen Cabinets',
+     'Main kitchen cabinet set with island.', '12 Narra St., Quezon City',
+     'approved', 10, '2026-07-01', '2026-09-15', 'Engr. Marco Reyes'),
+    ('PRJ-2026-002', @client_customer_id, 'Master Bedroom Wardrobe', 'Wardrobe',
+     'Walk-in closet, soft-close doors.', '12 Narra St., Quezon City',
+     'production', 60, '2026-06-15', '2026-08-30', 'Engr. Marco Reyes');
+
+-- Legal documents (Terms & Conditions, Privacy Policy). Editable in admin Settings.
+INSERT INTO `legal_documents` (`doc_key`, `title`, `body`, `version`) VALUES
+  ('terms', 'Terms & Conditions',
+   '# 1. Introduction\nThese Terms & Conditions (\"Terms\") govern your use of the Vast Solutions online platform (the \"Platform\") and all design services, fabrication work, modular cabinet products, and related offerings provided by Vast Solutions (\"Company\", \"we\", \"our\"). By creating an account, engaging our services, or purchasing our products, you (\"you\", \"your\", the \"Client\") agree to these Terms.\n\n# 2. Accounts & Registration\n- You must provide accurate, current, and complete information when creating your account, and keep it up to date.\n- You are responsible for keeping your login credentials confidential and for all activity under your account.\n- Accounts are verified by email. We may suspend or archive accounts that are inactive, misused, or created with false information.\n\n# 3. Scope of Work\n- All design, fabrication, and installation work will follow the approved drawings, specifications, and quotations.\n- Any revisions requested after approval may result in additional fees and adjusted timelines.\n- Vast Solutions reserves the right to decline revisions that compromise structural integrity, safety, or feasibility.\n\n# 4. Quotations & Pricing\n- Quotations are valid for 30 days unless otherwise stated.\n- Pricing may change due to material availability, supplier adjustments, or design changes initiated by the Client.\n- A down payment is required before production begins.\n- Quotations issued through the Platform show the project total; internal costing breakdowns remain the property of the Company.\n\n# 5. Payments\n- Standard payment terms:\n-- 50% upon project confirmation\n-- 25% upon delivery and start of installation\n-- 15% after installation\n-- 10% after punchlist and turnover\n- Payments are non-refundable once fabrication has started.\n- Late payments may delay production and delivery schedules.\n\n# 6. Lead Time & Delivery\n- Lead time is 4-6 weeks after the deposit has been made, but may vary depending on project complexity, material availability, and production queue.\n- Delivery dates provided are estimates and may shift due to unforeseen circumstances.\n- Vast Solutions is not liable for delays caused by suppliers, logistics partners, or force majeure events.\n\n# 7. Installation\n- Installation fees are included only if stated in the quotation.\n- The Client must ensure the site is ready, accessible, and free from obstructions.\n\n# 8. Materials & Warranty\n- Vast Solutions uses the materials specified in the approved quotation.\n- Natural variations in wood, laminates, and finishes are expected and are not considered defects.\n- Warranty coverage:\n-- 1-year warranty on workmanship\n-- Manufacturer warranty applies to hardware and accessories\n- Warranty does not cover misuse, water damage, improper cleaning, or unauthorized modifications.\n\n# 9. Design Ownership & Intellectual Property\n- All design concepts, drawings, and 3D renders remain the intellectual property of Vast Solutions.\n- Clients may not reproduce, distribute, or use the designs for fabrication by another party without written consent.\n- The Platform, including its layout, content, and software, is owned by Vast Solutions and may not be copied or reused without permission.\n\n# 10. Acceptable Use of the Platform\n- You agree to use the Platform only for lawful purposes related to your own projects.\n- You may not upload malicious files, attempt to gain unauthorized access, or disrupt the service.\n- Files you upload (drawings, measurements, site photos) must be yours to share.\n\n# 11. Cancellations\n- Cancellation before fabrication may incur design and administrative fees.\n- Cancellation after fabrication begins is not eligible for a refund.\n\n# 12. Liability\n- Vast Solutions is not responsible for damages caused by improper use, unauthorized repairs, or external contractors.\n- Our liability is limited to the value of the project stated in the quotation.\n\n# 13. Amendments\nWe may update these Terms from time to time. When we do, you will be asked to review and accept the updated Terms the next time you sign in. Continued engagement with our services constitutes acceptance of the updated Terms.\n\n# 14. Contact\nFor questions about these Terms, contact us through our official business channels.', 1),
+  ('privacy', 'Privacy Policy',
+   '# 1. Introduction\nThis Privacy Policy explains how Vast Solutions (\"we\", \"our\", \"us\") collects, uses, and protects personal information provided by clients, website visitors, and project partners through our online platform and services.\n\n# 2. Information We Collect\nWe may collect the following information:\n- Name, contact number, and email address\n- Account credentials (passwords are stored only in encrypted form)\n- Project details, measurements, and site photos you upload\n- Quotation, billing, and payment information\n- Communication and activity records (messages, notifications, and system logs)\n\n# 3. How We Use Your Information\nWe use collected information to:\n- Provide design, fabrication, and installation services\n- Create and manage your account and client portal\n- Prepare quotations, drawings, and project documentation\n- Communicate updates, schedules, and revisions\n- Improve our products, services, and customer experience\n- Maintain internal records, audit trails, and accounting\n\n# 4. Data Protection\n- We implement reasonable security measures to protect your information.\n- Passwords are hashed and are never stored in plain text.\n- Only authorized personnel have access to client data, based on their role.\n- We do not sell, rent, or share your personal information with third parties except as required to complete your project (e.g., suppliers, logistics partners).\n\n# 5. Cookies & Sessions\n- The Platform uses session cookies to keep you signed in and to operate securely.\n- These cookies are essential to the service and are not used for advertising.\n\n# 6. Third-Party Services\nWe may work with external suppliers, delivery partners, or subcontractors. These parties receive only the information necessary to perform their function and are expected to maintain confidentiality.\n\n# 7. Data Retention\nWe retain project and client information for as long as necessary to:\n- Complete the project\n- Comply with legal and accounting requirements\n- Support warranty claims and after-sales service\n\n# 8. Your Rights\nYou may request:\n- Access to your personal data\n- Correction of inaccurate information\n- Deletion of data that is no longer needed\nRequests can be made through our official contact channels.\n\n# 9. Updates to This Policy\nWe may update this Privacy Policy periodically. When we make significant changes, you will be asked to review and accept the updated policy the next time you sign in. Continued use of our services indicates acceptance of the updated policy.\n\n# 10. Contact Information\nFor questions or requests related to privacy or data handling, you may contact us through our official business channels.', 1);
 
 -- =====================================================================
 --  END

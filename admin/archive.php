@@ -1,13 +1,47 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 $active_page = 'archive';
+require_page($active_page); // role gate (Super Admin / Admin)
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 $user_initial = strtoupper(substr($user_name, 0, 1));
 
 // ── ARCHIVED USERS (system accounts that have been deactivated/archived)
-$archived_users = [
+require_once __DIR__ . '/../includes/helpers.php';
+
+$archived_users = [];
+foreach (db()->query(
+    "SELECT u.*, a.full_name AS archiver FROM users u LEFT JOIN users a ON a.id = u.archived_by
+      WHERE u.is_archived = 1 ORDER BY u.archived_at DESC"
+) as $r) {
+    $archived_users[] = [
+        'id' => (int) $r['id'], 'name' => $r['full_name'], 'email' => $r['email'], 'role' => $r['role'],
+        'phone' => $r['phone'] ?? '', 'joined' => $r['created_at'] ? date('Y-m-d', strtotime($r['created_at'])) : '',
+        'archived' => $r['archived_at'] ? date('Y-m-d', strtotime($r['archived_at'])) : '',
+        'archived_by' => $r['archiver'] ?? '—', 'reason' => $r['archive_reason'] ?? '', 'projects' => 0,
+        'avatar' => strtoupper(substr($r['full_name'], 0, 2)),
+    ];
+}
+
+$archived_customers = [];
+foreach (db()->query(
+    "SELECT c.*, a.full_name AS archiver,
+            (SELECT COUNT(*) FROM projects p WHERE p.customer_id = c.id) AS pcount
+       FROM customers c LEFT JOIN users a ON a.id = c.archived_by
+      WHERE c.is_archived = 1 ORDER BY c.archived_at DESC"
+) as $r) {
+    $archived_customers[] = [
+        'id' => (int) $r['id'], 'name' => $r['name'], 'contact' => $r['contact_person'] ?? '', 'email' => $r['email'] ?? '',
+        'phone' => $r['phone'] ?? '', 'address' => $r['address'] ?? '', 'industry' => $r['industry'] ?? '—',
+        'avatar' => strtoupper(substr($r['name'], 0, 2)), 'total_projects' => (int) $r['pcount'], 'total_value' => '—',
+        'joined' => $r['created_at'] ? date('Y-m-d', strtotime($r['created_at'])) : '',
+        'archived' => $r['archived_at'] ? date('Y-m-d', strtotime($r['archived_at'])) : '',
+        'archived_by' => $r['archiver'] ?? '—', 'reason' => $r['archive_reason'] ?? '',
+    ];
+}
+
+$__dead_u = [
   ['id'=>'USR-008',
    'name'=>'Maria',
    'email'=>'maria@email.com',
@@ -70,7 +104,7 @@ $archived_users = [
 ];
 
 // ── ARCHIVED CUSTOMERS (business/company client records)
-$archived_customers = [
+$__dead_c = [
   ['id'=>'CUS-011',
    'name'=>'Meridian Build Corp.',
    'contact'=>'Kevin Uy',
@@ -217,27 +251,27 @@ function industryIcon($i){
     .topbar-chevron   { font-size: .6rem; color: #9ca3af; margin-left: 2px; }
 
     /* ══ ARCH TAB SWITCHER ══════════════════════════════════════════ */
-    .arch-tabs { display: flex; gap: 6px; margin-bottom: 20px;}
+    /* Match the tab/pill style used on Quotations & Reports (6px rounded, subtle grey). */
+    .arch-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
     .arch-tab-btn {
       display: inline-flex; align-items: center; gap: 7px;
-      padding: 8px 20px; border-radius: 999px;
-      font-family: 'Inter', sans-serif; font-size: .8rem; font-weight: 600;
-      cursor: pointer; border: 1.5px solid #e5e7eb;
-      background: #fff; color: #6b7280; transition: all .18s;
+      padding: 0.42rem 0.9rem; border-radius: 6px;
+      font-family: 'Inter', sans-serif; font-size: .72rem; font-weight: 500;
+      cursor: pointer; border: 1px solid #e5e7eb;
+      background: #f9fafb; color: #374151; transition: 0.2s ease;
     }
-    .arch-tab-btn i { font-size: .85rem; }
+    .arch-tab-btn i { font-size: .8rem; }
     .arch-tab-btn:hover { border-color: #0D9676; color: #0D9676; }
     .arch-tab-btn.active {
       background: #0D9676; border-color: #0D9676; color: #fff;
-      box-shadow: 0 2px 8px rgba(13,150,118,.28);
     }
     .arch-tab-count {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 20px; height: 20px; border-radius: 50%;
-      font-size: .65rem; font-weight: 700;
+      min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+      font-size: .62rem; font-weight: 700;
     }
     .arch-tab-btn.active .arch-tab-count { background: rgba(255,255,255,.25); color: #fff; }
-    .arch-tab-btn:not(.active) .arch-tab-count { background: #f3f4f6; color: #374151; }
+    .arch-tab-btn:not(.active) .arch-tab-count { background: #eef0f3; color: #6b7280; }
 
     /* ══ TOOLBAR ════════════════════════════════════════════════════ */
     .arch-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -559,6 +593,7 @@ function industryIcon($i){
               <td>
                 <div style="display:inline-flex;gap:6px;align-items:center;">
                   <button class="btn-arch-restore arch-restore-btn"
+                    data-id="<?= (int) $u['id'] ?>" data-type="user"
                     data-name="<?= htmlspecialchars($u['name']) ?>">
                     <i class="bi bi-arrow-counterclockwise"></i> Restore
                   </button>
@@ -663,6 +698,7 @@ function industryIcon($i){
               <td>
                 <div style="display:inline-flex;gap:6px;align-items:center;">
                   <button class="btn-arch-restore arch-restore-btn"
+                    data-id="<?= (int) $c['id'] ?>" data-type="customer"
                     data-name="<?= htmlspecialchars($c['name']) ?>">
                     <i class="bi bi-arrow-counterclockwise"></i> Restore
                   </button>
@@ -821,9 +857,13 @@ function fieldFull(label, val){
 // ── RESTORE (row buttons) ────────────────────────────────────────────
 document.querySelectorAll('.arch-restore-btn').forEach(btn => {
   btn.addEventListener('click', function(){
-    const name = this.dataset.name;
+    const name = this.dataset.name, id = this.dataset.id, type = this.dataset.type;
     if(confirm(`Restore "${name}"? They will be moved back to active records.`)){
-      alert(`"${name}" has been restored.`);
+      fetch('archive_entity.php', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({ type, id, action:'restore' }) })
+        .then(async r => { const d = await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d; })
+        .then(() => location.reload())
+        .catch(e => alert(e.message));
     }
   });
 });

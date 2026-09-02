@@ -1,14 +1,34 @@
 <?php
-session_start();
-// Redirect to login if not authenticated
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
-
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
+require_once __DIR__ . '/../includes/legal.php';
+require_agreements(); // clients must accept the latest Terms & Privacy first
 
 require_once __DIR__ . '/../includes/project_status.php';
 
 $active_page = 'dashboard';
 
 $user_name = $_SESSION['full_name'] ?? 'John Doe';
+
+require_once __DIR__ . '/../includes/helpers.php';
+$__cid = current_user()['id'] ?? 0;
+$__one = function (string $sql) use ($__cid) {
+    $st = db()->prepare($sql);
+    $st->execute([$__cid]);
+    return (int) $st->fetchColumn();
+};
+$dashActive    = $__one("SELECT COUNT(*) FROM projects p JOIN customers c ON c.id=p.customer_id WHERE c.user_id=? AND p.status NOT IN ('completed','rejected')");
+$dashPending   = $__one("SELECT COUNT(*) FROM quotations q JOIN customers c ON c.id=q.customer_id WHERE c.user_id=? AND q.status='Sent'");
+$dashCompleted = $__one("SELECT COUNT(*) FROM projects p JOIN customers c ON c.id=p.customer_id WHERE c.user_id=? AND p.status='completed'");
+$dashDocs      = $__one("SELECT COUNT(*) FROM request_files f JOIN project_requests r ON r.id=f.request_id JOIN customers c ON c.id=r.customer_id WHERE c.user_id=?");
+
+$__rp = db()->prepare(
+    "SELECT p.id, p.project_name, p.status, p.updated_at
+       FROM projects p JOIN customers c ON c.id=p.customer_id
+      WHERE c.user_id=? ORDER BY p.updated_at DESC, p.id DESC LIMIT 5"
+);
+$__rp->execute([$__cid]);
+$dashRecent = $__rp->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,7 +67,7 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
           <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
         <div>
-          <div class="stat-num">3</div>
+          <div class="stat-num"><?= $dashActive ?></div>
           <div class="stat-label">Active Projects</div>
         </div>
       </div>
@@ -56,7 +76,7 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
         <div>
-          <div class="stat-num">2</div>
+          <div class="stat-num"><?= $dashPending ?></div>
           <div class="stat-label">Pending Quotes</div>
         </div>
       </div>
@@ -65,7 +85,7 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
           <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         </div>
         <div>
-          <div class="stat-num">12</div>
+          <div class="stat-num"><?= $dashCompleted ?></div>
           <div class="stat-label">Completed</div>
         </div>
       </div>
@@ -74,7 +94,7 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
         <div>
-          <div class="stat-num">28</div>
+          <div class="stat-num"><?= $dashDocs ?></div>
           <div class="stat-label">Documents</div>
         </div>
       </div>
@@ -84,27 +104,17 @@ $user_name = $_SESSION['full_name'] ?? 'John Doe';
     <div class="section-card">
       <div class="section-card-title">Recent Projects</div>
       <div class="project-list">
+        <?php if (empty($dashRecent)): ?>
+        <div class="project-row"><div><div class="project-name text-muted">No projects yet.</div></div></div>
+        <?php else: foreach ($dashRecent as $rp): ?>
         <div class="project-row">
           <div>
-            <div class="project-name">Kitchen Cabinets - Unit 4B</div>
-            <div class="project-time">2 hours ago</div>
+            <div class="project-name"><a href="my_projects.php?view=<?= (int) $rp['id'] ?>" style="text-decoration:none;color:inherit;"><?= htmlspecialchars($rp['project_name']) ?></a></div>
+            <div class="project-time"><?= time_ago($rp['updated_at']) ?></div>
           </div>
-          <?= project_status_badge('production', 'badge-status') ?>
+          <?= project_status_badge($rp['status'], 'badge-status') ?>
         </div>
-        <div class="project-row">
-          <div>
-            <div class="project-name">Office Built-ins - Floor 3</div>
-            <div class="project-time">1 day ago</div>
-          </div>
-          <?= project_status_badge('approved', 'badge-status') ?>
-        </div>
-        <div class="project-row">
-          <div>
-            <div class="project-name">Bathroom Vanity - Residence</div>
-            <div class="project-time">3 days ago</div>
-          </div>
-          <?= project_status_badge('quote_submitted', 'badge-status') ?>
-        </div>
+        <?php endforeach; endif; ?>
       </div>
     </div>
 

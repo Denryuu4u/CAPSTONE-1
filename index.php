@@ -1,3 +1,25 @@
+<?php
+// Public landing page — pull the "Contact Us" details from settings (no auth needed).
+$contact = ['web_email' => 'support@vastsolutions.com', 'web_phone' => '+63 900 000 0000', 'web_location' => 'Calamba, Laguna, Philippines'];
+try {
+    require_once __DIR__ . '/includes/db.php';
+    $row = db()->query("SELECT web_email, web_phone, web_location FROM company_settings WHERE id = 1")->fetch();
+    if ($row) {
+        foreach ($contact as $k => $v) {
+            if (!empty($row[$k])) $contact[$k] = $row[$k];
+        }
+    }
+} catch (Throwable $e) { /* fall back to defaults */ }
+$ce = fn($k) => htmlspecialchars($contact[$k], ENT_QUOTES);
+
+// Design gallery (managed in admin Settings → Design Gallery).
+$galleryImages = [];
+try {
+    if (function_exists('db')) {
+        $galleryImages = db()->query("SELECT file_path, label FROM gallery_images ORDER BY sort_order, id")->fetchAll();
+    }
+} catch (Throwable $e) { $galleryImages = []; }
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -60,13 +82,15 @@
     </p>
 
     <div class="designs-grid">
-      <?php for ($i = 1; $i <= 18; $i++):
-        $img = 'cabinet_image/cabinet_image' . $i . '.jpg'; ?>
-        <button type="button" class="design-card" onclick="openDesign('<?= $img ?>')">
-          <img src="<?= $img ?>" alt="Cabinet design <?= $i ?>" loading="lazy">
+      <?php if (empty($galleryImages)): ?>
+        <p class="designs-intro">No designs to show yet.</p>
+      <?php else: foreach ($galleryImages as $idx => $g):
+        $img = $g['file_path']; ?>
+        <button type="button" class="design-card" onclick="openDesign('<?= htmlspecialchars($img, ENT_QUOTES) ?>')">
+          <img src="<?= htmlspecialchars($img) ?>" alt="<?= htmlspecialchars($g['label'] ?: 'Cabinet design ' . ($idx + 1)) ?>" loading="lazy">
           <span class="design-overlay"><i class="bi bi-eye"></i> View</span>
         </button>
-      <?php endfor; ?>
+      <?php endforeach; endif; ?>
     </div>
 
     <div class="designs-pagination" id="designsPager"></div>
@@ -90,17 +114,17 @@
 
           <div class="info-item">
             <strong>Email:</strong>
-            <span>support@vastsolutions.com</span>
+            <span><?= $ce('web_email') ?></span>
           </div>
 
           <div class="info-item">
             <strong>Phone:</strong>
-            <span>+63 900 000 0000</span>
+            <span><?= $ce('web_phone') ?></span>
           </div>
 
           <div class="info-item">
             <strong>Location:</strong>
-            <span>Calamba, Laguna, Philippines</span>
+            <span><?= $ce('web_location') ?></span>
           </div>
         </div>
 
@@ -118,7 +142,7 @@
   </section>
 
   <footer>
-    &copy; 2025 Vast Solutions. All rights reserved. &nbsp;|&nbsp; <a href="#">Privacy Policy</a>
+    &copy; 2025 Vast Solutions. All rights reserved. &nbsp;|&nbsp; <a href="legal.php?doc=terms">Terms &amp; Conditions</a> &nbsp;|&nbsp; <a href="legal.php?doc=privacy">Privacy Policy</a>
   </footer>
 
   <!-- DESIGN LIGHTBOX (view only) -->

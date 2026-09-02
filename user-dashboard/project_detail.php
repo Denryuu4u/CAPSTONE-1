@@ -1,6 +1,8 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
+require_once __DIR__ . '/../includes/legal.php';
+require_agreements(); // clients must accept the latest Terms & Privacy first
 
 require_once __DIR__ . '/../includes/project_status.php';
 
@@ -8,38 +10,73 @@ $active_page = 'my_projects';
 
 
 
-// Example: get project by ID from DB
-// $id = (int)($_GET['id'] ?? 0);
-// $stmt = $pdo->prepare("SELECT * FROM projects WHERE id = ? AND user_id = ?");
-// $stmt->execute([$id, $_SESSION['user_id']]);
-// $project = $stmt->fetch(PDO::FETCH_ASSOC);
-// if (!$project) { header('Location: my_projects.php'); exit; }
+require_once __DIR__ . '/../includes/helpers.php';
 
-// Placeholder
+$id = (int) ($_GET['id'] ?? 0);
+
+// Project details now live inside My Projects (view modal). Send any direct
+// link (dashboard, older notifications, bookmarks) there with the modal open.
+header('Location: my_projects.php' . ($id ? '?view=' . $id : ''));
+exit;
+
+$stmt = db()->prepare(
+    "SELECT p.*, c.name AS customer_name, c.user_id AS client_user_id, r.id AS req_id
+       FROM projects p
+       JOIN customers c ON c.id = p.customer_id
+       LEFT JOIN project_requests r ON r.id = p.request_id
+      WHERE p.id = ?"
+);
+$stmt->execute([$id]);
+$row = $stmt->fetch();
+if (!$row) { header('Location: my_projects.php'); exit; }
+
+$files = [];
+if ($row['req_id']) {
+    $fs = db()->prepare("SELECT file_name FROM request_files WHERE request_id = ?");
+    $fs->execute([$row['req_id']]);
+    $files = array_column($fs->fetchAll(), 'file_name');
+}
 $project = [
-  'name'      => 'Kitchen Cabinets - Unit 4B',
-  'category'  => 'Kitchen Cabinets',
-  'status'    => 'production',
-  'submitted' => '2026-03-01',
-  'notes'     => 'Modern shaker-style, soft-close hinges, matte white finish.',
-  'files'     => ['kitchen-layout-v2.pdf', 'material-specs.pdf'],
+    'name'      => $row['project_name'],
+    'category'  => $row['category'] ?? '',
+    'status'    => $row['status'],
+    'submitted' => date('Y-m-d', strtotime($row['created_at'])),
+    'notes'     => $row['description'] ?? '',
+    'files'     => $files,
 ];
-$quotation = [
-  'id'          => 'QT-2026-041',
-  'status'      => 'Pending',
-  'date_issued' => '2026-03-11',
-  'valid_until' => '2026-03-25',
-  'client'      => 'John Doe',
-  'items'       => [
-    ['desc'=>'Upper Cabinets (8 units)', 'qty'=>8,  'unit'=>450.00,  'amount'=>3600.00],
-    ['desc'=>'Lower Cabinets (6 units)', 'qty'=>6,  'unit'=>620.00,  'amount'=>3720.00],
-    ['desc'=>'Island Unit',              'qty'=>1,  'unit'=>2890.00, 'amount'=>2890.00],
-    ['desc'=>'Hardware & Accessories',   'qty'=>1,  'unit'=>1230.00, 'amount'=>1230.00],
-    ['desc'=>'Installation Labour',      'qty'=>1,  'unit'=>1100.00, 'amount'=>1100.00],
-  ],
-  'total'       => 12450.00,
-  'notes'       => 'Price includes delivery within 30km radius. Installation scheduled for 2 days.',
+
+$qs = db()->prepare("SELECT * FROM quotations WHERE project_id = ? ORDER BY id DESC LIMIT 1");
+$qs->execute([$id]);
+$qrow = $qs->fetch();
+$statusMap = ['Sent' => 'Pending', 'Accepted' => 'Accepted', 'Approved' => 'Approved', 'Rejected' => 'Rejected'];
+$quotation = $qrow ? [
+    'pk'          => (int) $qrow['id'],
+    'id'          => $qrow['quote_code'],
+    'status'      => $statusMap[$qrow['status']] ?? $qrow['status'],
+    'raw_status'  => $qrow['status'],
+    'date_issued' => $qrow['date_created'] ? date('Y-m-d', strtotime($qrow['date_created'])) : '',
+    'valid_until' => $qrow['valid_until']  ? date('Y-m-d', strtotime($qrow['valid_until']))  : '',
+    'client'      => $row['customer_name'],
+    // Client sees only the final total, not the internal materials.
+    'items'       => [['desc' => 'Custom cabinetry works — ' . $row['project_name'], 'qty' => 1, 'unit' => (float) $qrow['total_amount'], 'amount' => (float) $qrow['total_amount']]],
+    'total'       => (float) $qrow['total_amount'],
+    'notes'       => $qrow['notes'] ?? '',
+] : [
+    'pk' => 0, 'id' => '—', 'status' => '', 'raw_status' => '', 'date_issued' => '', 'valid_until' => '',
+    'client' => $row['customer_name'], 'items' => [], 'total' => 0, 'notes' => '',
 ];
+
+$acts = db()->prepare("SELECT author_name, update_text, attachment_path, created_at FROM project_updates WHERE project_id = ? ORDER BY created_at DESC, id DESC");
+$acts->execute([$id]);
+$activity = [];
+foreach ($acts as $a) {
+    $activity[] = [
+        'text'  => $a['update_text'],
+        'date'  => date('Y-m-d g:i A', strtotime($a['created_at'])),
+        'by'    => $a['author_name'] ?: 'Vast Solutions',
+        'image' => $a['attachment_path'] ? '../' . $a['attachment_path'] : null,
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -114,27 +151,25 @@ $quotation = [
       <div class="detail-card">
         <div class="detail-card-title">Activity</div>
         <div class="activity-list">
+          <?php if (empty($activity)): ?>
+            <div class="activity-item"><div class="activity-dot blue"></div><div><div class="activity-text">No updates yet.</div></div></div>
+          <?php else: foreach ($activity as $a): ?>
           <div class="activity-item">
             <div class="activity-dot blue"></div>
             <div>
-              <div class="activity-text">Quotation sent to client</div>
-              <div class="activity-date">2026-03-11 · Vast Solutions</div>
+              <?php $caption = ($a['image'] && $a['text'] === '(image)') ? '' : $a['text']; ?>
+              <?php if ($caption !== ''): ?>
+              <div class="activity-text"><?= htmlspecialchars($caption) ?></div>
+              <?php endif; ?>
+              <?php if (!empty($a['image'])): ?>
+              <a href="<?= htmlspecialchars($a['image']) ?>" target="_blank" class="activity-image-link">
+                <img src="<?= htmlspecialchars($a['image']) ?>" alt="Project update photo" class="activity-image">
+              </a>
+              <?php endif; ?>
+              <div class="activity-date"><?= htmlspecialchars($a['date']) ?> · <?= htmlspecialchars($a['by']) ?></div>
             </div>
           </div>
-          <div class="activity-item">
-            <div class="activity-dot blue"></div>
-            <div>
-              <div class="activity-text">Design review completed</div>
-              <div class="activity-date">2026-03-05 · Vast Solutions</div>
-            </div>
-          </div>
-          <div class="activity-item">
-            <div class="activity-dot blue"></div>
-            <div>
-              <div class="activity-text">Quote request submitted</div>
-              <div class="activity-date">2026-03-01 · John Doe</div>
-            </div>
-          </div>
+          <?php endforeach; endif; ?>
         </div>
       </div>
     </div>
@@ -145,7 +180,7 @@ $quotation = [
         <span class="q-id">Quotation <?= $quotation['id'] ?></span>
         <span class="badge-status pending"><?= $quotation['status'] ?></span>
       </div>
-      <a href="download_quote.php?id=<?= $quotation['id'] ?>" class="btn-download">
+      <a href="<?= BASE_URL ?>/download_quote.php?id=<?= (int) $quotation['pk'] ?>" target="_blank" class="btn-download">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download PDF
       </a>
@@ -221,19 +256,20 @@ $quotation = [
   </div>
 </div>
 
-<!-- ACTION BAR -->
+<!-- ACTION BAR — only while an issued quote is awaiting the client's decision -->
+<?php if (($quotation['raw_status'] ?? '') === 'Sent'): ?>
 <div class="action-bar">
   <span>Valid until: <?= $quotation['valid_until'] ?></span>
   <div class="action-bar-btns">
     <form method="POST" action="reject_quote.php" style="margin:0">
-      <input type="hidden" name="quotation_id" value="<?= $quotation['id'] ?>"/>
+      <input type="hidden" name="quotation_id" value="<?= (int) $quotation['pk'] ?>"/>
       <button type="submit" class="btn-reject">
         <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         Reject
       </button>
     </form>
     <form method="POST" action="accept_quote.php" style="margin:0">
-      <input type="hidden" name="quotation_id" value="<?= $quotation['id'] ?>"/>
+      <input type="hidden" name="quotation_id" value="<?= (int) $quotation['pk'] ?>"/>
       <button type="submit" class="btn-accept">
         <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
         Accept Quote
@@ -241,6 +277,7 @@ $quotation = [
     </form>
   </div>
 </div>
+<?php endif; ?>
 
 </body>
 </html>

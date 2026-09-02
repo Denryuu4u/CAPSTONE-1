@@ -1,3 +1,7 @@
+<?php
+$signupError = trim((string) ($_GET['error'] ?? ''));
+$signupEmail = trim((string) ($_GET['email'] ?? ''));
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,6 +31,10 @@
       <h1 class="form-title">Create your account</h1>
       <p class="form-subtitle">Join Vast Solutions to manage your projects</p>
 
+      <?php if ($signupError): ?>
+        <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;"><?= htmlspecialchars($signupError) ?></div>
+      <?php endif; ?>
+
       <form action="register_process.php" method="POST" id="signupForm" novalidate>
         <div class="mb-3">
           <label class="form-label">Full Name</label>
@@ -34,7 +42,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-control" placeholder="you@company.com" required />
+          <input type="email" name="email" class="form-control" placeholder="you@company.com" value="<?= htmlspecialchars($signupEmail) ?>" required />
         </div>
         <div class="mb-3">
           <label class="form-label">Password</label>
@@ -62,6 +70,15 @@
           <div class="invalid-feedback text-danger" id="pwMismatch" style="display:none; font-size:0.75rem; margin-top:0.3rem;">
             Passwords do not match.
           </div>
+        </div>
+
+        <div class="mb-3" style="display:flex; align-items:flex-start; gap:.5rem;">
+          <input type="checkbox" name="agree" id="agreeTerms" value="1" required style="margin-top:.2rem;" />
+          <label for="agreeTerms" style="font-size:.82rem; color:#4b5563; line-height:1.4;">
+            I have read and agree to the
+            <a href="legal.php?doc=terms" target="_blank">Terms &amp; Conditions</a> and
+            <a href="legal.php?doc=privacy" target="_blank">Privacy Policy</a>.
+          </label>
         </div>
 
         <button type="submit" class="btn-submit">Create Account</button>

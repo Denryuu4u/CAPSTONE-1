@@ -1,19 +1,47 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 require_once __DIR__ . '/../includes/project_status.php';
 
 $active_page = 'dashboard';
+require_page($active_page); // role gate (Super Admin / Admin / Staff)
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
-// Mirrors the rows in monitoring.php — same codes, same canonical statuses.
-$recent_projects = [
-  ['code'=>'PRJ-2026-042', 'customer'=>'Rivera Kitchens',   'status'=>'production',      'target'=>'Mar 15, 2026'],
-  ['code'=>'PRJ-2026-041', 'customer'=>'Mendoza Interiors', 'status'=>'approved',        'target'=>'Mar 12, 2026'],
-  ['code'=>'PRJ-2026-040', 'customer'=>'Kim Design Studio', 'status'=>'quote_submitted', 'target'=>'Mar 10, 2026'],
-  ['code'=>'PRJ-2026-039', 'customer'=>'Park Residences',   'status'=>'completed',       'target'=>'Mar 08, 2026'],
-  ['code'=>'PRJ-2026-038', 'customer'=>'Lee Custom Homes',  'status'=>'rejected',        'target'=>'Mar 05, 2026'],
-];
+require_once __DIR__ . '/../includes/helpers.php';
+$pdo = db();
+
+// Project counts by status.
+$statusCounts = [];
+foreach ($pdo->query("SELECT status, COUNT(*) c FROM projects GROUP BY status") as $r) {
+    $statusCounts[$r['status']] = (int) $r['c'];
+}
+$cnt = fn($s) => $statusCounts[$s] ?? 0;
+
+$totalProjects      = array_sum($statusCounts);
+$pendingQuotes      = (int) $pdo->query("SELECT COUNT(*) FROM quotations WHERE status IN ('Sent','Accepted')")->fetchColumn();
+$inProduction       = $cnt('production');
+$completedThisMonth = (int) $pdo->query("SELECT COUNT(*) FROM projects WHERE status='completed' AND MONTH(updated_at)=MONTH(CURDATE()) AND YEAR(updated_at)=YEAR(CURDATE())")->fetchColumn();
+
+// Pipeline buckets.
+$pipeQuote    = $cnt('quote_submitted');
+$pipeApproved = $cnt('approved');
+$pipeProd     = $cnt('production') + $cnt('mockup') + $cnt('delivery') + $cnt('installation')
+              + $cnt('quality_check') + $cnt('punchlist') + $cnt('final_approval');
+$pipeDone     = $cnt('completed');
+
+// Recent projects.
+$recent_projects = [];
+foreach ($pdo->query(
+    "SELECT p.project_code AS code, c.name AS customer, p.status, p.target_completion
+       FROM projects p LEFT JOIN customers c ON c.id = p.customer_id
+      ORDER BY p.created_at DESC, p.id DESC LIMIT 6"
+) as $r) {
+    $recent_projects[] = [
+        'code' => $r['code'], 'customer' => $r['customer'] ?? '—', 'status' => $r['status'],
+        'target' => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -78,7 +106,7 @@ $recent_projects = [
                 </div>
                 <span class="text-muted small">↗</span>
               </div>
-              <h3 class="stat-number mb-1">24</h3>
+              <h3 class="stat-number mb-1"><?= $totalProjects ?></h3>
               <div class="stat-label">Active Projects</div>
               <div class="stat-sub text-primary small mt-1">+3 this week</div>
             </div>
@@ -94,7 +122,7 @@ $recent_projects = [
                 </div>
                 <span class="text-muted small">↗</span>
               </div>
-              <h3 class="stat-number mb-1">8</h3>
+              <h3 class="stat-number mb-1"><?= $pendingQuotes ?></h3>
               <div class="stat-label">Pending Quotations</div>
               <div class="stat-sub text-warning small mt-1">2 urgent</div>
             </div>
@@ -110,7 +138,7 @@ $recent_projects = [
                 </div>
                 <span class="text-muted small">↗</span>
               </div>
-              <h3 class="stat-number mb-1">12</h3>
+              <h3 class="stat-number mb-1"><?= $inProduction ?></h3>
               <div class="stat-label">In Production</div>
               <div class="stat-sub text-orange small mt-1">On schedule</div>
             </div>
@@ -126,7 +154,7 @@ $recent_projects = [
                 </div>
                 <span class="text-muted small">↗</span>
               </div>
-              <h3 class="stat-number mb-1">7</h3>
+              <h3 class="stat-number mb-1"><?= $completedThisMonth ?></h3>
               <div class="stat-label">Completed This Month</div>
               <div class="stat-sub text-success small mt-1">+15% vs last month</div>
             </div>
@@ -140,28 +168,25 @@ $recent_projects = [
             <div class="card-body">
               <h6 class="fw-semibold mb-3">Status Pipeline</h6>
 
-              <div class="pipeline-bars d-flex gap-2 mb-3">
-                <div class="pipeline-line bg-warning rounded-pill flex-fill"></div>
-                <div class="pipeline-line bg-primary rounded-pill flex-fill"></div>
-                <div class="pipeline-line bg-orange rounded-pill flex-fill"></div>
-                <div class="pipeline-line bg-success rounded-pill flex-fill"></div>
-              </div>
-
-              <div class="row text-center g-2 pipeline-stats">
+              <div class="row text-center g-3 pipeline-stats">
                 <div class="col-6 col-md-3">
-                  <div class="fw-bold">5</div>
+                  <div class="pipeline-line bg-warning rounded-pill mb-2"></div>
+                  <div class="fw-bold"><?= $pipeQuote ?></div>
                   <div class="text-muted small">Quote Submitted</div>
                 </div>
                 <div class="col-6 col-md-3">
-                  <div class="fw-bold">8</div>
+                  <div class="pipeline-line bg-primary rounded-pill mb-2"></div>
+                  <div class="fw-bold"><?= $pipeApproved ?></div>
                   <div class="text-muted small">Approved</div>
                 </div>
                 <div class="col-6 col-md-3">
-                  <div class="fw-bold">12</div>
+                  <div class="pipeline-line bg-orange rounded-pill mb-2"></div>
+                  <div class="fw-bold"><?= $pipeProd ?></div>
                   <div class="text-muted small">Production in Progress</div>
                 </div>
                 <div class="col-6 col-md-3">
-                  <div class="fw-bold">7</div>
+                  <div class="pipeline-line bg-success rounded-pill mb-2"></div>
+                  <div class="fw-bold"><?= $pipeDone ?></div>
                   <div class="text-muted small">Completed</div>
                 </div>
               </div>

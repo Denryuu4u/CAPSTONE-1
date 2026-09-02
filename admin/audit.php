@@ -1,9 +1,13 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 $active_page = 'audit_logs';
+require_page($active_page); // role gate (Super Admin only)
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
+
+require_once __DIR__ . '/../includes/helpers.php';
+$auditLogs = db()->query("SELECT * FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 200")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,77 +110,21 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td class="audit-timestamp">2025-03-12 14:32</td>
-                                <td class="audit-user">John Admin</td>
-                                <td><span class="audit-badge badge-admin">Admin</span></td>
-                                <td class="audit-action">Created Quotation</td>
-                                <td><span class="audit-badge badge-module">Quotations</span></td>
-                                <td class="audit-details">Created quotation QT-2025-001 for Maria Santos</td>
+                            <?php if (empty($auditLogs)): ?>
+                            <tr><td colspan="6" class="text-center text-muted py-4">No activity logged yet.</td></tr>
+                            <?php else: foreach ($auditLogs as $log):
+                                $roleCls = in_array($log['role'], ['Admin', 'Staff'], true) ? 'badge-admin' : 'badge-customer';
+                            ?>
+                            <tr data-role="<?= htmlspecialchars($log['role'] ?? '') ?>" data-module="<?= htmlspecialchars($log['module'] ?? '') ?>"
+                                data-user="<?= htmlspecialchars($log['user_name'] ?? '') ?>" data-date="<?= substr($log['created_at'], 0, 10) ?>">
+                                <td class="audit-timestamp"><?= date('Y-m-d H:i', strtotime($log['created_at'])) ?></td>
+                                <td class="audit-user"><?= htmlspecialchars($log['user_name'] ?? 'System') ?></td>
+                                <td><span class="audit-badge <?= $roleCls ?>"><?= htmlspecialchars($log['role'] ?? '—') ?></span></td>
+                                <td class="audit-action"><?= htmlspecialchars($log['action']) ?></td>
+                                <td><span class="audit-badge badge-module"><?= htmlspecialchars($log['module'] ?? '') ?></span></td>
+                                <td class="audit-details"><?= htmlspecialchars($log['details'] ?? '') ?></td>
                             </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-12 13:15</td>
-                                <td class="audit-user">Maria Santos</td>
-                                <td><span class="audit-badge badge-customer">Customer</span></td>
-                                <td class="audit-action">Submitted Project Request</td>
-                                <td><span class="audit-badge badge-module">Project Requests</span></td>
-                                <td class="audit-details">Submitted request REQ-2025-005 — Kitchen Cab</td>
-                            </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-12 11:00</td>
-                                <td class="audit-user">John Admin</td>
-                                <td><span class="audit-badge badge-admin">Admin</span></td>
-                                <td class="audit-action">Sent Quotation</td>
-                                <td><span class="audit-badge badge-module">Quotations</span></td>
-                                <td class="audit-details">Sent quotation QT-2025-001 to Maria Santos</td>
-                            </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-11 16:45</td>
-                                <td class="audit-user">Carlos Reyes</td>
-                                <td><span class="audit-badge badge-customer">Customer</span></td>
-                                <td class="audit-action">Approved Quotation</td>
-                                <td><span class="audit-badge badge-module">Quotations</span></td>
-                                <td class="audit-details">Approved quotation QT-2025-002</td>
-                            </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-11 10:20</td>
-                                <td class="audit-user">John Admin</td>
-                                <td><span class="audit-badge badge-admin">Admin</span></td>
-                                <td class="audit-action">Added Customer</td>
-                                <td><span class="audit-badge badge-module">Customers</span></td>
-                                <td class="audit-details">Added new customer Ana Cruz</td>
-                            </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-10 09:00</td>
-                                <td class="audit-user">John Admin</td>
-                                <td><span class="audit-badge badge-admin">Admin</span></td>
-                                <td class="audit-action">User Login</td>
-                                <td><span class="audit-badge badge-module">Auth</span></td>
-                                <td class="audit-details">Admin logged in</td>
-                            </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-10 08:30</td>
-                                <td class="audit-user">Maria Santos</td>
-                                <td><span class="audit-badge badge-customer">Customer</span></td>
-                                <td class="audit-action">User Login</td>
-                                <td><span class="audit-badge badge-module">Auth</span></td>
-                                <td class="audit-details">Customer logged in</td>
-                            </tr>
-
-                            <tr>
-                                <td class="audit-timestamp">2025-03-09 15:10</td>
-                                <td class="audit-user">Ana Cruz</td>
-                                <td><span class="audit-badge badge-customer">Customer</span></td>
-                                <td class="audit-action">Rejected Quotation</td>
-                                <td><span class="audit-badge badge-module">Quotations</span></td>
-                                <td class="audit-details">Rejected quotation QT-2025-003</td>
-                            </tr>
+                            <?php endforeach; endif; ?>
                         </tbody>
                     </table>
                 </div>

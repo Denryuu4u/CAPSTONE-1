@@ -1,3 +1,8 @@
+<?php
+$loginError = trim((string) ($_GET['error'] ?? ''));
+$loginEmail = trim((string) ($_GET['email'] ?? ''));
+$verified   = isset($_GET['verified']);
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -31,10 +36,17 @@
       <h1 class="form-title">Welcome back</h1>
       <p class="form-subtitle">Sign in to access your dashboard</p>
 
-      <form action="user-dashboard/dashboard.php" method="POST">
+      <?php if ($verified): ?>
+        <div style="background:#f0fdf9;color:#0a7a60;border:1px solid #6ee7d0;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;">Email verified — please sign in.</div>
+      <?php endif; ?>
+      <?php if ($loginError): ?>
+        <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;"><?= htmlspecialchars($loginError) ?></div>
+      <?php endif; ?>
+
+      <form action="login_process.php" method="POST">
         <div class="mb-3">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-control" placeholder="you@company.com" required />
+          <input type="email" name="email" class="form-control" placeholder="you@company.com" value="<?= htmlspecialchars($loginEmail) ?>" required />
         </div>
         <div class="mb-1">
           <label class="form-label">Password</label>

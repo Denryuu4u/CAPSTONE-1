@@ -1,0 +1,19 @@
+# User-uploaded files and generated logs — don't commit these.
+# The folders themselves are kept via .gitkeep so the app can write to them.
+uploads/*
+!uploads/.gitkeep
+!uploads/gallery/
+uploads/gallery/*
+!uploads/gallery/.gitkeep
+
+# OTP demo log (may contain codes)
+uploads/otp_log.txt
+
+# Local env / secrets (if you ever add a .env)
+.env
+.env.local
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+*.swp

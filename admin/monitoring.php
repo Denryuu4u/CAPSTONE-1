@@ -1,39 +1,60 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 require_once __DIR__ . '/../includes/project_status.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 $active_page = 'monitoring';
+require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 $user_initial = strtoupper(substr($user_name, 0, 1));
 
-$monitor_projects = [
-    ['code'=>'PRJ-2026-042', 'project'=>'Kitchen Reno Phase 1', 'customer'=>'Rivera Kitchens',
-     'status'=>'production', 'target'=>'Mar 15, 2026', 'start'=>'2026-02-01', 'progress'=>65,
-     'approver'=>'Engr. Marco Reyes', 'materials_key'=>'042', 'updates_key'=>'042',
-     'details'=>'Custom kitchen cabinetry with soft-close hinges, melamine panels, and PVC edge banding. Includes island countertop support structure.'],
+// Live projects (exclude rejected). materials_key / updates_key are the project id.
+$monitor_projects = [];
+foreach (db()->query(
+    "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status,
+            p.target_completion, p.start_date, p.progress, p.approver, p.description
+       FROM projects p
+       LEFT JOIN customers c ON c.id = p.customer_id
+      WHERE p.status <> 'rejected'
+      ORDER BY p.created_at DESC, p.id DESC"
+) as $r) {
+    $monitor_projects[] = [
+        'id'       => (int) $r['id'],
+        'code'     => $r['project_code'],
+        'project'  => $r['project_name'],
+        'customer' => $r['customer'] ?? '—',
+        'status'   => $r['status'],
+        'target'   => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
+        'start'    => $r['start_date'] ?? '',
+        'progress' => (int) $r['progress'],
+        'approver' => $r['approver'] ?? '',
+        'details'  => $r['description'] ?? '',
+        'materials_key' => (string) $r['id'],
+        'updates_key'   => (string) $r['id'],
+    ];
+}
 
-    ['code'=>'PRJ-2026-041', 'project'=>'Office Cabinets', 'customer'=>'Mendoza Interiors',
-     'status'=>'approved', 'target'=>'Mar 12, 2026', 'start'=>'2026-02-10', 'progress'=>20,
-     'approver'=>'Engr. Marco Reyes', 'materials_key'=>'041', 'updates_key'=>'041',
-     'details'=>'Floor-to-ceiling office cabinetry in white laminate finish. Includes adjustable shelving and lockable lower cabinets.'],
-
-    ['code'=>'PRJ-2026-040', 'project'=>'Bathroom Vanity Set', 'customer'=>'Kim Design Studio',
-     'status'=>'quote_submitted', 'target'=>'Mar 10, 2026', 'start'=>'', 'progress'=>0,
-     'approver'=>'', 'materials_key'=>'', 'updates_key'=>'',
-     'details'=>'Freestanding bathroom vanity with integrated sink, mirror cabinet, and chrome fittings. Material: moisture-resistant MDF.'],
-
-    ['code'=>'PRJ-2026-039', 'project'=>'Lobby Display Unit', 'customer'=>'Park Residences',
-     'status'=>'completed', 'target'=>'Mar 08, 2026', 'start'=>'2026-01-15', 'progress'=>100,
-     'approver'=>'Engr. Sofia Lim', 'materials_key'=>'039', 'updates_key'=>'039',
-     'details'=>'Custom lobby display unit with back-lit acrylic panels and tempered glass shelves. Powder-coated steel frame in matte black.'],
-
-    ['code'=>'PRJ-2026-037', 'project'=>'Pantry Cabinets', 'customer'=>'Garcia Build Co',
-     'status'=>'production', 'target'=>'Mar 01, 2026', 'start'=>'2026-01-20', 'progress'=>85,
-     'approver'=>'Engr. Marco Reyes', 'materials_key'=>'037', 'updates_key'=>'037',
-     'details'=>'Full-height pantry cabinets with pull-out shelves, soft-close doors, and ventilation slats. Material: E1-grade particle board.'],
-];
+// Materials + updates per project id, for the modal JS.
+$materialsByProject = [];
+foreach (db()->query("SELECT project_id, material, specification, qty, unit, status FROM project_materials ORDER BY sort_order, id") as $m) {
+    $materialsByProject[(string) $m['project_id']][] = [
+        'name' => $m['material'], 'spec' => $m['specification'], 'qty' => (float) $m['qty'],
+        'unit' => $m['unit'], 'status' => $m['status'],
+    ];
+}
+$updatesByProject = [];
+foreach (db()->query("SELECT project_id, author_name, update_text, attachment_path, created_at FROM project_updates ORDER BY created_at DESC, id DESC") as $u) {
+    $updatesByProject[(string) $u['project_id']][] = [
+        'author'   => $u['author_name'] ?: 'Vast Solutions',
+        'initials' => strtoupper(mb_substr($u['author_name'] ?: 'V', 0, 1)),
+        'time'     => date('M d, Y · g:i A', strtotime($u['created_at'])),
+        'text'     => $u['update_text'],
+        'image'    => $u['attachment_path'] ? '../' . $u['attachment_path'] : null,
+        'attachments' => [],
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -273,9 +294,11 @@ $monitor_projects = [
                             <option value="active">Active</option>
                             <option value="paused">Paused</option>
                         </select>
-                        <a href="#" class="pvm-edit-btn" id="pvmEditBtn">
-                            <i class="bi bi-pencil"></i> Edit Project
-                        </a>
+                        <select class="pvm-state-select" id="pvmPhaseSelect" title="Update project phase">
+                            <?php foreach (project_phases() as $key => $label): ?>
+                            <option value="<?= $key ?>"><?= htmlspecialchars($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
                     </div>
                 </div>
@@ -334,9 +357,10 @@ $monitor_projects = [
                         <div class="pvm-composer-box">
                             <textarea class="pvm-composer-textarea" id="pvmUpdateInput" rows="2"
                                 placeholder="Post an update about this project..."></textarea>
+                            <input type="file" id="pvmImageInput" accept="image/*" style="display:none;">
                             <div class="pvm-composer-footer">
-                                <button class="pvm-attach-btn" type="button">
-                                    <i class="bi bi-image"></i> Attach Image
+                                <button class="pvm-attach-btn" type="button" id="pvmAttachBtn">
+                                    <i class="bi bi-image"></i> <span id="pvmAttachLabel">Attach Image</span>
                                 </button>
                                 <button class="pvm-post-btn" id="pvmPostBtn" type="button">
                                     <i class="bi bi-send"></i> Post Update
@@ -382,75 +406,9 @@ $monitor_projects = [
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?= project_status_js() ?>
 <script>
-const MATERIALS = {
-    '042': [
-        {name:'Melamine Board 18mm',spec:'White, 4x8 ft',qty:24,unit:'sheets',status:'available'},
-        {name:'PVC Edge Banding',spec:'White, 22mm width',qty:150,unit:'meters',status:'available'},
-        {name:'Soft-Close Hinge',spec:'35mm cup, full overlay',qty:96,unit:'pcs',status:'available'},
-        {name:'Cabinet Handle',spec:'Stainless, 128mm hole',qty:48,unit:'pcs',status:'ordered'},
-        {name:'Drawer Slide 400mm',spec:'Full extension, 40kg',qty:24,unit:'pairs',status:'available'},
-        {name:'Dowel Pin 8x35mm',spec:'Hardwood',qty:500,unit:'pcs',status:'available'},
-        {name:'Wood Glue',spec:'PVA, 1L bottle',qty:6,unit:'bottles',status:'low'},
-    ],
-    '041': [
-        {name:'MDF Board 18mm',spec:'E1 grade, 4x8 ft',qty:18,unit:'sheets',status:'available'},
-        {name:'White Laminate',spec:'Hi-gloss, 1.22x2.44m',qty:18,unit:'sheets',status:'ordered'},
-        {name:'Soft-Close Hinge',spec:'35mm, half overlay',qty:72,unit:'pcs',status:'available'},
-        {name:'Cam Lock 15mm',spec:'Zinc alloy',qty:200,unit:'pcs',status:'available'},
-        {name:'Adjustable Shelf Pin',spec:'5mm, chrome',qty:120,unit:'pcs',status:'available'},
-    ],
-    '039': [
-        {name:'Tempered Glass 10mm',spec:'Clear, custom cut',qty:8,unit:'panels',status:'available'},
-        {name:'Acrylic Panel 6mm',spec:'Frosted white, back-lit',qty:4,unit:'panels',status:'available'},
-        {name:'Steel Flat Bar 40x5',spec:'Mild steel, 6m length',qty:12,unit:'lengths',status:'available'},
-        {name:'Powder Coat Paint',spec:'Matte black, RAL 9005',qty:4,unit:'liters',status:'available'},
-        {name:'LED Strip Light',spec:'Warm white, 12V IP20',qty:10,unit:'meters',status:'available'},
-        {name:'Glass Shelf Bracket',spec:'Chrome, 150mm',qty:16,unit:'pcs',status:'available'},
-    ],
-    '037': [
-        {name:'Particle Board 18mm',spec:'E1 grade, 4x8 ft',qty:30,unit:'sheets',status:'available'},
-        {name:'PVC Edge Banding',spec:'Beige, 22mm width',qty:200,unit:'meters',status:'low'},
-        {name:'Pull-Out Shelf Slide',spec:'450mm, 25kg',qty:20,unit:'pairs',status:'ordered'},
-        {name:'Soft-Close Hinge',spec:'35mm, full overlay',qty:80,unit:'pcs',status:'available'},
-        {name:'Ventilation Grille',spec:'PVC, 150x100mm',qty:10,unit:'pcs',status:'available'},
-        {name:'Cam Lock 15mm',spec:'Zinc alloy',qty:250,unit:'pcs',status:'available'},
-    ],
-};
-
-const SEED_UPDATES = {
-    '042': [
-        {author:'Marco Reyes',initials:'MR',time:'Mar 14, 2026 · 3:00 PM',
-         text:'Cabinet boxes assembled and sanded. Starting laminate application tomorrow.',
-         attachments:[{label:'Cabinet Frame',cls:'chip-blue'},{label:'Sanding Detail',cls:'chip-yellow'}]},
-        {author:'Ana Cruz',initials:'AC',time:'Mar 12, 2026 · 10:30 AM',
-         text:'All custom hinges installed and tested. Soft-close function confirmed on all doors.',
-         attachments:[{label:'Hinge Test',cls:'chip-green'}]},
-        {author:'Marco Reyes',initials:'MR',time:'Mar 10, 2026 · 9:00 AM',
-         text:'Materials delivered and staged on site. Cutting list verified against purchase order.',
-         attachments:[]},
-    ],
-    '041': [
-        {author:'Lena Tan',initials:'LT',time:'Mar 11, 2026 · 2:00 PM',
-         text:'Site measurements confirmed. Drawings updated and sent for final sign-off.',
-         attachments:[{label:'Revised Plan',cls:'chip-purple'}]},
-    ],
-    '039': [
-        {author:'Sofia Lim',initials:'SL',time:'Feb 28, 2026 · 4:00 PM',
-         text:'Final installation complete. Handover document signed by Park Residences representative.',
-         attachments:[{label:'Handover Doc',cls:'chip-green'},{label:'Site Photos',cls:'chip-blue'}]},
-        {author:'Jose Reyes',initials:'JR',time:'Feb 25, 2026 · 11:00 AM',
-         text:'LED strip lights wired and tested. All glass shelves levelled and secured.',
-         attachments:[{label:'LED Test',cls:'chip-yellow'}]},
-    ],
-    '037': [
-        {author:'Marco Reyes',initials:'MR',time:'Mar 13, 2026 · 1:00 PM',
-         text:'Pull-out shelf slides installed on all units. Smooth operation confirmed.',
-         attachments:[{label:'Slide Install',cls:'chip-green'}]},
-        {author:'Ben Garcia',initials:'BG',time:'Mar 10, 2026 · 8:30 AM',
-         text:'Edge banding applied. Low stock on beige PVC noted — additional order placed.',
-         attachments:[]},
-    ],
-};
+// Materials + updates come from the database, keyed by project id.
+const MATERIALS = <?= json_encode($materialsByProject, JSON_UNESCAPED_UNICODE) ?: '{}' ?>;
+const SEED_UPDATES = <?= json_encode($updatesByProject, JSON_UNESCAPED_UNICODE) ?: '{}' ?>;
 
 // PROJECT_STEPS / getStepIdx / statusLabel / statusClass come from project_status_js().
 // An off-track status (On Hold, Rejected) yields stepIdx -1: no step is marked active.
@@ -503,25 +461,68 @@ function renderFeed(key){
                     <span class="pvm-update-time">· ${u.time}</span>
                 </div>
                 <div class="pvm-update-text">${u.text}</div>
+                ${u.image?`<a href="${u.image}" target="_blank"><img src="${u.image}" alt="attachment" style="max-width:220px;max-height:160px;border-radius:8px;margin-top:6px;border:1px solid #e5e7eb;display:block;object-fit:cover;"></a>`:''}
                 ${chips?`<div class="pvm-attachments">${chips}</div>`:''}
             </div>
         </div>`;
     }).join('');
 }
 
-// ── POST UPDATE ──
+// ── ATTACH IMAGE ──
+document.getElementById('pvmAttachBtn').addEventListener('click',function(){
+    document.getElementById('pvmImageInput').click();
+});
+document.getElementById('pvmImageInput').addEventListener('change',function(){
+    document.getElementById('pvmAttachLabel').textContent = this.files.length ? this.files[0].name : 'Attach Image';
+});
+
+// ── POST UPDATE (persists to the database + notifies the client) ──
+let currentProjectId = 0;
+let currentRow = null; // the monitoring-table <tr> currently open in the modal
 document.getElementById('pvmPostBtn').addEventListener('click',function(){
     const input=document.getElementById('pvmUpdateInput');
+    const imgInput=document.getElementById('pvmImageInput');
     const text=input.value.trim();
-    if(!text) return;
-    if(!liveUpdates[currentUpdatesKey]) liveUpdates[currentUpdatesKey]=[];
-    liveUpdates[currentUpdatesKey].unshift({
-        author:'<?= htmlspecialchars($user_name) ?>',
-        initials:'<?= $user_initial ?>',
-        time:fmtNow(), text:text, attachments:[]
-    });
-    input.value='';
-    renderFeed(currentUpdatesKey);
+    if((!text && !imgInput.files.length) || !currentProjectId) return;
+    const btn=this; btn.disabled=true;
+    const fd=new FormData();
+    fd.append('project_id',currentProjectId);
+    fd.append('text',text);
+    if(imgInput.files.length) fd.append('image',imgInput.files[0]);
+    fetch('post_update.php',{method:'POST',body:fd})
+        .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+        .then(d=>{
+            if(!liveUpdates[currentUpdatesKey]) liveUpdates[currentUpdatesKey]=[];
+            liveUpdates[currentUpdatesKey].unshift({author:d.update.author,initials:d.update.initials,time:d.update.time,text:d.update.text,image:d.update.image,attachments:[]});
+            input.value='';
+            imgInput.value='';
+            document.getElementById('pvmAttachLabel').textContent='Attach Image';
+            renderFeed(currentUpdatesKey);
+        })
+        .catch(e=>alert(e.message))
+        .finally(()=>btn.disabled=false);
+});
+
+// ── UPDATE PHASE ──
+document.getElementById('pvmPhaseSelect').addEventListener('change',function(){
+    const status=this.value;
+    if(!currentProjectId){ return; }
+    if(!confirm('Update this project\'s phase to "'+this.options[this.selectedIndex].text+'"?')){ return; }
+    fetch('update_project_status.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({project_id:currentProjectId,status})})
+        .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+        .then(d=>{
+            const badge=document.getElementById('viewProjectStatus');
+            badge.textContent=d.label; badge.className='monitor-badge '+statusClass(status);
+            renderStepTracker('pvmStepTracker', getStepIdx(status));
+            // Reflect the change on the underlying table row immediately.
+            if(currentRow){
+                currentRow.dataset.status = status;
+                const cell = currentRow.querySelector('td:nth-child(4)');
+                if(cell) cell.innerHTML = '<span class="monitor-badge '+statusClass(status)+'">'+d.label+'</span>';
+            }
+        })
+        .catch(e=>alert(e.message));
 });
 document.getElementById('pvmUpdateInput').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&e.ctrlKey) document.getElementById('pvmPostBtn').click();
@@ -536,6 +537,7 @@ document.getElementById('pvmStateSelect').addEventListener('change',function(){
 let currentMaterialsKey='', currentProjectName='';
 function fillProjectModal(btn){
     const d=btn.dataset;
+    currentRow = btn.closest ? btn.closest('tr') : null;
     document.getElementById('viewProjectModalLabel').textContent = d.project||'—';
     document.getElementById('viewProjectCode').textContent       = d.code||'—';
 
@@ -568,8 +570,11 @@ function fillProjectModal(btn){
     currentProjectName=d.project||'';
     document.getElementById('wrapMaterials').style.display=currentMaterialsKey?'':'none';
 
-    // Updates
+    // Updates + current project id (for posting updates / phase changes)
     currentUpdatesKey=d.updatesKey||'';
+    currentProjectId=parseInt(d.updatesKey||0)||0;
+    const phaseSel=document.getElementById('pvmPhaseSelect');
+    if(phaseSel){ const k=statusKey(d.status); if([...phaseSel.options].some(o=>o.value===k)) phaseSel.value=k; }
     renderFeed(currentUpdatesKey);
 }
 

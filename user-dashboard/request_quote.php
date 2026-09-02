@@ -1,9 +1,17 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
+require_once __DIR__ . '/../includes/legal.php';
+require_agreements(); // clients must accept the latest Terms & Privacy first
 
 $active_page = 'request_quote';
 
+// Design gallery (managed in admin Settings → Design Gallery).
+require_once __DIR__ . '/../includes/db.php';
+$galleryImages = [];
+try {
+    $galleryImages = db()->query("SELECT file_path, label FROM gallery_images ORDER BY sort_order, id")->fetchAll();
+} catch (Throwable $e) { $galleryImages = []; }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -206,7 +214,10 @@ $active_page = 'request_quote';
     <form action="submit_quote.php" method="POST" enctype="multipart/form-data">
       <div class="quote-grid">
 
-        <!-- LEFT: Upload -->
+        <!-- LEFT COLUMN: Upload + Reference -->
+        <div class="quote-col">
+
+        <!-- Upload -->
         <div class="section-card" style="padding: 1.4rem 1.6rem;">
           <div class="section-card-title">Upload Design Files</div>
 
@@ -221,6 +232,29 @@ $active_page = 'request_quote';
 
           <div class="file-list" id="fileList"></div>
         </div>
+
+        <!-- REFERENCE DESIGN TRIGGER (below Upload) -->
+        <div class="section-card" style="padding: 1rem 1.6rem; margin-top: 1.2rem;">
+          <div class="ref-trigger-row">
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">Reference Design <span style="font-weight: 400; color: #888; font-size: 0.8rem;">(Optional)</span></div>
+              <div style="font-size: 0.8rem; color: #888; margin-top: 0.15rem;">No design file? Browse our catalog for a reference style.</div>
+            </div>
+            <button type="button" class="btn-browse-ref" id="openRefModal">
+              <i class="bi bi-images"></i> Browse Designs
+            </button>
+            <div class="ref-preview-box" id="refPreview">
+              <img id="refPreviewImg" src="" alt="Selected reference"/>
+              <div>
+                <div id="refPreviewName" style="font-size: 0.85rem; font-weight: 600;"></div>
+                <button type="button" class="ref-remove-btn" id="clearRefBtn">Remove</button>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" name="reference_design" id="referenceDesignInput" value=""/>
+        </div>
+
+        </div><!-- /quote-col -->
 
         <!-- RIGHT: Project Details -->
         <div class="section-card" style="padding: 1.4rem 1.6rem;">
@@ -262,8 +296,13 @@ $active_page = 'request_quote';
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="target_completion">Target Completion Date <span style="font-weight:400;color:#9ca3af;">(Optional)</span></label>
+            <input type="date" id="target_completion" name="target_completion" class="form-control"/>
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="budget">Estimated Budget</label>
-            <input type="text" id="budget" name="budget" class="form-control" placeholder="$0.00"/>
+            <input type="text" id="budget" name="budget" class="form-control" placeholder="₱0.00"/>
           </div>
 
           <div class="form-group">
@@ -274,27 +313,6 @@ $active_page = 'request_quote';
           <button type="submit" class="btn-submit">Submit Quotation Request</button>
         </div>
 
-      </div>
-
-      <!-- REFERENCE DESIGN TRIGGER -->
-      <div class="section-card" style="padding: 1rem 1.6rem; margin-top: 1.2rem;">
-        <div class="ref-trigger-row">
-          <div>
-            <div style="font-weight: 700; font-size: 0.9rem;">Reference Design <span style="font-weight: 400; color: #888; font-size: 0.8rem;">(Optional)</span></div>
-            <div style="font-size: 0.8rem; color: #888; margin-top: 0.15rem;">No design file? Browse our catalog for a reference style.</div>
-          </div>
-          <button type="button" class="btn-browse-ref" id="openRefModal">
-            <i class="bi bi-images"></i> Browse Designs
-          </button>
-          <div class="ref-preview-box" id="refPreview">
-            <img id="refPreviewImg" src="" alt="Selected reference"/>
-            <div>
-              <div id="refPreviewName" style="font-size: 0.85rem; font-weight: 600;"></div>
-              <button type="button" class="ref-remove-btn" id="clearRefBtn">Remove</button>
-            </div>
-          </div>
-        </div>
-        <input type="hidden" name="reference_design" id="referenceDesignInput" value=""/>
       </div>
 
     </form>
@@ -315,30 +333,25 @@ $active_page = 'request_quote';
           Use the <i class="bi bi-arrows-fullscreen"></i> icon to view the image full size.
         </p>
         <div class="reference-grid" id="referenceGrid">
-          <?php
-          // Sample reference dimensions (W × H × D) — placeholder catalog data.
-          $refDims = [
-            '2400 × 720 × 600 mm', '1800 × 2100 × 580 mm', '1500 × 900 × 450 mm',
-            '3000 × 750 × 620 mm', '2100 × 2400 × 600 mm', '1200 × 800 × 400 mm',
-          ];
-          for ($i = 1; $i <= 18; $i++):
-            $dim = $refDims[($i - 1) % count($refDims)]; ?>
+          <?php if (empty($galleryImages)): ?>
+            <p style="color:#888;font-size:.85rem;">No reference designs available yet.</p>
+          <?php else: foreach ($galleryImages as $idx => $g):
+            $label = $g['label'] ?: ('Design ' . ($idx + 1));
+            $src   = '../' . $g['file_path']; ?>
           <div class="reference-item"
-               data-value="cabinet_image<?= $i ?>.jpg"
-               data-label="Design <?= $i ?>"
-               data-dim="<?= $dim ?>"
-               data-src="../cabinet_image/cabinet_image<?= $i ?>.jpg"
-               data-index="<?= $i - 1 ?>">
+               data-value="<?= htmlspecialchars(basename($g['file_path']), ENT_QUOTES) ?>"
+               data-label="<?= htmlspecialchars($label, ENT_QUOTES) ?>"
+               data-src="<?= htmlspecialchars($src, ENT_QUOTES) ?>"
+               data-index="<?= $idx ?>">
             <div class="ref-img-wrap">
-              <img src="../cabinet_image/cabinet_image<?= $i ?>.jpg" alt="Cabinet Design <?= $i ?>"/>
-              <button type="button" class="ref-zoom-btn" data-index="<?= $i - 1 ?>" title="View larger">
+              <img src="<?= htmlspecialchars($src) ?>" alt="<?= htmlspecialchars($label) ?>"/>
+              <button type="button" class="ref-zoom-btn" data-index="<?= $idx ?>" title="View larger">
                 <i class="bi bi-arrows-fullscreen"></i>
               </button>
             </div>
-            <span class="ref-label">Design <?= $i ?></span>
-            <span class="ref-dim"><i class="bi bi-rulers"></i> <?= $dim ?></span>
+            <span class="ref-label"><?= htmlspecialchars($label) ?></span>
           </div>
-          <?php endfor; ?>
+          <?php endforeach; endif; ?>
         </div>
       </div>
       <div class="modal-footer">
@@ -391,11 +404,11 @@ $active_page = 'request_quote';
   function removeFile(i) { selectedFiles.splice(i, 1); renderList(); }
 
   // ── Reference Design Modal ──
-  const TOTAL_REFS = 18;
-  const refImages = Array.from({length: TOTAL_REFS}, (_, i) => ({
-    src:   `../cabinet_image/cabinet_image${i+1}.jpg`,
-    label: `Design ${i+1}`,
-    value: `cabinet_image${i+1}.jpg`
+  // Built from the DB-driven reference grid (admin Settings → Design Gallery).
+  const refImages = Array.from(document.querySelectorAll('#referenceGrid .reference-item')).map(item => ({
+    src:   item.dataset.src,
+    label: item.dataset.label,
+    value: item.dataset.value
   }));
 
   let confirmedRef = null;

@@ -1,11 +1,24 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 require_once __DIR__ . '/../includes/project_status.php';
 
 $active_page = 'customers';
+require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
+
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/project_status.php';
+$customers = db()->query(
+    "SELECT c.*,
+            (SELECT COUNT(*) FROM projects p WHERE p.customer_id = c.id) AS project_count,
+            (SELECT p.status FROM projects p WHERE p.customer_id = c.id ORDER BY p.created_at DESC LIMIT 1) AS last_status
+       FROM customers c
+      WHERE c.is_archived = 0
+      ORDER BY c.name"
+)->fetchAll();
+$initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '', array_slice(explode(' ', trim($name)), 0, 2))));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -86,117 +99,42 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($customers)): ?>
+                            <tr><td colspan="6" class="text-center text-muted py-4">No customers yet.</td></tr>
+                            <?php else: foreach ($customers as $c): ?>
                             <tr>
                                 <td>
                                     <div class="customer-name">
-                                        <span class="customer-avatar">RK</span>
-                                        <span>Rivera Kitchens</span>
+                                        <span class="customer-avatar"><?= htmlspecialchars($initials($c['name'])) ?></span>
+                                        <span><?= htmlspecialchars($c['name']) ?></span>
                                     </div>
                                 </td>
-                                <td class="customer-email">info@riverakitchens.com</td>
-                                <td class="customer-phone">+1 555-0101</td>
-                                <td class="customer-projects">5</td>
-                                <td><?= project_status_badge('production', 'customer-badge') ?></td>
+                                <td class="customer-email"><?= htmlspecialchars($c['email'] ?? '—') ?></td>
+                                <td class="customer-phone"><?= htmlspecialchars($c['phone'] ?? '—') ?></td>
+                                <td class="customer-projects"><?= (int) $c['project_count'] ?></td>
+                                <td><?= $c['last_status'] ? project_status_badge($c['last_status'], 'customer-badge') : '<span class="text-muted">—</span>' ?></td>
                                 <td class="text-center">
                                     <div class="customer-actions">
-                                        <a href="#"
-                                            class="customer-action edit-customer-btn"
-                                            title="Edit"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editCustomerModal"
-                                            data-name="Rivera Kitchens"
-                                            data-email="info@riverakitchens.com"
-                                            data-phone="+1 555-0101"
-                                            data-address="123 Main St, Metro Manila">
+                                        <a href="#" class="customer-action edit-customer-btn" title="Edit"
+                                           data-bs-toggle="modal" data-bs-target="#editCustomerModal"
+                                           data-id="<?= (int) $c['id'] ?>"
+                                           data-name="<?= htmlspecialchars($c['name']) ?>"
+                                           data-contact="<?= htmlspecialchars($c['contact_person'] ?? '') ?>"
+                                           data-email="<?= htmlspecialchars($c['email'] ?? '') ?>"
+                                           data-phone="<?= htmlspecialchars($c['phone'] ?? '') ?>"
+                                           data-industry="<?= htmlspecialchars($c['industry'] ?? '') ?>"
+                                           data-address="<?= htmlspecialchars($c['address'] ?? '') ?>">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
-                                        <a href="#"
-                                            class="customer-action archive-customer-btn"
-                                            title="Archive"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#archiveCustomerModal"
-                                            data-name="Rivera Kitchens">
+                                        <a href="#" class="customer-action archive-customer-btn" title="Archive"
+                                           data-bs-toggle="modal" data-bs-target="#archiveCustomerModal"
+                                           data-id="<?= (int) $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
                                             <i class="bi bi-archive"></i>
                                         </a>
                                     </div>
                                 </td>
                             </tr>
-
-                            <tr>
-                                <td>
-                                    <div class="customer-name">
-                                        <span class="customer-avatar">MI</span>
-                                        <span>Mendoza Interiors</span>
-                                    </div>
-                                </td>
-                                <td class="customer-email">carlos@mendoza.com</td>
-                                <td class="customer-phone">+1 555-0102</td>
-                                <td class="customer-projects">3</td>
-                                <td><?= project_status_badge('approved', 'customer-badge') ?></td>
-                                <td class="text-center">
-                                    <div class="customer-actions">
-                                        <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="customer-action" title="Delete"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td>
-                                    <div class="customer-name">
-                                        <span class="customer-avatar">KDS</span>
-                                        <span>Kim Design Studio</span>
-                                    </div>
-                                </td>
-                                <td class="customer-email">sarah@kimdesign.com</td>
-                                <td class="customer-phone">+1 555-0103</td>
-                                <td class="customer-projects">7</td>
-                                <td><?= project_status_badge('quote_submitted', 'customer-badge') ?></td>
-                                <td class="text-center">
-                                    <div class="customer-actions">
-                                        <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="customer-action" title="Delete"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td>
-                                    <div class="customer-name">
-                                        <span class="customer-avatar">PR</span>
-                                        <span>Park Residences</span>
-                                    </div>
-                                </td>
-                                <td class="customer-email">mgmt@parkres.com</td>
-                                <td class="customer-phone">+1 555-0104</td>
-                                <td class="customer-projects">2</td>
-                                <td><?= project_status_badge('completed', 'customer-badge') ?></td>
-                                <td class="text-center">
-                                    <div class="customer-actions">
-                                        <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="customer-action" title="Delete"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td>
-                                    <div class="customer-name">
-                                        <span class="customer-avatar">LCH</span>
-                                        <span>Lee Custom Homes</span>
-                                    </div>
-                                </td>
-                                <td class="customer-email">lee@customhomes.com</td>
-                                <td class="customer-phone">+1 555-0105</td>
-                                <td class="customer-projects">4</td>
-                                <td><?= project_status_badge('rejected', 'customer-badge') ?></td>
-                                <td class="text-center">
-                                    <div class="customer-actions">
-                                        <a href="#" class="customer-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="customer-action" title="Delete"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
+                            <?php endforeach; endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -363,57 +301,57 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         });
         document.addEventListener("DOMContentLoaded", function () {
 
-    let selectedCustomer = "";
+    let selectedCustomer = "", selectedCustomerId = 0;
+
+    function post(url, data) {
+        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data) })
+            .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; });
+    }
+
+    // ADD CUSTOMER
+    const addBtn = document.getElementById("saveNewCustomerBtn");
+    if (addBtn) addBtn.addEventListener("click", function () {
+        post('save_customer.php', {
+            name: document.getElementById("newCustomerName").value,
+            email: document.getElementById("newCustomerEmail").value,
+            phone: document.getElementById("newCustomerPhone").value,
+            address: document.getElementById("newCustomerAddress").value,
+        }).then(() => location.reload()).catch(e => alert(e.message));
+    });
 
     // EDIT CUSTOMER
     document.querySelectorAll(".edit-customer-btn").forEach(btn => {
         btn.addEventListener("click", function () {
             selectedCustomer = this.dataset.name;
-
+            selectedCustomerId = this.dataset.id;
             document.getElementById("editCustomerName").value = this.dataset.name || "";
             document.getElementById("editCustomerEmail").value = this.dataset.email || "";
             document.getElementById("editCustomerPhone").value = this.dataset.phone || "";
             document.getElementById("editCustomerAddress").value = this.dataset.address || "";
         });
     });
-
-    document.getElementById("updateCustomerBtn").addEventListener("click", function () {
-
-        // show toast
-        document.getElementById("mainToastMsg").textContent =
-            selectedCustomer + " details updated successfully.";
-
-        const toast = new bootstrap.Toast(document.getElementById("mainToast"));
-        toast.show();
-
-        // close modal
-        const modalEl = document.getElementById("editCustomerModal");
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        modal.hide();
+    const updBtn = document.getElementById("updateCustomerBtn");
+    if (updBtn) updBtn.addEventListener("click", function () {
+        post('save_customer.php', {
+            id: selectedCustomerId,
+            name: document.getElementById("editCustomerName").value,
+            email: document.getElementById("editCustomerEmail").value,
+            phone: document.getElementById("editCustomerPhone").value,
+            address: document.getElementById("editCustomerAddress").value,
+        }).then(() => location.reload()).catch(e => alert(e.message));
     });
 
     // ARCHIVE CUSTOMER
     document.querySelectorAll(".archive-customer-btn").forEach(btn => {
         btn.addEventListener("click", function () {
             selectedCustomer = this.dataset.name;
-
+            selectedCustomerId = this.dataset.id;
             document.getElementById("archiveCustomerName").textContent = selectedCustomer;
         });
     });
-
     document.getElementById("confirmArchiveBtn").addEventListener("click", function () {
-
-        // show toast
-        document.getElementById("mainToastMsg").textContent =
-            selectedCustomer + " archived successfully.";
-
-        const toast = new bootstrap.Toast(document.getElementById("mainToast"));
-        toast.show();
-
-        // close modal
-        const modalEl = document.getElementById("archiveCustomerModal");
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        modal.hide();
+        post('archive_entity.php', { type: 'customer', id: selectedCustomerId, action: 'archive' })
+            .then(() => location.reload()).catch(e => alert(e.message));
     });
 
 });

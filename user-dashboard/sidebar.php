@@ -33,7 +33,21 @@ if (!isset($active_page)) $active_page = '';
   </nav>
 
   <div class="sidebar-footer">
-    <a href="/CAPSTONE-1/index.php" class="logout-btn">
+    <?php if (defined('DEV_MODE') && DEV_MODE): ?>
+    <div class="dev-switch">
+      <div class="dev-switch-label">
+        <i class="bi bi-wrench-adjustable-circle"></i>
+        DEV · viewing as <?= htmlspecialchars($_SESSION['role'] ?? 'Client') ?>
+      </div>
+      <div class="dev-switch-btns">
+        <a href="../admin/admin-dashboard.php?dev_user=admin"
+           class="dev-switch-btn <?= (($_SESSION['dev_active'] ?? '') === 'admin') ? 'active' : '' ?>">Admin</a>
+        <a href="dashboard.php?dev_user=client"
+           class="dev-switch-btn <?= (($_SESSION['dev_active'] ?? 'client') === 'client') ? 'active' : '' ?>">Client</a>
+      </div>
+    </div>
+    <?php endif; ?>
+    <a href="<?= BASE_URL ?>/logout.php" class="logout-btn">
       <i class="bi bi-box-arrow-left"></i>
       Logout
     </a>

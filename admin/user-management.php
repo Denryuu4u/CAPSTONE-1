@@ -1,9 +1,16 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 $active_page = 'user_management';
+require_page($active_page); // role gate (Super Admin only)
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
+
+require_once __DIR__ . '/../includes/helpers.php';
+$sysUsers = db()->query(
+    "SELECT * FROM users WHERE role IN ('Super Admin','Admin','Staff') AND is_archived = 0
+      ORDER BY FIELD(role,'Super Admin','Admin','Staff'), full_name"
+)->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -84,91 +91,38 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($sysUsers)): ?>
+                            <tr><td colspan="6" class="text-center text-muted py-4">No users yet.</td></tr>
+                            <?php else: foreach ($sysUsers as $usr):
+                                $roleCls = $usr['role'] === 'Super Admin' ? 'role-superadmin'
+                                         : ($usr['role'] === 'Admin' ? 'role-admin' : 'role-staff');
+                                $stCls = $usr['status'] === 'Active' ? 'status-active' : 'status-inactive';
+                            ?>
                             <tr>
-                                <td class="user-name">Admin User</td>
-                                <td class="user-email">admin@vastsolutions.com</td>
-                                <td><span class="user-role-badge role-admin">Admin</span></td>
-                                <td><span class="user-status status-active">Active</span></td>
-                                <td class="user-last-login">Mar 09, 2026</td>
+                                <td class="user-name"><?= htmlspecialchars($usr['full_name']) ?></td>
+                                <td class="user-email"><?= htmlspecialchars($usr['email']) ?></td>
+                                <td><span class="user-role-badge <?= $roleCls ?>"><?= htmlspecialchars($usr['role']) ?></span></td>
+                                <td><span class="user-status <?= $stCls ?>"><?= htmlspecialchars($usr['status']) ?></span></td>
+                                <td class="user-last-login"><?= $usr['last_login'] ? date('M d, Y', strtotime($usr['last_login'])) : '—' ?></td>
                                 <td class="text-center">
                                     <div class="user-actions">
-                                        <a href="#"
-                                            class="user-action edit-user-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editUserModal"
-                                            data-name="Admin User"
-                                            data-email="admin@vastsolutions.com"
-                                            data-phone="+1 555-1234"
-                                            data-role="Admin"
-                                            data-status="Active">
+                                        <a href="#" class="user-action edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                                           data-id="<?= (int) $usr['id'] ?>"
+                                           data-name="<?= htmlspecialchars($usr['full_name']) ?>"
+                                           data-email="<?= htmlspecialchars($usr['email']) ?>"
+                                           data-phone="<?= htmlspecialchars($usr['phone'] ?? '') ?>"
+                                           data-role="<?= htmlspecialchars($usr['role']) ?>"
+                                           data-status="<?= htmlspecialchars($usr['status']) ?>">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
-                                        <a href="#"
-                                            class="user-action archive-user-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#archiveUserModal"
-                                            data-name="Admin User">
+                                        <a href="#" class="user-action archive-user-btn" data-bs-toggle="modal" data-bs-target="#archiveUserModal"
+                                           data-id="<?= (int) $usr['id'] ?>" data-name="<?= htmlspecialchars($usr['full_name']) ?>">
                                             <i class="bi bi-archive"></i>
                                         </a>
                                     </div>
                                 </td>
                             </tr>
-
-                            <tr>
-                                <td class="user-name">Niña</td>
-                                <td class="user-email">nina@vastsolutions.com</td>
-                                <td><span class="user-role-badge role-staff">Staff</span></td>
-                                <td><span class="user-status status-active">Active</span></td>
-                                <td class="user-last-login">Mar 08, 2026</td>
-                                <td class="text-center">
-                                    <div class="user-actions">
-                                        <a href="#" class="user-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="user-action" title="Archive"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="user-name">Symon</td>
-                                <td class="user-email">symon@vastsolutions.com</td>
-                                <td><span class="user-role-badge role-staff">Staff</span></td>
-                                <td><span class="user-status status-active">Active</span></td>
-                                <td class="user-last-login">Mar 07, 2026</td>
-                                <td class="text-center">
-                                    <div class="user-actions">
-                                        <a href="#" class="user-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="user-action" title="Archive"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="user-name">Angela</td>
-                                <td class="user-email">angela@vastsolutions.com</td>
-                                <td><span class="user-role-badge role-staff">Staff</span></td>
-                                <td><span class="user-status status-active">Active</span></td>
-                                <td class="user-last-login">Mar 06, 2026</td>
-                                <td class="text-center">
-                                    <div class="user-actions">
-                                        <a href="#" class="user-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="user-action" title="Archive"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="user-name">Queen</td>
-                                <td class="user-email">queen@vastsolutions.com</td>
-                                <td><span class="user-role-badge role-staff">Staff</span></td>
-                                <td><span class="user-status status-inactive">Inactive</span></td>
-                                <td class="user-last-login">Feb 15, 2026</td>
-                                <td class="text-center">
-                                    <div class="user-actions">
-                                        <a href="#" class="user-action" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="#" class="user-action" title="Archive"><i class="bi bi-archive"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
+                            <?php endforeach; endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -212,6 +166,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             <label class="form-label add-customer-label">Role</label>
                             <select class="form-select add-customer-input" id="newUserRole">
                                 <option selected disabled>-- Select Role --</option>
+                                <option value="Super Admin">Super Admin</option>
                                 <option value="Admin">Admin</option>
                                 <option value="Staff">Staff</option>
                             </select>
@@ -273,6 +228,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                         <div class="col-md-6">
                             <label class="add-customer-label">Role</label>
                             <select class="form-select add-customer-input" id="editUserRole">
+                                <option>Super Admin</option>
                                 <option>Admin</option>
                                 <option>Staff</option>
                             </select>
@@ -338,48 +294,55 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
-            let selectedUser = "";
+            let selectedUser = "", selectedUserId = 0;
+            const post = (url, data) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data) })
+                .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; });
+            const val = id => (document.getElementById(id) ? document.getElementById(id).value : '');
+
+            // ADD USER
+            const addUserBtn = document.getElementById("saveNewUserBtn");
+            if (addUserBtn) addUserBtn.addEventListener("click", function () {
+                post('save_user.php', {
+                    full_name: (val('newUserFirstName') + ' ' + val('newUserLastName')).trim(),
+                    email: val('newUserEmail'), phone: val('newUserPhone'),
+                    role: val('newUserRole'), status: val('newUserStatus'),
+                }).then(() => location.reload()).catch(e => alert(e.message));
+            });
 
             // EDIT USER
             document.querySelectorAll(".edit-user-btn").forEach(btn => {
                 btn.addEventListener("click", function() {
                     selectedUser = this.dataset.name;
-
+                    selectedUserId = this.dataset.id;
                     document.getElementById("editUserName").value = this.dataset.name || "";
+                    if (document.getElementById("editUserLastName")) document.getElementById("editUserLastName").value = "";
                     document.getElementById("editUserEmail").value = this.dataset.email || "";
                     document.getElementById("editUserPhone").value = this.dataset.phone || "";
                     document.getElementById("editUserRole").value = this.dataset.role || "";
                     document.getElementById("editUserStatus").value = this.dataset.status || "";
                 });
             });
-
             document.getElementById("updateUserBtn").addEventListener("click", function() {
-
-                document.getElementById("mainToastMsg").textContent =
-                    "User details updated successfully.";
-
-                new bootstrap.Toast(document.getElementById("mainToast")).show();
-
-                bootstrap.Modal.getInstance(document.getElementById("editUserModal")).hide();
+                const last = val('editUserLastName');
+                post('save_user.php', {
+                    id: selectedUserId,
+                    full_name: (val('editUserName') + (last ? ' ' + last : '')).trim(),
+                    email: val('editUserEmail'), phone: val('editUserPhone'),
+                    role: val('editUserRole'), status: val('editUserStatus'),
+                }).then(() => location.reload()).catch(e => alert(e.message));
             });
 
             // ARCHIVE USER
             document.querySelectorAll(".archive-user-btn").forEach(btn => {
                 btn.addEventListener("click", function() {
                     selectedUser = this.dataset.name;
-
+                    selectedUserId = this.dataset.id;
                     document.getElementById("archiveUserName").textContent = selectedUser;
                 });
             });
-
             document.getElementById("confirmArchiveUserBtn").addEventListener("click", function() {
-
-                document.getElementById("mainToastMsg").textContent =
-                    "User archived successfully.";
-
-                new bootstrap.Toast(document.getElementById("mainToast")).show();
-
-                bootstrap.Modal.getInstance(document.getElementById("archiveUserModal")).hide();
+                post('archive_entity.php', { type: 'user', id: selectedUserId, action: 'archive' })
+                    .then(() => location.reload()).catch(e => alert(e.message));
             });
 
         });

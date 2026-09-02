@@ -126,6 +126,33 @@
      padding: 0.8rem 1.1rem 1.2rem;
      border-top: 1px solid rgba(255,255,255,0.07);
    }
+
+   /* Dev identity switcher (only rendered while DEV_MODE is on) */
+   .dev-switch {
+     margin-bottom: 0.7rem;
+     padding: 0.55rem 0.6rem;
+     background: rgba(255,255,255,0.05);
+     border: 1px dashed rgba(255,255,255,0.18);
+     border-radius: 8px;
+   }
+   .dev-switch-label {
+     display: flex; align-items: center; gap: 0.4rem;
+     font-size: 0.66rem; font-weight: 600; letter-spacing: 0.03em;
+     text-transform: uppercase; color: var(--navy-muted, #94a3b8);
+     margin-bottom: 0.45rem;
+   }
+   .dev-switch-btns { display: flex; gap: 0.35rem; }
+   .dev-switch-btn {
+     flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600;
+     text-decoration: none; color: var(--navy-muted, #94a3b8);
+     background: rgba(255,255,255,0.06); border: 1px solid transparent;
+     border-radius: 6px; padding: 0.3rem 0.4rem;
+     transition: background 0.15s, color 0.15s;
+   }
+   .dev-switch-btn:hover { color: #fff; background: rgba(255,255,255,0.12); }
+   .dev-switch-btn.active {
+     color: #fff; background: var(--teal, #0d9676); border-color: var(--teal, #0d9676);
+   }
    .logout-btn {
      display: flex;
      align-items: center;
@@ -544,6 +571,9 @@
    .activity-dot.blue { background: var(--blue); }
    .activity-text { font-size: 0.78rem; font-weight: 600; color: var(--text); }
    .activity-date { font-size: 0.7rem; color: var(--text-sm); margin-top: 0.1rem; }
+   .activity-image-link { display: inline-block; margin: 0.4rem 0; }
+   .activity-image { max-width: 240px; width: 100%; max-height: 200px; object-fit: cover;
+                     border-radius: 8px; border: 1px solid #e5e7eb; display: block; }
    
    /* Quotation display */
    .quotation-bar {

@@ -1,6 +1,8 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
+require_once __DIR__ . '/../includes/legal.php';
+require_agreements(); // clients must accept the latest Terms & Privacy first
 
 require_once __DIR__ . '/../includes/project_status.php';
 
@@ -12,7 +14,77 @@ $active_page = 'my_projects';
  * tracker alike. 'quote_status' is separate: it tracks the quotation document
  * (Pending / Approved / Rejected), not the project.
  */
-$projects = [
+require_once __DIR__ . '/../includes/helpers.php';
+
+// Build the current client's projects from the database, in the shape the page expects.
+$clientId  = current_user()['id'] ?? 0;
+$statusMap = ['Sent' => 'Pending', 'Accepted' => 'Accepted', 'Approved' => 'Approved', 'Rejected' => 'Rejected'];
+$projects = [];
+$updatesByProject = [];
+$materialsByProject = [];
+
+$__rows = db()->prepare(
+    "SELECT p.*, c.name AS customer_name,
+            q.id AS quotation_id, q.quote_code, q.status AS quote_status_raw,
+            q.date_created AS quote_issued, q.valid_until AS quote_valid,
+            q.total_amount AS quote_total, q.notes AS quote_notes, r.id AS req_id
+       FROM projects p
+       JOIN customers c ON c.id = p.customer_id
+       LEFT JOIN quotations q ON q.id = (SELECT id FROM quotations WHERE project_id = p.id ORDER BY id DESC LIMIT 1)
+       LEFT JOIN project_requests r ON r.id = p.request_id
+      WHERE c.user_id = ?
+      ORDER BY p.created_at DESC, p.id DESC"
+);
+$__rows->execute([$clientId]);
+foreach ($__rows->fetchAll() as $r) {
+    $pid = (int) $r['id'];
+
+    $ups = db()->prepare("SELECT author_name, update_text, attachment_path, created_at FROM project_updates WHERE project_id = ? ORDER BY created_at DESC, id DESC");
+    $ups->execute([$pid]);
+    $activity = []; $updatesJs = [];
+    foreach ($ups as $u) {
+        $img = $u['attachment_path'] ? '../' . $u['attachment_path'] : null;
+        $activity[]  = ['text' => $u['update_text'], 'date' => date('Y-m-d', strtotime($u['created_at'])), 'by' => $u['author_name'] ?: 'Vast Solutions', 'dot' => 'blue', 'image' => $img];
+        $updatesJs[] = ['author' => $u['author_name'] ?: 'Vast Solutions', 'initials' => strtoupper(mb_substr($u['author_name'] ?: 'V', 0, 1)), 'time' => date('M d, Y · g:i A', strtotime($u['created_at'])), 'text' => $u['update_text'], 'image' => $img, 'attachments' => []];
+    }
+    if ($updatesJs) $updatesByProject[(string) $pid] = $updatesJs;
+
+    $mats = db()->prepare("SELECT material, specification, qty, unit, status FROM project_materials WHERE project_id = ? ORDER BY sort_order, id");
+    $mats->execute([$pid]);
+    $mArr = [];
+    foreach ($mats as $m) $mArr[] = ['name' => $m['material'], 'spec' => $m['specification'], 'qty' => (float) $m['qty'], 'unit' => $m['unit'], 'status' => $m['status']];
+    if ($mArr) $materialsByProject[(string) $pid] = $mArr;
+
+    $files = [];
+    if ($r['req_id']) {
+        $fs = db()->prepare("SELECT file_name FROM request_files WHERE request_id = ?");
+        $fs->execute([$r['req_id']]);
+        $files = array_column($fs->fetchAll(), 'file_name');
+    }
+
+    $qstatus    = $r['quote_status_raw'] ? ($statusMap[$r['quote_status_raw']] ?? $r['quote_status_raw']) : '';
+    $qtot       = (float) ($r['quote_total'] ?? 0);
+    // Client sees only the final total (one summary line), not the internal materials.
+    $quoteItems = $r['quotation_id'] ? [['desc' => 'Custom cabinetry works — ' . $r['project_name'], 'qty' => 1, 'unit' => $qtot, 'amount' => $qtot]] : [];
+
+    $projects[] = [
+        'id' => $pid, 'name' => $r['project_name'], 'category' => $r['category'] ?? '',
+        'status' => $r['status'], 'submitted' => date('M d, Y', strtotime($r['created_at'])),
+        'updated' => time_ago($r['updated_at']), 'notes' => $r['description'] ?? '',
+        'files' => $files, 'activity' => $activity,
+        'quote_id' => $r['quote_code'] ?? '—', 'quotation_pk' => (int) ($r['quotation_id'] ?? 0),
+        'quote_status' => $qstatus ?: 'Pending', 'quote_prepared_for' => $r['customer_name'],
+        'quote_issued' => $r['quote_issued'] ? date('Y-m-d', strtotime($r['quote_issued'])) : '',
+        'quote_valid' => $r['quote_valid'] ? date('Y-m-d', strtotime($r['quote_valid'])) : '',
+        'quote_items' => $quoteItems, 'quote_notes' => $r['quote_notes'] ?? '',
+        'code' => $r['project_code'], 'customer' => $r['customer_name'],
+        'target' => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
+        'start' => $r['start_date'] ?? '', 'progress' => (int) $r['progress'], 'approver' => $r['approver'] ?? '',
+        'details' => $r['description'] ?? '', 'materials_key' => (string) $pid, 'updates_key' => (string) $pid,
+    ];
+}
+
+$__ignore = [
   ['id'=>1,
    'name'=>'Kitchen Cabinets - Unit 4B',  'category'=>'Kitchen Cabinets',
    'status'=>'production',                 'submitted'=>'2026-03-01', 'updated'=>'2 hours ago',
@@ -133,7 +205,7 @@ function awaitingClientDecision(array $p): bool {
   return $p['quote_status'] === 'Pending' && $p['quote_issued'] !== '';
 }
 
-function peso($n) { return '₱'.number_format($n,2); }
+// peso() is provided by includes/helpers.php
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -356,6 +428,9 @@ function peso($n) { return '₱'.number_format($n,2); }
     .pvm-update-author { font-size:.72rem; font-weight:600; color:#111827; }
     .pvm-update-time   { font-size:.65rem; color:#9ca3af; }
     .pvm-update-text   { font-size:.75rem; color:#374151; line-height:1.55; margin-bottom:6px; }
+    .pvm-update-image-link { display:inline-block; margin:2px 0 6px; }
+    .pvm-update-image  { max-width:240px; width:100%; max-height:200px; object-fit:cover;
+                         border-radius:8px; border:1px solid #e5e7eb; display:block; }
     .pvm-attachments   { display:flex; gap:6px; flex-wrap:wrap; }
     .pvm-attachment-chip { padding:3px 10px; border-radius:6px; font-size:.64rem; font-weight:600; }
     .chip-green  { background:#dcfce7; color:#15803d; }
@@ -464,10 +539,12 @@ function peso($n) { return '₱'.number_format($n,2); }
             <td style="text-align:right">
               <div style="display:inline-flex;gap:8px;align-items:center;">
 
-                <?php if (awaitingClientDecision($p)): ?>
-                <!-- VERIFY — only while the issued quote still needs a client decision -->
+                <?php if (!empty($p['quotation_pk'])): $awaiting = awaitingClientDecision($p); ?>
+                <!-- QUOTE — "Verify" while awaiting a decision, else "View Quote" (always available) -->
                 <button class="btn-verify verify-btn"
                   data-id="<?= $p['id'] ?>"
+                  data-awaiting="<?= $awaiting ? '1' : '0' ?>"
+                  data-quotation-pk="<?= (int) ($p['quotation_pk'] ?? 0) ?>"
                   data-name="<?= htmlspecialchars($p['name']) ?>"
                   data-code="<?= htmlspecialchars($p['code']) ?>"
                   data-category="<?= htmlspecialchars($p['category']) ?>"
@@ -487,7 +564,7 @@ function peso($n) { return '₱'.number_format($n,2); }
                   data-quote-notes="<?= htmlspecialchars($p['quote_notes']) ?>"
                   data-quote-total="<?= htmlspecialchars(peso(array_sum(array_column($p['quote_items'],'amount')))) ?>">
                   <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-                  Verify
+                  <?= $awaiting ? 'Verify' : 'View Quote' ?>
                 </button>
                 <?php endif; ?>
 
@@ -829,73 +906,9 @@ function peso($n) { return '₱'.number_format($n,2); }
 <?= project_status_js() ?>
 <script>
 // ── MATERIALS DATA ─────────────────────────────────
-const MATERIALS = {
-  '042': [
-    {name:'Melamine Board 18mm',spec:'White, 4x8 ft',qty:24,unit:'sheets'},
-    {name:'PVC Edge Banding',spec:'White, 22mm width',qty:150,unit:'meters'},
-    {name:'Soft-Close Hinge',spec:'35mm cup, full overlay',qty:96,unit:'pcs'},
-    {name:'Cabinet Handle',spec:'Stainless, 128mm hole',qty:48,unit:'pcs'},
-    {name:'Drawer Slide 400mm',spec:'Full extension, 40kg',qty:24,unit:'pairs'},
-    {name:'Dowel Pin 8x35mm',spec:'Hardwood',qty:500,unit:'pcs'},
-    {name:'Wood Glue',spec:'PVA, 1L bottle',qty:6,unit:'bottles'},
-  ],
-  '041': [
-    {name:'MDF Board 18mm',spec:'E1 grade, 4x8 ft',qty:18,unit:'sheets'},
-    {name:'White Laminate',spec:'Hi-gloss, 1.22x2.44m',qty:18,unit:'sheets'},
-    {name:'Soft-Close Hinge',spec:'35mm, half overlay',qty:72,unit:'pcs'},
-    {name:'Cam Lock 15mm',spec:'Zinc alloy',qty:200,unit:'pcs'},
-    {name:'Adjustable Shelf Pin',spec:'5mm, chrome',qty:120,unit:'pcs'},
-  ],
-  '039': [
-    {name:'Tempered Glass 10mm',spec:'Clear, custom cut',qty:8,unit:'panels'},
-    {name:'Acrylic Panel 6mm',spec:'Frosted white, back-lit',qty:4,unit:'panels'},
-    {name:'Steel Flat Bar 40x5',spec:'Mild steel, 6m length',qty:12,unit:'lengths'},
-    {name:'Powder Coat Paint',spec:'Matte black, RAL 9005',qty:4,unit:'liters'},
-    {name:'LED Strip Light',spec:'Warm white, 12V IP20',qty:10,unit:'meters'},
-    {name:'Glass Shelf Bracket',spec:'Chrome, 150mm',qty:16,unit:'pcs'},
-  ],
-  '037': [
-    {name:'Particle Board 18mm',spec:'E1 grade, 4x8 ft',qty:30,unit:'sheets'},
-    {name:'PVC Edge Banding',spec:'Beige, 22mm width',qty:200,unit:'meters'},
-    {name:'Pull-Out Shelf Slide',spec:'450mm, 25kg',qty:20,unit:'pairs'},
-    {name:'Soft-Close Hinge',spec:'35mm, full overlay',qty:80,unit:'pcs'},
-    {name:'Ventilation Grille',spec:'PVC, 150x100mm',qty:10,unit:'pcs'},
-    {name:'Cam Lock 15mm',spec:'Zinc alloy',qty:250,unit:'pcs'},
-  ],
-};
-
-// ── SEED UPDATES ───────────────────────────────────
-const SEED_UPDATES = {
-  '042': [
-    {author:'Marco Reyes',initials:'MR',time:'Mar 14, 2026 · 3:00 PM',
-     text:'Cabinet boxes assembled and sanded. Starting laminate application tomorrow.',
-     attachments:[{label:'Cabinet Frame',cls:'chip-blue'},{label:'Sanding Detail',cls:'chip-yellow'}]},
-    {author:'Ana Cruz',initials:'AC',time:'Mar 12, 2026 · 10:30 AM',
-     text:'All custom hinges installed and tested. Soft-close function confirmed on all doors.',
-     attachments:[{label:'Hinge Test',cls:'chip-green'}]},
-    {author:'Marco Reyes',initials:'MR',time:'Mar 10, 2026 · 9:00 AM',
-     text:'Materials delivered and staged on site.',attachments:[]},
-  ],
-  '041': [
-    {author:'Lena Tan',initials:'LT',time:'Mar 11, 2026 · 2:00 PM',
-     text:'Site measurements confirmed. Drawings sent for final sign-off.',
-     attachments:[{label:'Revised Plan',cls:'chip-purple'}]},
-  ],
-  '039': [
-    {author:'Sofia Lim',initials:'SL',time:'Feb 28, 2026 · 4:00 PM',
-     text:'Final installation complete. Handover document signed.',
-     attachments:[{label:'Handover Doc',cls:'chip-green'},{label:'Site Photos',cls:'chip-blue'}]},
-    {author:'Jose Reyes',initials:'JR',time:'Feb 25, 2026 · 11:00 AM',
-     text:'LED strip lights wired and tested.',attachments:[{label:'LED Test',cls:'chip-yellow'}]},
-  ],
-  '037': [
-    {author:'Marco Reyes',initials:'MR',time:'Mar 13, 2026 · 1:00 PM',
-     text:'Pull-out shelf slides installed on all units.',
-     attachments:[{label:'Slide Install',cls:'chip-green'}]},
-    {author:'Ben Garcia',initials:'BG',time:'Mar 10, 2026 · 8:30 AM',
-     text:'Edge banding applied. Additional PVC order placed.',attachments:[]},
-  ],
-};
+// Materials + updates come from the database, keyed by project id.
+const MATERIALS = <?= json_encode($materialsByProject, JSON_UNESCAPED_UNICODE) ?: '{}' ?>;
+const SEED_UPDATES = <?= json_encode($updatesByProject, JSON_UNESCAPED_UNICODE) ?: '{}' ?>;
 
 const CHIPS=['chip-green','chip-blue','chip-yellow','chip-purple','chip-pink'];
 
@@ -908,10 +921,12 @@ function peso(n){ return '₱'+Number(n).toLocaleString('en-PH',{minimumFraction
 
 // ══ VERIFY MODAL ═══════════════════════════════════
 let currentVerifyId = null;
+let currentQuotationPk = 0;
 
 document.querySelectorAll('.verify-btn').forEach(btn => {
   btn.addEventListener('click', function(){
     currentVerifyId = this.dataset.id;
+    currentQuotationPk = this.dataset.quotationPk || 0;
     const d = this.dataset;
 
     // Header
@@ -936,14 +951,18 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
 
     // Activity
     const activity = JSON.parse(d.activity || '[]');
-    document.getElementById('vmActivity').innerHTML = activity.map(a=>`
+    document.getElementById('vmActivity').innerHTML = activity.map(a=>{
+      const cap = (a.image && a.text === '(image)') ? '' : a.text;
+      const img = a.image ? `<a href="${a.image}" target="_blank" class="pvm-update-image-link"><img src="${a.image}" alt="Project update photo" class="pvm-update-image"></a>` : '';
+      return `
       <div class="vm-activity-item">
         <div class="vm-activity-dot"></div>
         <div>
-          <div class="vm-activity-text">${a.text}</div>
+          ${cap?`<div class="vm-activity-text">${cap}</div>`:''}
+          ${img}
           <div class="vm-activity-date">${a.date} · ${a.by}</div>
         </div>
-      </div>`).join('');
+      </div>`;}).join('');
 
     // Quotation bar
     document.getElementById('vmQId').textContent = d.quoteId;
@@ -975,24 +994,32 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     // Hide paper notes wrap if empty
     document.getElementById('vmPaperNotesWrap').style.display = d.quoteNotes ? '' : 'none';
 
+    // Accept/Reject bar only while the client still needs to decide.
+    const awaiting = d.awaiting === '1';
+    const actionBar = document.querySelector('#verifyModal .vm-action-bar');
+    if (actionBar) actionBar.style.display = awaiting ? '' : 'none';
+
     new bootstrap.Modal(document.getElementById('verifyModal')).show();
   });
 });
 
+function postQuoteDecision(endpoint){
+  if(!currentQuotationPk){ alert('No quotation to act on.'); return; }
+  const f=document.createElement('form');
+  f.method='POST'; f.action=endpoint;
+  f.innerHTML='<input type="hidden" name="quotation_id" value="'+currentQuotationPk+'">';
+  document.body.appendChild(f); f.submit();
+}
 document.getElementById('btnAcceptQuote').addEventListener('click', function(){
-  alert('Quote accepted! (ID: '+currentVerifyId+')');
-  bootstrap.Modal.getInstance(document.getElementById('verifyModal')).hide();
+  postQuoteDecision('accept_quote.php');
 });
-
 document.getElementById('btnRejectQuote').addEventListener('click', function(){
-  if(confirm('Are you sure you want to reject this quote?')){
-    alert('Quote rejected. (ID: '+currentVerifyId+')');
-    bootstrap.Modal.getInstance(document.getElementById('verifyModal')).hide();
-  }
+  if(confirm('Are you sure you want to reject this quote?')) postQuoteDecision('reject_quote.php');
 });
 
 document.getElementById('vmDownloadBtn').addEventListener('click', function(){
-  window.print(); // wire to real PDF endpoint
+  if(currentQuotationPk){ window.open('<?= BASE_URL ?>/download_quote.php?id='+currentQuotationPk,'_blank'); }
+  else window.print();
 });
 
 // ══ VIEW MODAL ═════════════════════════════════════
@@ -1026,6 +1053,10 @@ function renderFeed(key){
     const chips  = (u.attachments||[]).map((a,ci)=>
       `<span class="pvm-attachment-chip ${a.cls||CHIPS[ci%CHIPS.length]}">${a.label}</span>`
     ).join('');
+    const caption = (u.image && u.text === '(image)') ? '' : u.text;
+    const imgHtml = u.image
+      ? `<a href="${u.image}" target="_blank" class="pvm-update-image-link"><img src="${u.image}" alt="Project update photo" class="pvm-update-image"></a>`
+      : '';
     return `<div class="pvm-update-item">
       <div class="pvm-update-dot-col">
         <div class="pvm-update-dot"></div>
@@ -1037,7 +1068,8 @@ function renderFeed(key){
           <span class="pvm-update-author">${u.author}</span>
           <span class="pvm-update-time">· ${u.time}</span>
         </div>
-        <div class="pvm-update-text">${u.text}</div>
+        ${caption?`<div class="pvm-update-text">${caption}</div>`:''}
+        ${imgHtml}
         ${chips?`<div class="pvm-attachments">${chips}</div>`:''}
       </div>
     </div>`;
@@ -1074,6 +1106,16 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     new bootstrap.Modal(document.getElementById('viewModal')).show();
   });
 });
+
+// Deep link: my_projects.php?view=<projectId> opens that project's detail modal
+// (used by notifications so the client lands on the project details here).
+(function(){
+  const params = new URLSearchParams(location.search);
+  const viewId = params.get('view');
+  if(!viewId) return;
+  const target = document.querySelector('.view-btn[data-id="'+CSS.escape(viewId)+'"]');
+  if(target){ target.click(); }
+})();
 
 document.getElementById('btnViewMaterials').addEventListener('click', function(){
   const rows = MATERIALS[currentMatsKey]||[];

@@ -1,9 +1,33 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 $active_page = 'quotations';
+require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
+
+require_once __DIR__ . '/../includes/helpers.php';
+
+$quotes = db()->query(
+    "SELECT q.*, c.name AS customer_name, c.address AS customer_address
+       FROM quotations q
+       LEFT JOIN customers c ON c.id = q.customer_id
+      ORDER BY q.date_created DESC, q.id DESC"
+)->fetchAll();
+
+// Items grouped by quotation (for the admin view modal — internal breakdown).
+$itemsByQuote = [];
+foreach (db()->query("SELECT quotation_id, description, qty, unit_cost, line_total FROM quotation_items ORDER BY sort_order, id") as $it) {
+    $itemsByQuote[$it['quotation_id']][] = $it;
+}
+
+// quotations.status -> [badge class, label, admin-can-act]
+$quoteBadge = [
+    'Sent'     => ['badge-waiting-approval', 'Sent to Client', false],
+    'Accepted' => ['badge-waiting-approval', 'Awaiting Approval', true],
+    'Approved' => ['badge-approved-soft',    'Approved', false],
+    'Rejected' => ['badge-rejected-soft',    'Rejected', false],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -103,160 +127,52 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>QT-2026-042</td>
-                                <td>Rivera Kitchens</td>
-                                <td class="quotation-project">Kitchen Reno Phase 1</td>
-                                <td>Mar 15, 2026</td>
-                                <td class="quotation-amount">₱12,450.00</td>
-                                <td>
-                                    <span class="badge-status badge-waiting-approval">Waiting Approval</span>
-                                </td>
+                            <?php if (empty($quotes)): ?>
+                            <tr><td colspan="7" class="text-center text-muted py-4">No quotations yet.</td></tr>
+                            <?php else: foreach ($quotes as $q):
+                                [$bcls, $blabel, $canAct] = $quoteBadge[$q['status']] ?? ['badge-waiting-approval', $q['status'], false];
+                                $items = $itemsByQuote[$q['id']] ?? [];
+                                $itemsJson = htmlspecialchars(json_encode(array_map(fn($i) => [
+                                    'description' => $i['description'], 'qty' => (float) $i['qty'],
+                                    'unit_cost' => (float) $i['unit_cost'], 'line_total' => (float) $i['line_total'],
+                                ], $items)), ENT_QUOTES);
+                                $dateStr  = $q['date_created'] ? date('M d, Y', strtotime($q['date_created'])) : '';
+                                $validStr = $q['valid_until']  ? date('M d, Y', strtotime($q['valid_until']))  : '';
+                            ?>
+                            <tr data-status="<?= htmlspecialchars($q['status']) ?>">
+                                <td><?= htmlspecialchars($q['quote_code']) ?></td>
+                                <td><?= htmlspecialchars($q['customer_name'] ?? '—') ?></td>
+                                <td class="quotation-project"><?= htmlspecialchars($q['project_name']) ?></td>
+                                <td><?= $dateStr ?: '—' ?></td>
+                                <td class="quotation-amount"><?= peso($q['total_amount']) ?></td>
+                                <td><span class="badge-status <?= $bcls ?>"><?= htmlspecialchars($blabel) ?></span></td>
                                 <td class="text-center">
                                     <div class="quotation-actions">
-
-                                        <!-- LEFT SIDE (Approve / Reject) -->
                                         <div class="action-left">
-                                            <a href="#" class="quotation-action approve" title="Approve">
-                                                <i class="bi bi-check-lg"></i>
-                                            </a>
-                                            <a href="#" class="quotation-action reject" title="Reject">
-                                                <i class="bi bi-x-lg"></i>
-                                            </a>
+                                            <?php if ($canAct): ?>
+                                            <a href="#" class="quotation-action approve quote-act" data-id="<?= (int) $q['id'] ?>" data-do="approve" title="Approve"><i class="bi bi-check-lg"></i></a>
+                                            <a href="#" class="quotation-action reject quote-act" data-id="<?= (int) $q['id'] ?>" data-do="reject" title="Reject"><i class="bi bi-x-lg"></i></a>
+                                            <?php endif; ?>
                                         </div>
-
-                                        <!-- RIGHT SIDE (View / Download) -->
                                         <div class="action-right">
-                                            <a href="#"
-                                                class="quotation-action view-quotation-btn"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#viewQuotationModal"
-                                                data-code="QT-2026-001"
-                                                data-customer="Rivera Kitchens"
-                                                data-project="Kitchen Reno Phase 1"
-                                                data-date="Mar 15, 2026"
-                                                data-total="₱2,191.18">
+                                            <a href="#" class="quotation-action view-quotation-btn"
+                                               data-bs-toggle="modal" data-bs-target="#viewQuotationModal"
+                                               data-id="<?= (int) $q['id'] ?>"
+                                               data-code="<?= htmlspecialchars($q['quote_code']) ?>"
+                                               data-customer="<?= htmlspecialchars($q['customer_name'] ?? '') ?>"
+                                               data-address="<?= htmlspecialchars($q['customer_address'] ?? '') ?>"
+                                               data-project="<?= htmlspecialchars($q['project_name']) ?>"
+                                               data-date="<?= $dateStr ?>" data-valid="<?= $validStr ?>"
+                                               data-total="<?= peso($q['total_amount']) ?>"
+                                               data-items='<?= $itemsJson ?>'>
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="#" class="quotation-action" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                        </div>
-
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td>QT-2026-041</td>
-                                <td>Mendoza Interiors</td>
-                                <td class="quotation-project">Office Cabinets</td>
-                                <td>Mar 12, 2026</td>
-                                <td class="quotation-amount">₱8,920.00</td>
-                                <td>
-                                    <span class="badge-status badge-approved-soft">Approved</span>
-                                </td>
-                                <td class="text-center">
-                                    <div class="quotation-actions">
-                                        <div class="action-left"></div>
-
-                                        <div class="action-right">
-                                            <a href="#" class="quotation-action" title="View">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="#" class="quotation-action" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
+                                            <a href="<?= BASE_URL ?>/download_quote.php?id=<?= (int) $q['id'] ?>" target="_blank" class="quotation-action" title="Download"><i class="bi bi-download"></i></a>
                                         </div>
                                     </div>
                                 </td>
                             </tr>
-
-                            <tr>
-                                <td>QT-2026-040</td>
-                                <td>Kim Design Studio</td>
-                                <td class="quotation-project">Bathroom Vanity Set</td>
-                                <td>Mar 10, 2026</td>
-                                <td class="quotation-amount">₱5,380.00</td>
-                                <td>
-                                    <span class="badge-status badge-waiting-approval">Waiting Approval</span>
-                                </td>
-                                <td class="text-center">
-                                    <div class="quotation-actions">
-
-                                        <!-- LEFT SIDE (Approve / Reject) -->
-                                        <div class="action-left">
-                                            <a href="#" class="quotation-action approve" title="Approve">
-                                                <i class="bi bi-check-lg"></i>
-                                            </a>
-                                            <a href="#" class="quotation-action reject" title="Reject">
-                                                <i class="bi bi-x-lg"></i>
-                                            </a>
-                                        </div>
-
-                                        <!-- RIGHT SIDE (View / Download) -->
-                                        <div class="action-right">
-                                            <a href="#" class="quotation-action" title="View">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="#" class="quotation-action" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                        </div>
-
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td>QT-2026-039</td>
-                                <td>Park Residences</td>
-                                <td class="quotation-project">Lobby Display Unit</td>
-                                <td>Mar 08, 2026</td>
-                                <td class="quotation-amount">₱18,750.00</td>
-                                <td>
-                                    <span class="badge-status badge-approved-soft">Approved</span>
-                                </td>
-                                <td class="text-center">
-                                    <div class="quotation-actions">
-                                        <div class="action-left"></div>
-
-                                        <div class="action-right">
-                                            <a href="#" class="quotation-action" title="View">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="#" class="quotation-action" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td>QT-2026-038</td>
-                                <td>Lee Custom Homes</td>
-                                <td class="quotation-project">Master Closet System</td>
-                                <td>Mar 05, 2026</td>
-                                <td class="quotation-amount">₱7,200.00</td>
-                                <td>
-                                    <span class="badge-status badge-rejected-soft">Rejected</span>
-                                </td>
-                                <td class="text-center">
-                                    <div class="quotation-actions">
-                                        <div class="action-left"></div>
-
-                                        <div class="action-right">
-                                            <a href="#" class="quotation-action" title="View">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="#" class="quotation-action" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
+                            <?php endforeach; endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -407,7 +323,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
             <div class="modal-footer" style="font-family:'Syne', sans-serif;">
                 <button class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                <button class="btn btn-success">
+                <button class="btn btn-success" id="vqDownloadBtn">
                     <i class="bi bi-download"></i> Download PDF
                 </button>
             </div>
@@ -420,26 +336,79 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
+            const pesoFmt = (n) => '₱' + (Number(n) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+            // Tracks which quotation the view modal is currently showing.
+            let currentQuotationId = 0;
+
             document.querySelectorAll(".view-quotation-btn").forEach(btn => {
-    btn.addEventListener("click", function () {
+                btn.addEventListener("click", function () {
+                    currentQuotationId = parseInt(this.dataset.id || 0);
+                    document.getElementById("vqCode").textContent = this.dataset.code;
+                    document.getElementById("vqCustomer").textContent = this.dataset.customer;
+                    document.getElementById("vqShip").textContent = this.dataset.customer;
+                    if (document.getElementById("vqAddress")) document.getElementById("vqAddress").textContent = this.dataset.address || '';
+                    if (document.getElementById("vqShipAddr")) document.getElementById("vqShipAddr").textContent = this.dataset.address || '';
+                    document.getElementById("vqDate").textContent = this.dataset.date;
+                    document.getElementById("vqValid").textContent = this.dataset.valid || '';
+                    document.getElementById("vqTotal").textContent = this.dataset.total;
 
-        const today = new Date();
-        const valid = new Date();
-        valid.setDate(today.getDate() + 30);
+                    // Render the internal itemised breakdown (admin view).
+                    let items = [];
+                    try { items = JSON.parse(this.dataset.items || "[]"); } catch (e) {}
+                    const body = document.getElementById("vqItems");
+                    body.innerHTML = items.length ? items.map(it => `
+                        <tr>
+                            <td style="padding:10px;border-top:1px solid #ccc;">${esc(it.description)}</td>
+                            <td style="text-align:center;border-top:1px solid #ccc;">${(+it.qty).toLocaleString('en-PH')}</td>
+                            <td style="text-align:right;border-top:1px solid #ccc;">${pesoFmt(it.unit_cost)}</td>
+                            <td style="text-align:right;border-top:1px solid #ccc;">${pesoFmt(it.line_total)}</td>
+                        </tr>`).join('') :
+                        '<tr><td colspan="4" style="padding:10px;text-align:center;color:#888;">No line items.</td></tr>';
+                });
+            });
 
-        function format(d){
-            return d.toLocaleDateString('en-PH');
-        }
+            // Download the quotation from the view modal.
+            const vqDownloadBtn = document.getElementById("vqDownloadBtn");
+            if (vqDownloadBtn) {
+                vqDownloadBtn.addEventListener("click", function () {
+                    if (!currentQuotationId) { alert("No quotation selected."); return; }
+                    window.open('<?= BASE_URL ?>/download_quote.php?id=' + currentQuotationId, '_blank');
+                });
+            }
 
-        document.getElementById("vqCode").textContent = this.dataset.code;
-        document.getElementById("vqCustomer").textContent = this.dataset.customer;
-        document.getElementById("vqShip").textContent = this.dataset.customer;
-        document.getElementById("vqDate").textContent = this.dataset.date;
-        document.getElementById("vqValid").textContent = format(valid);
-        document.getElementById("vqTotal").textContent = this.dataset.total;
+            // Approve / reject a quotation (client-accepted ones).
+            document.querySelectorAll(".quote-act").forEach(a => {
+                a.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    const action = this.dataset.do, id = this.dataset.id;
+                    if (!confirm(`${action === 'approve' ? 'Approve' : 'Reject'} this quotation?`)) return;
+                    const body = new URLSearchParams({ id, action });
+                    fetch('update_quotation.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                        .then(() => location.reload())
+                        .catch(err => alert(err.message));
+                });
+            });
 
-    });
-});
+            // Status filter pills.
+            document.querySelectorAll('.quotation-pill').forEach(pill => {
+                pill.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.quotation-pill').forEach(p => p.classList.remove('active'));
+                    this.classList.add('active');
+                    const want = this.textContent.trim().toLowerCase();
+                    document.querySelectorAll('.quotation-table tbody tr').forEach(row => {
+                        const st = (row.dataset.status || '').toLowerCase();
+                        let show = want === 'all'
+                            || (want === 'waiting'  && (st === 'sent' || st === 'accepted'))
+                            || (want === 'approved' && st === 'approved')
+                            || (want === 'rejected' && st === 'rejected');
+                        row.style.display = show ? '' : 'none';
+                    });
+                });
+            });
 
         });
     </script>

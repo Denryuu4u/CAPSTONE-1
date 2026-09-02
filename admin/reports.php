@@ -1,11 +1,52 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
 
 require_once __DIR__ . '/../includes/project_status.php';
 
 $active_page = 'reports';
+require_page($active_page); // role gate (Super Admin / Admin)
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
+
+require_once __DIR__ . '/../includes/helpers.php';
+$reportData = ['project' => [], 'quotation' => [], 'cutting' => [], 'costing' => []];
+
+foreach (db()->query(
+    "SELECT p.project_code AS code, c.name AS customer, p.project_name, p.created_at, r.date_submitted, p.status
+       FROM projects p LEFT JOIN customers c ON c.id=p.customer_id LEFT JOIN project_requests r ON r.id=p.request_id
+      ORDER BY p.created_at DESC"
+) as $x) {
+    $reportData['project'][] = [
+        'code' => $x['code'], 'customer' => $x['customer'] ?? '—', 'project' => $x['project_name'],
+        'submitted' => $x['created_at'] ? date('Y-m-d', strtotime($x['created_at'])) : '',
+        'request' => $x['date_submitted'] ? date('Y-m-d', strtotime($x['date_submitted'])) : '', 'status' => $x['status'],
+    ];
+}
+$qmap = ['Sent' => 'pending', 'Accepted' => 'pending', 'Approved' => 'approved', 'Rejected' => 'rejected'];
+foreach (db()->query(
+    "SELECT q.quote_code AS code, c.name AS customer, q.project_name, q.date_created, q.status, q.total_amount
+       FROM quotations q LEFT JOIN customers c ON c.id=q.customer_id ORDER BY q.date_created DESC"
+) as $x) {
+    $reportData['quotation'][] = [
+        'code' => $x['code'], 'customer' => $x['customer'] ?? '—', 'project' => $x['project_name'],
+        'created' => $x['date_created'] ? date('Y-m-d', strtotime($x['date_created'])) : '',
+        'status' => $qmap[$x['status']] ?? 'pending', 'amount' => (float) $x['total_amount'],
+    ];
+}
+$catLbl = ['wood' => 'Panels', 'alu' => 'Edges', 'hw' => 'Hardware'];
+foreach (db()->query("SELECT material, category, SUM(qty) AS qty, COUNT(*) AS grouped FROM summ_items GROUP BY material, category ORDER BY category, material") as $x) {
+    $reportData['cutting'][] = [
+        'material' => $x['material'], 'length' => 0, 'width' => 0, 'qty' => (int) $x['qty'],
+        'grouped' => (int) $x['grouped'], 'category' => $catLbl[$x['category']] ?? $x['category'],
+    ];
+}
+foreach (db()->query("SELECT project_name, material_total, total_amount, special_works, accessories FROM quotations WHERE status IN ('Approved','Accepted') ORDER BY id DESC") as $x) {
+    $mat = (float) $x['material_total']; $other = (float) $x['special_works'] + (float) $x['accessories'];
+    $reportData['costing'][] = [
+        'project' => $x['project_name'], 'materials' => $mat,
+        'labor' => round(max(0, (float) $x['total_amount'] - $mat - $other), 2), 'other' => round($other, 2),
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -26,10 +67,49 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
         @media print {
             body * { visibility: hidden !important; }
             #reportPreviewModal, #reportPreviewModal * { visibility: visible !important; }
-            #reportPreviewModal { position: absolute; left:0; top:0; width:100%; }
-            .modal-dialog { max-width:100% !important; margin:0 !important; }
-            .modal-content { border:none !important; box-shadow:none !important; border-radius:0 !important; }
-            .rp-modal-actions, .modal-header { display:none !important; }
+
+            /* Let the whole report flow onto the printed page — no scroll clipping,
+               no fixed viewport height, no modal chrome. */
+            html, body { height: auto !important; overflow: visible !important; }
+            body.modal-open { overflow: visible !important; }
+
+            #reportPreviewModal {
+                position: absolute !important; left: 0; top: 0; width: 100%;
+                height: auto !important; max-height: none !important;
+                overflow: visible !important; display: block !important;
+            }
+            #reportPreviewModal .modal-dialog {
+                max-width: 100% !important; width: 100% !important; margin: 0 !important;
+                height: auto !important; max-height: none !important; overflow: visible !important;
+            }
+            #reportPreviewModal .modal-content {
+                border: none !important; box-shadow: none !important; border-radius: 0 !important;
+                height: auto !important; max-height: none !important; overflow: visible !important;
+            }
+            /* The scrollable body is what clips the report to the screenshot — unclip it. */
+            #reportPreviewModal .modal-body,
+            #reportPreviewModal #reportPreviewBody {
+                height: auto !important; max-height: none !important; overflow: visible !important;
+            }
+            /* Keep multi-report sections from splitting awkwardly across pages. */
+            #reportPreviewBody .rp-doc { page-break-inside: auto; }
+            #reportPreviewBody .rp-doc + .rp-doc { page-break-before: always; }
+            #reportPreviewBody hr { display: none !important; }
+            .rp-table tr { page-break-inside: avoid; }
+            .rp-table thead { display: table-header-group; } /* repeat header on each page */
+
+            /* Never split the summary block or an individual card across a page. */
+            .rp-summary      { page-break-inside: avoid; break-inside: avoid; }
+            .rp-summary-grid { page-break-inside: avoid; break-inside: avoid; }
+            .rp-sum-item     { page-break-inside: avoid; break-inside: avoid; }
+            .rp-header       { page-break-inside: avoid; break-inside: avoid; }
+
+            .rp-modal-actions, .modal-header { display: none !important; }
+            .modal-backdrop { display: none !important; }
+
+            /* Tidy page margins (browser URL/date/title headers are toggled in the
+               print dialog's "Headers and footers" option, not via CSS). */
+            @page { margin: 12mm; }
         }
 
         /* ── preview modal ── */
@@ -190,10 +270,9 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
         <div class="summary-strip" id="strip-cutting">
             <div class="sum-card"><div class="sum-card-num" id="sc-ct-types">0</div><div class="sum-card-label">Material Types</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-aluminum">0</div><div class="sum-card-label">Aluminum (qty)</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-glass">0</div><div class="sum-card-label">Glass (qty)</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-steel">0</div><div class="sum-card-label">Steel (qty)</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-accessories">0</div><div class="sum-card-label">Accessories (qty)</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-ct-panels">0</div><div class="sum-card-label">Panels (qty)</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-ct-edges">0</div><div class="sum-card-label">Edges (qty)</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-ct-hardware">0</div><div class="sum-card-label">Hardware (qty)</div></div>
         </div>
 
         <div class="summary-strip" id="strip-costing">
@@ -274,7 +353,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
             <div class="inline-table-title">Cutting List</div>
             <div class="table-responsive">
                 <table class="inline-tbl">
-                    <thead><tr><th>Material</th><th>Length (mm)</th><th>Width (mm)</th><th>Qty</th><th>Grouped</th><th>Category</th></tr></thead>
+                    <thead><tr><th>Material</th><th>Category</th><th>Total Qty</th><th>Line Items</th></tr></thead>
                     <tbody id="tbl-cutting"></tbody>
                 </table>
             </div>
@@ -361,39 +440,7 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 // ════════════════════════════════════════════════════
 //  DATA  — swap with PHP-injected JSON / fetch later
 // ════════════════════════════════════════════════════
-const SAMPLE = {
-    project: [
-        { code:'PRJ-2026-041', customer:'Juan dela Cruz',  project:'Aluminum Window Frame', submitted:'2026-01-10', request:'2026-01-15', status:'completed'       },
-        { code:'PRJ-2026-042', customer:'Maria Santos',    project:'Glass Curtain Wall',    submitted:'2026-02-03', request:'2026-02-10', status:'production'      },
-        { code:'PRJ-2026-043', customer:'Carlos Reyes',    project:'Steel Door Set',        submitted:'2026-02-18', request:'2026-02-25', status:'approved'        },
-        { code:'PRJ-2026-044', customer:'Ana Lim',         project:'Sliding Door System',   submitted:'2026-03-05', request:'2026-03-12', status:'quote_submitted' },
-        { code:'PRJ-2026-045', customer:'Pedro Bautista',  project:'Window Grille Install', submitted:'2026-03-20', request:'2026-03-28', status:'installation'    },
-        { code:'PRJ-2026-046', customer:'Rosa Villanueva', project:'Shopfront Facade',      submitted:'2026-04-02', request:'2026-04-10', status:'quality_check'   },
-    ],
-    quotation: [
-        { code:'QT-2026-041', customer:'Juan dela Cruz',  project:'Aluminum Window Frame', created:'2026-01-08', status:'approved', amount:85000  },
-        { code:'QT-2026-042', customer:'Maria Santos',    project:'Glass Curtain Wall',    created:'2026-02-01', status:'approved', amount:320000 },
-        { code:'QT-2026-043', customer:'Carlos Reyes',    project:'Steel Door Set',        created:'2026-02-15', status:'rejected', amount:45000  },
-        { code:'QT-2026-044', customer:'Ana Lim',         project:'Sliding Door System',   created:'2026-03-03', status:'pending',  amount:62000  },
-        { code:'QT-2026-045', customer:'Pedro Bautista',  project:'Window Grille Install', created:'2026-03-18', status:'approved', amount:27500  },
-        { code:'QT-2026-046', customer:'Rosa Villanueva', project:'Shopfront Facade',      created:'2026-04-01', status:'pending',  amount:150000 },
-    ],
-    cutting: [
-        { material:'Aluminum Section', length:6000, width:45,  qty:24, grouped:8,  category:'Aluminum'    },
-        { material:'Float Glass 6mm',  length:1200, width:900, qty:12, grouped:4,  category:'Glass'       },
-        { material:'Aluminum Sill',    length:3000, width:60,  qty:16, grouped:6,  category:'Aluminum'    },
-        { material:'Tinted Glass 8mm', length:800,  width:600, qty:8,  grouped:2,  category:'Glass'       },
-        { material:'Steel Bar 20mm',   length:4500, width:20,  qty:30, grouped:10, category:'Steel'       },
-        { material:'EPDM Gasket',      length:5000, width:12,  qty:50, grouped:15, category:'Accessories' },
-    ],
-    costing: [
-        { project:'Aluminum Window Frame', materials:42000,  labor:18000, other:5000  },
-        { project:'Glass Curtain Wall',    materials:185000, labor:72000, other:15000 },
-        { project:'Steel Door Set',        materials:22000,  labor:9500,  other:3500  },
-        { project:'Sliding Door System',   materials:31000,  labor:14000, other:4500  },
-        { project:'Window Grille Install', materials:12000,  labor:7500,  other:2000  },
-    ],
-};
+const SAMPLE = <?= json_encode($reportData, JSON_UNESCAPED_UNICODE) ?: '{"project":[],"quotation":[],"cutting":[],"costing":[]}' ?>;
 
 // ════════════════════════════════════════════════════
 //  HELPERS
@@ -403,8 +450,7 @@ const C = {
     pending:'rgba(245,158,11,.8)', approved:'rgba(59,130,246,.8)',
     fabrication:'rgba(249,115,22,.8)', completed:'rgba(34,197,94,.8)', rejected:'rgba(239,68,68,.8)',
     teal:'#0D9676', navy:'#0d1b2a',
-    aluminum:'rgba(99,102,241,.8)', glass:'rgba(14,165,233,.8)',
-    steel:'rgba(156,163,175,.8)', accessories:'rgba(251,146,60,.8)',
+    panels:'rgba(13,150,118,.8)', edges:'rgba(14,165,233,.8)', hardware:'rgba(251,146,60,.8)',
     materials:'rgba(13,150,118,.8)', labor:'rgba(99,102,241,.8)', other:'rgba(251,146,60,.8)',
 };
 
@@ -590,14 +636,13 @@ function renderCutting(){
     const cats = {};
     rows.forEach(r=> cats[r.category]=(cats[r.category]||0)+r.qty);
 
-    document.getElementById('sc-ct-types').textContent       = rows.length;
-    document.getElementById('sc-ct-aluminum').textContent    = cats['Aluminum']    || 0;
-    document.getElementById('sc-ct-glass').textContent       = cats['Glass']       || 0;
-    document.getElementById('sc-ct-steel').textContent       = cats['Steel']       || 0;
-    document.getElementById('sc-ct-accessories').textContent = cats['Accessories'] || 0;
+    document.getElementById('sc-ct-types').textContent    = rows.length;
+    document.getElementById('sc-ct-panels').textContent   = cats['Panels']   || 0;
+    document.getElementById('sc-ct-edges').textContent    = cats['Edges']    || 0;
+    document.getElementById('sc-ct-hardware').textContent = cats['Hardware'] || 0;
 
     const catLabels = Object.keys(cats);
-    const catColors = {Aluminum:C.aluminum,Glass:C.glass,Steel:C.steel,Accessories:C.accessories};
+    const catColors = {Panels:C.panels,Edges:C.edges,Hardware:C.hardware};
     const colArr    = catLabels.map(c=>catColors[c]||C.teal);
 
     // pie — qty by category
@@ -626,10 +671,10 @@ function renderCutting(){
 
     document.getElementById('tbl-cutting').innerHTML = rows.length
         ? rows.map(r=>`<tr>
-            <td><strong>${r.material}</strong></td><td>${fmtMM(r.length)}</td>
-            <td>${fmtMM(r.width)}</td><td>${r.qty}</td><td>${r.grouped}</td>
-            <td><span class="it-badge it-cat">${r.category}</span></td></tr>`).join('')
-        : '<tr><td colspan="6" class="text-center text-muted py-3">No data.</td></tr>';
+            <td><strong>${r.material}</strong></td>
+            <td><span class="it-badge it-cat">${r.category}</span></td>
+            <td>${r.qty}</td><td>${r.grouped}</td></tr>`).join('')
+        : '<tr><td colspan="4" class="text-center text-muted py-3">No data.</td></tr>';
 }
 
 // ════════════════════════════════════════════════════
@@ -742,11 +787,11 @@ function buildQuotation(){
 function buildCutting(){
     const rows=SAMPLE.cutting;
     const cats={};rows.forEach(r=>cats[r.category]=(cats[r.category]||0)+r.qty);
-    const trs=rows.map(r=>`<tr><td><strong>${r.material}</strong></td><td>${fmtMM(r.length)}</td><td>${fmtMM(r.width)}</td><td>${r.qty}</td><td>${r.grouped}</td><td><span class="rp-badge" style="background:#f0f9ff;color:#0369a1">${r.category}</span></td></tr>`).join('');
+    const trs=rows.map(r=>`<tr><td><strong>${r.material}</strong></td><td><span class="rp-badge" style="background:#f0f9ff;color:#0369a1">${r.category}</span></td><td>${r.qty}</td><td>${r.grouped}</td></tr>`).join('');
     let sum=`<div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Material Types</div></div>`;
     Object.entries(cats).forEach(([c,q])=>sum+=`<div class="rp-sum-item"><div class="rp-sum-num">${q}</div><div class="rp-sum-label">${c}</div></div>`);
     return `<div class="rp-doc">${rpHeader('Cutting List Summary')}
-        <table class="rp-table"><thead><tr><th>Material Name</th><th>Length</th><th>Width</th><th>Quantity</th><th>Grouped</th><th>Category</th></tr></thead><tbody>${trs}</tbody></table>
+        <table class="rp-table"><thead><tr><th>Material Name</th><th>Category</th><th>Total Qty</th><th>Line Items</th></tr></thead><tbody>${trs||'<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:16px">No records</td></tr>'}</tbody></table>
         <div class="rp-summary"><div class="rp-summary-title">Summary – Total per Category</div><div class="rp-summary-grid">${sum}</div></div></div>`;
 }
 
@@ -772,7 +817,7 @@ function toCSV(type){
     const r=SAMPLE[type];
     if(type==='project')   return ['Project Code,Customer Name,Project Name,Date Submitted,Request Date,Status',...r.map(x=>[x.code,x.customer,x.project,x.submitted,x.request,x.status].join(','))].join('\n');
     if(type==='quotation') return ['Quotation Code,Customer Name,Project Name,Date Created,Status,Est. Amount',...r.map(x=>[x.code,x.customer,x.project,x.created,x.status,x.amount].join(','))].join('\n');
-    if(type==='cutting')   return ['Material Name,Length (mm),Width (mm),Quantity,Grouped,Category',...r.map(x=>[x.material,x.length,x.width,x.qty,x.grouped,x.category].join(','))].join('\n');
+    if(type==='cutting')   return ['Material Name,Category,Total Qty,Line Items',...r.map(x=>[x.material,x.category,x.qty,x.grouped].join(','))].join('\n');
     if(type==='costing')   return ['Project Name,Materials Cost,Labor Cost,Other Cost,Total Cost',...r.map(x=>[x.project,x.materials,x.labor,x.other,x.materials+x.labor+x.other].join(','))].join('\n');
 }
 function dlCSV(type){

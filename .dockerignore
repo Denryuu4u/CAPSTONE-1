@@ -1,0 +1,12 @@
+# Keep the image small and free of local-only cruft.
+.git
+.gitignore
+CLAUDE.md
+
+# Don't bake local uploads into the image (they're ephemeral anyway; use a
+# Railway volume mounted at uploads/ for persistence). Keep the folders.
+uploads/*
+!uploads/.gitkeep
+!uploads/gallery/
+uploads/gallery/*
+!uploads/gallery/.gitkeep

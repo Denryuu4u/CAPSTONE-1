@@ -1,6 +1,8 @@
 <?php
-session_start();
-// if (!isset($_SESSION['user_id'])) { header('Location: ../login.php'); exit; }
+require_once __DIR__ . '/../includes/auth.php';
+require_login(); // enforced only when DEV_MODE is false
+require_once __DIR__ . '/../includes/legal.php';
+require_agreements(); // clients must accept the latest Terms & Privacy first
 
 $active_page = 'settings';
 
