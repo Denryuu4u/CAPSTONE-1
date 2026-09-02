@@ -22,9 +22,9 @@ $stmt->execute([$id]);
 $q = $stmt->fetch();
 if (!$q) { http_response_code(404); exit('Quotation not found.'); }
 
-// Access: admin/staff, or the client who owns it.
+// Access: any back-office user (Super Admin/Admin/Staff), or the client who owns it.
 $u = current_user();
-$isStaff = in_array($u['role'] ?? '', ['Admin', 'Staff'], true);
+$isStaff = in_array($u['role'] ?? '', BACKOFFICE_ROLES, true);
 if (!$isStaff && (int) ($q['client_user_id'] ?? 0) !== (int) ($u['id'] ?? -1)) {
     http_response_code(403); exit('Access denied.');
 }

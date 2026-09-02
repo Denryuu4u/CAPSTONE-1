@@ -113,7 +113,7 @@ $auditLogs = db()->query("SELECT * FROM audit_logs ORDER BY created_at DESC, id 
                             <?php if (empty($auditLogs)): ?>
                             <tr><td colspan="6" class="text-center text-muted py-4">No activity logged yet.</td></tr>
                             <?php else: foreach ($auditLogs as $log):
-                                $roleCls = in_array($log['role'], ['Admin', 'Staff'], true) ? 'badge-admin' : 'badge-customer';
+                                $roleCls = in_array($log['role'], BACKOFFICE_ROLES, true) ? 'badge-admin' : 'badge-customer';
                             ?>
                             <tr data-role="<?= htmlspecialchars($log['role'] ?? '') ?>" data-module="<?= htmlspecialchars($log['module'] ?? '') ?>"
                                 data-user="<?= htmlspecialchars($log['user_name'] ?? '') ?>" data-date="<?= substr($log['created_at'], 0, 10) ?>">
