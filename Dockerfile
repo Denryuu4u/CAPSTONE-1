@@ -11,18 +11,14 @@ RUN apt-get update \
  && docker-php-ext-install pdo_mysql mbstring \
  && rm -rf /var/lib/apt/lists/*
 
-# Apache must load exactly ONE MPM. The apt layer can pull in mpm_event/worker
-# next to the image's mpm_prefork, which crashes with "More than one MPM loaded".
-# Remove the extra MPM symlinks outright, then ensure prefork + rewrite are on.
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
- && a2enmod mpm_prefork rewrite \
- && echo "=== mods-enabled MPM check ===" && ls /etc/apache2/mods-enabled/ | grep mpm
-
 # Copy the app into Apache's document root.
 COPY . /var/www/html/
 
 # Let Apache (www-data) write uploaded files.
 RUN chown -R www-data:www-data /var/www/html/uploads 2>/dev/null || true
 
-# Railway injects $PORT at runtime; point Apache at it (defaults to 80 locally).
-CMD ["/bin/sh","-c","sed -i \"s/^Listen 80/Listen ${PORT:-80}/\" /etc/apache2/ports.conf && sed -i \"s/:80>/:${PORT:-80}>/\" /etc/apache2/sites-available/000-default.conf && exec apache2-foreground"]
+# Runtime entrypoint: fixes the Apache MPM and $PORT on EVERY start (immune to
+# build caching). See docker-entrypoint.sh. Dedicated COPY so edits bust cache.
+COPY docker-entrypoint.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+CMD ["/usr/local/bin/start.sh"]
