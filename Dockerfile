@@ -9,8 +9,12 @@ FROM php:8.2-apache
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libonig-dev \
  && docker-php-ext-install pdo_mysql mbstring \
- && a2enmod rewrite \
  && rm -rf /var/lib/apt/lists/*
+
+# Apache must load exactly ONE MPM. The apt layer can pull in mpm_event next to
+# the image's mpm_prefork, which crashes with "More than one MPM loaded".
+# Force prefork only, then (re)enable rewrite. Use ';' so a no-op disable is fine.
+RUN a2dismod mpm_event mpm_worker 2>/dev/null; a2enmod mpm_prefork rewrite
 
 # Copy the app into Apache's document root.
 COPY . /var/www/html/
