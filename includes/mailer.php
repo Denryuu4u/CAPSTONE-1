@@ -20,11 +20,21 @@ function mail_config(): array
     return $cfg;
 }
 
-/** True when SMTP credentials are present (otherwise we run in demo/log mode). */
-function mail_configured(): bool
+/** Which transport to use: 'brevo' (HTTP), 'smtp' (Gmail), or '' when unconfigured. */
+function mail_provider(): string
 {
     $c = mail_config();
-    return !empty($c['username']) && !empty($c['app_password']);
+    $forced = strtolower(trim((string) ($c['provider'] ?? '')));
+    if ($forced === 'brevo' || $forced === 'smtp') return $forced;
+    if (!empty($c['brevo_api_key'])) return 'brevo';
+    if (!empty($c['username']) && !empty($c['app_password'])) return 'smtp';
+    return '';
+}
+
+/** True when a mail transport is configured (otherwise we run in demo/log mode). */
+function mail_configured(): bool
+{
+    return mail_provider() !== '';
 }
 
 /** Append an OTP to the local demo log (used when SMTP isn't configured / for dev). */
@@ -67,11 +77,65 @@ function send_otp_email(string $to, string $code, string $name = ''): array
           . '</div>';
     $text = "Vast Solutions verification code: {$code}\nThis code expires in 10 minutes.";
 
-    $res = smtp_send($c, $to, $subject, $html, $text);
+    // Route to the configured transport: Brevo (HTTP) on Railway, else Gmail SMTP.
+    $res = (mail_provider() === 'brevo')
+        ? brevo_send($c, $to, $subject, $html, $text, $name)
+        : smtp_send($c, $to, $subject, $html, $text);
+
     if (!$res['ok']) {
-        mail_log_otp($to, $code); // keep the flow usable even if SMTP fails
+        mail_log_otp($to, $code); // keep the flow usable even if the send fails
     }
     return ['ok' => $res['ok'], 'error' => $res['error'], 'demo' => false];
+}
+
+/**
+ * Send one HTML+text email via Brevo's transactional HTTP API (port 443, so it
+ * works on hosts that block SMTP, e.g. Railway).
+ * @return array{ok:bool, error:?string}
+ */
+function brevo_send(array $c, string $to, string $subject, string $html, string $text, string $name = ''): array
+{
+    $apiKey   = (string) ($c['brevo_api_key'] ?? '');
+    $from     = (string) ($c['from_email'] ?? '');
+    $fromName = (string) ($c['from_name'] ?? 'Vast Solutions');
+
+    if ($apiKey === '' || $from === '') {
+        return ['ok' => false, 'error' => 'Brevo needs BREVO_API_KEY + MAIL_FROM_EMAIL (a verified sender).'];
+    }
+    if (!function_exists('curl_init')) {
+        return ['ok' => false, 'error' => 'PHP cURL extension not available.'];
+    }
+
+    $recipient = ['email' => $to];
+    if ($name !== '') $recipient['name'] = $name;
+    $payload = json_encode([
+        'sender'      => ['name' => $fromName, 'email' => $from],
+        'to'          => [$recipient],
+        'subject'     => $subject,
+        'htmlContent' => $html,
+        'textContent' => $text,
+    ]);
+
+    $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => [
+            'accept: application/json',
+            'content-type: application/json',
+            'api-key: ' . $apiKey,
+        ],
+        CURLOPT_TIMEOUT        => 20,
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $cerr = curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false)           return ['ok' => false, 'error' => "cURL error: {$cerr}"];
+    if ($code >= 200 && $code < 300) return ['ok' => true, 'error' => null];
+    return ['ok' => false, 'error' => "Brevo HTTP {$code}: {$resp}"];
 }
 
 /**

@@ -1,31 +1,29 @@
 <?php
 /**
- * SMTP settings for outgoing mail (OTP verification emails).
+ * Outgoing mail settings (OTP verification emails).
  *
- * === RECOMMENDED: use environment variables (Railway / any host) ================
- * DO NOT paste your Gmail app password into this file and commit it to git.
- * Instead, set these variables in your host's dashboard (Railway → your service →
- * "Variables"), and this file reads them automatically:
+ * TWO transports are supported — the mailer auto-picks one:
+ *   • BREVO (HTTP API)  — works on Railway (SMTP ports are blocked there).
+ *   • GMAIL SMTP        — fine for local XAMPP.
+ * If BREVO_API_KEY is set, Brevo is used; otherwise it falls back to Gmail SMTP.
+ * If neither is configured, the app runs in DEMO mode (OTP written to
+ * uploads/otp_log.txt) so signup still works end-to-end for testing.
  *
- *     SMTP_HOST          smtp.gmail.com        (optional, this is the default)
- *     SMTP_PORT          587                   (optional; 587 = STARTTLS, 465 = SSL)
- *     SMTP_SECURE        tls                   (optional; 'tls' for 587, 'ssl' for 465)
- *     SMTP_USERNAME      you@gmail.com         (your full Gmail address)
- *     SMTP_APP_PASSWORD  abcdefghijklmnop      (16-char Gmail App Password, NO spaces)
- *     SMTP_FROM_EMAIL    you@gmail.com         (optional; defaults to SMTP_USERNAME)
- *     SMTP_FROM_NAME     Vast Solutions        (optional)
+ * === BREVO SETUP (recommended for Railway) ====================================
+ * 1. Create a free Brevo account (brevo.com) — 300 emails/day, no card.
+ * 2. Verify a sender: Senders & IPs → Senders → add your Gmail and click the
+ *    confirmation link Brevo emails you. That address becomes MAIL_FROM_EMAIL.
+ * 3. Create an API key: SMTP & API → API Keys → generate. That's BREVO_API_KEY.
+ * 4. On Railway → Variables, set:
+ *      BREVO_API_KEY    = xkeysib-...        (the API key)
+ *      MAIL_FROM_EMAIL  = you@gmail.com      (the VERIFIED sender)
+ *      MAIL_FROM_NAME   = Vast Solutions     (optional)
+ *    DO NOT paste the API key into this file and commit it — use env vars.
  *
- * === HOW TO GET A GMAIL APP PASSWORD ==========================================
- * 1. Use a Gmail account with 2-Step Verification turned ON.
- * 2. Google Account → Security → App passwords → create one (16 characters,
- *    e.g. "abcd efgh ijkl mnop"). Use it WITHOUT the spaces.
- *
- * === LOCAL FALLBACK ===========================================================
- * For local XAMPP testing you MAY hardcode the two blanks below instead of using
- * env vars, but never commit real credentials. While username/app_password are
- * empty (and no env vars are set), the app runs in DEMO mode: OTP codes are
- * written to uploads/otp_log.txt instead of being emailed, so signup still works
- * end-to-end for testing.
+ * === GMAIL SMTP (local only) ==================================================
+ * Set SMTP_USERNAME + SMTP_APP_PASSWORD (a Gmail App Password). Optional:
+ * SMTP_HOST/PORT/SECURE (defaults: smtp.gmail.com / 587 / tls; use 465 / ssl
+ * as a fallback).
  * ============================================================================
  */
 
@@ -37,11 +35,20 @@ $env = static function (string $key, string $default = ''): string {
 };
 
 return [
-    'host'         => $env('SMTP_HOST', 'smtp.gmail.com'),
-    'port'         => (int) $env('SMTP_PORT', '587'),
-    'secure'       => $env('SMTP_SECURE', 'tls'),  // 'tls' (587, STARTTLS) or 'ssl' (465)
-    'username'     => $env('SMTP_USERNAME', ''),    // your full Gmail address
-    'app_password' => $env('SMTP_APP_PASSWORD', ''),// 16-char Gmail app password (no spaces)
-    'from_email'   => $env('SMTP_FROM_EMAIL', ''),  // defaults to username when blank
-    'from_name'    => $env('SMTP_FROM_NAME', 'Vast Solutions'),
+    // Force a transport ('brevo' or 'smtp'); blank = auto (brevo if key set).
+    'provider'      => $env('MAIL_PROVIDER', ''),
+
+    // Sender identity. Brevo requires a VERIFIED sender here.
+    'from_email'    => $env('MAIL_FROM_EMAIL', $env('SMTP_FROM_EMAIL', $env('SMTP_USERNAME', ''))),
+    'from_name'     => $env('MAIL_FROM_NAME', $env('SMTP_FROM_NAME', 'Vast Solutions')),
+
+    // --- Brevo (HTTP API) ---
+    'brevo_api_key' => $env('BREVO_API_KEY', ''),
+
+    // --- Gmail SMTP (local fallback) ---
+    'host'          => $env('SMTP_HOST', 'smtp.gmail.com'),
+    'port'          => (int) $env('SMTP_PORT', '587'),
+    'secure'        => $env('SMTP_SECURE', 'tls'), // 'tls' (587) or 'ssl' (465)
+    'username'      => $env('SMTP_USERNAME', ''),
+    'app_password'  => $env('SMTP_APP_PASSWORD', ''),
 ];
