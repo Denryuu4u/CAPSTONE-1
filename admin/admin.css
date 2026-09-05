@@ -87,6 +87,7 @@ body {
 }
 
 .sidebar-brand {
+    flex-shrink: 0;   /* keep the logo/title fixed while nav scrolls */
     display: flex;
     align-items: center;
     gap: 0.55rem;
@@ -123,6 +124,10 @@ body {
 
 .sidebar-nav {
     flex: 1;
+    min-height: 0;        /* allow the nav to shrink below content height... */
+    overflow-y: auto;     /* ...and scroll its items instead of pushing the footer
+                             (dev-switch + logout) off-screen when there are many
+                             nav links (e.g. Super Admin sees all pages). */
     padding: 0.25rem 0.6rem;
     display: flex;
     flex-direction: column;
@@ -164,6 +169,7 @@ body {
 }
 
 .sidebar-footer {
+    flex-shrink: 0;   /* stay pinned at the bottom; never collapse */
     padding: 0.8rem 1.1rem 1.2rem;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
@@ -190,7 +196,9 @@ body {
 }
 
 .dev-switch-btns {
-    display: flex;
+    display: grid;                        /* 2x2 so all four roles (incl. Client)
+                                            fit in the narrow sidebar without clipping */
+    grid-template-columns: 1fr 1fr;
     gap: 0.35rem;
 }
 
