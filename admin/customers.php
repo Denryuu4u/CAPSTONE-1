@@ -180,41 +180,63 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                 </p>
                 <?php if (empty($messages)): ?>
                     <div class="customer-card p-4 text-center text-muted">No messages yet.</div>
-                <?php else: foreach ($messages as $m):
-                    $isRead   = !empty($m['is_read']);
-                    $subj     = trim((string) ($m['subject'] ?? ''));
-                    $mailSubj = 'Re: ' . ($subj !== '' ? $subj : 'Your inquiry to Vast Solutions');
-                    $mailto   = 'mailto:' . rawurlencode((string) $m['email']) . '?subject=' . rawurlencode($mailSubj);
-                ?>
-                <div class="card mb-2 contact-msg <?= $isRead ? '' : 'border-success border-2' ?>" data-id="<?= (int) $m['id'] ?>">
-                    <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                            <div>
-                                <strong><?= htmlspecialchars($m['name']) ?></strong>
-                                &lt;<a href="<?= htmlspecialchars($mailto) ?>"><?= htmlspecialchars($m['email']) ?></a>&gt;
-                                <?php if (!$isRead): ?><span class="badge bg-success ms-1">New</span><?php endif; ?>
+                <?php else: ?>
+                <div class="customer-card contact-msg-card">
+                    <div class="list-group list-group-flush">
+                        <?php foreach ($messages as $m):
+                            $isRead   = !empty($m['is_read']);
+                            $subj     = trim((string) ($m['subject'] ?? ''));
+                            $preview  = trim(preg_replace('/\s+/', ' ', (string) $m['message']));
+                            $dateFull = date('M d, Y g:i A', strtotime($m['created_at']));
+                        ?>
+                        <button type="button"
+                            class="list-group-item list-group-item-action contact-msg-row<?= $isRead ? '' : ' unread' ?>"
+                            data-id="<?= (int) $m['id'] ?>"
+                            data-name="<?= htmlspecialchars($m['name']) ?>"
+                            data-email="<?= htmlspecialchars($m['email']) ?>"
+                            data-subject="<?= htmlspecialchars($subj) ?>"
+                            data-message="<?= htmlspecialchars((string) $m['message']) ?>"
+                            data-date="<?= htmlspecialchars($dateFull) ?>"
+                            data-read="<?= $isRead ? '1' : '0' ?>">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="msg-line">
+                                    <span class="msg-dot"></span>
+                                    <span class="msg-name"><?= htmlspecialchars($m['name']) ?></span>
+                                    <?php if ($subj !== ''): ?><span class="msg-subj">— <?= htmlspecialchars($subj) ?></span><?php endif; ?>
+                                    <span class="msg-preview"><?= htmlspecialchars($preview) ?></span>
+                                </div>
+                                <small class="msg-date text-muted flex-shrink-0"><?= htmlspecialchars($dateFull) ?></small>
                             </div>
-                            <small class="text-muted"><?= htmlspecialchars(date('M d, Y g:i A', strtotime($m['created_at']))) ?></small>
-                        </div>
-                        <?php if ($subj !== ''): ?>
-                            <div class="fw-semibold mt-1"><?= htmlspecialchars($subj) ?></div>
-                        <?php endif; ?>
-                        <div class="mt-2" style="white-space:pre-wrap; font-size:.92rem; color:#374151;"><?= htmlspecialchars($m['message']) ?></div>
-                        <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
-                            <button type="button" class="btn btn-sm btn-outline-secondary msg-read-btn"
-                                    data-id="<?= (int) $m['id'] ?>" data-read="<?= $isRead ? '1' : '0' ?>">
-                                <?= $isRead ? 'Mark unread' : 'Mark read' ?>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger msg-del-btn" data-id="<?= (int) $m['id'] ?>">
-                                <i class="bi bi-trash"></i> Delete
-                            </button>
-                        </div>
+                        </button>
+                        <?php endforeach; ?>
                     </div>
                 </div>
-                <?php endforeach; endif; ?>
+                <?php endif; ?>
             </div><!-- /#tab-messages -->
             </div><!-- /.tab-content -->
 
+        </div>
+    </div>
+
+    <!-- Contact message detail modal (populated by JS on row click) -->
+    <div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mmSubject">Message</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-1"><strong id="mmName"></strong> &lt;<a id="mmEmail" href="#"></a>&gt;</div>
+                    <div class="text-muted small mb-3" id="mmDate"></div>
+                    <div id="mmMessage" style="white-space:pre-wrap; font-size:.95rem; color:#374151;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="mmReadBtn">Mark unread</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="mmDelBtn"><i class="bi bi-trash"></i> Delete</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
         </div>
     </div>
     <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
@@ -434,24 +456,57 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
             .then(() => location.reload()).catch(e => alert(e.message));
     });
 
-    // ===== CONTACT MESSAGES (Messages tab) =====
-    document.querySelectorAll('.msg-del-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            if (!confirm('Delete this message? This cannot be undone.')) return;
-            const id = this.dataset.id;
-            post('contact_action.php', { id: id, action: 'delete' })
-                .then(() => { const el = document.querySelector('.contact-msg[data-id="' + id + '"]'); if (el) el.remove(); })
-                .catch(e => alert(e.message));
+    // ===== CONTACT MESSAGES (Messages tab) — open full message in a modal =====
+    const msgModalEl = document.getElementById('messageModal');
+    const msgModal = msgModalEl ? new bootstrap.Modal(msgModalEl) : null;
+    let curMsgId = 0, curMsgRead = false;
+
+    function setUnreadBadge(delta) {
+        const b = document.getElementById('msgUnreadBadge');
+        if (!b) return;
+        const n = (parseInt(b.textContent, 10) || 0) + delta;
+        if (n > 0) b.textContent = n; else b.remove();
+    }
+
+    document.querySelectorAll('.contact-msg-row').forEach(row => {
+        row.addEventListener('click', function () {
+            curMsgId   = this.dataset.id;
+            curMsgRead = this.dataset.read === '1';
+            const subj = this.dataset.subject || '';
+            document.getElementById('mmSubject').textContent = subj || 'Message';
+            document.getElementById('mmName').textContent    = this.dataset.name;
+            const a = document.getElementById('mmEmail');
+            a.textContent = this.dataset.email;
+            a.href = 'mailto:' + this.dataset.email + '?subject=' +
+                     encodeURIComponent('Re: ' + (subj || 'Your inquiry to Vast Solutions'));
+            document.getElementById('mmDate').textContent    = this.dataset.date;
+            document.getElementById('mmMessage').textContent = this.dataset.message;
+            document.getElementById('mmReadBtn').textContent = curMsgRead ? 'Mark unread' : 'Mark read';
+            if (msgModal) msgModal.show();
+
+            // Opening an unread message marks it read (updates row + tab badge live).
+            if (!curMsgRead) {
+                post('contact_action.php', { id: curMsgId, action: 'read' }).then(() => {
+                    this.classList.remove('unread');
+                    this.dataset.read = '1';
+                    curMsgRead = true;
+                    document.getElementById('mmReadBtn').textContent = 'Mark unread';
+                    setUnreadBadge(-1);
+                }).catch(() => {});
+            }
         });
     });
-    document.querySelectorAll('.msg-read-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            const id = this.dataset.id;
-            const action = this.dataset.read === '1' ? 'unread' : 'read';
-            post('contact_action.php', { id: id, action: action })
-                .then(() => location.reload())
-                .catch(e => alert(e.message));
-        });
+
+    const mmDel = document.getElementById('mmDelBtn');
+    if (mmDel) mmDel.addEventListener('click', function () {
+        if (!confirm('Delete this message? This cannot be undone.')) return;
+        post('contact_action.php', { id: curMsgId, action: 'delete' })
+            .then(() => location.reload()).catch(e => alert(e.message));
+    });
+    const mmRead = document.getElementById('mmReadBtn');
+    if (mmRead) mmRead.addEventListener('click', function () {
+        post('contact_action.php', { id: curMsgId, action: curMsgRead ? 'unread' : 'read' })
+            .then(() => location.reload()).catch(e => alert(e.message));
     });
 });
     </script>

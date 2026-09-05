@@ -1544,17 +1544,39 @@ body {
     padding: 0.2em 0.45em;
 }
 
-/* Contact-message cards (Messages tab) */
-.contact-msg {
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
+/* Contact messages (Messages tab) — compact clickable list */
+.contact-msg-card { padding: 0; overflow: hidden; }
+.contact-msg-row {
+    border: 0;
+    border-top: 1px solid #f1f5f9;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    background: #fff;
 }
-.contact-msg.border-success {
-    border-color: var(--teal) !important;
-    background: var(--teal-light);
+.contact-msg-card .list-group-item:first-child { border-top: 0; }
+.contact-msg-row .msg-line {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.88rem;
 }
-.contact-msg a:not(.btn) { color: var(--teal-dark); }
-.contact-msg .btn-success { color: #fff; }
+.contact-msg-row .msg-name { font-weight: 600; color: #111827; }
+.contact-msg-row .msg-subj { color: #374151; }
+.contact-msg-row .msg-preview { color: #94a3b8; margin-left: 0.35rem; }
+.contact-msg-row .msg-date { white-space: nowrap; font-size: 0.76rem; }
+.contact-msg-row:hover { background: #f8fafc; }
+.contact-msg-row.unread { background: var(--teal-light); }
+.contact-msg-row.unread .msg-name { color: var(--teal-dark); }
+.contact-msg-row.unread:hover { background: rgba(13, 150, 118, 0.16); }
+.msg-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--teal); margin-right: 6px; vertical-align: middle;
+}
+.contact-msg-row:not(.unread) .msg-dot { display: none; }
+#messageModal .modal-title { word-break: break-word; }
+#messageModal #mmEmail { color: var(--teal-dark); }
 
 .customer-btn {
     background: var(--teal);
