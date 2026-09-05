@@ -10,6 +10,14 @@ $email  = trim((string) ($_POST['email'] ?? $_GET['email'] ?? ''));
 $error  = '';
 $notice = '';
 
+// Mail problems handed over from register_process.php (escaped when displayed).
+if (isset($_GET['mailerr']) && $_GET['mailerr'] !== '') {
+    $error = 'Email could not be sent: ' . $_GET['mailerr'];
+} elseif (isset($_GET['demo'])) {
+    $error = 'Email is not configured on the server (demo mode) — no code was sent. '
+           . 'Set BREVO_API_KEY and MAIL_FROM_EMAIL in the app service.';
+}
+
 // Look up the pending (unverified) client for this email.
 function pending_user(string $email): ?array
 {
@@ -30,8 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: login.php?verified=1'); exit;
     } elseif ($action === 'resend') {
         $code = create_otp((int) $u['id'], $email, 'signup');
-        send_otp_email($email, $code, $u['full_name']);
-        $notice = 'A new code has been sent to your email.';
+        $mail = send_otp_email($email, $code, $u['full_name']);
+        if (empty($mail['ok'])) {
+            error_log('[OTP] resend FAILED for ' . $email . ': ' . ($mail['error'] ?? 'unknown'));
+            $error = 'Email could not be sent: ' . ($mail['error'] ?? 'unknown error');
+        } elseif (!empty($mail['demo'])) {
+            $error = 'Email is not configured on the server (demo mode). '
+                   . 'Set BREVO_API_KEY and MAIL_FROM_EMAIL in the app service.';
+        } else {
+            $notice = 'A new code has been sent to your email.';
+        }
     } else { // verify
         $code = trim((string) ($_POST['code'] ?? ''));
         if ($code === '') {

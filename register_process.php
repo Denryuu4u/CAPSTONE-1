@@ -15,8 +15,11 @@ $pass    = (string) ($_POST['password'] ?? '');
 $confirm = (string) ($_POST['confirm_password'] ?? '');
 $agree   = ($_POST['agree'] ?? '') === '1';
 
-$back = function (string $err) use ($email) {
-    header('Location: signup.php?error=' . urlencode($err) . '&email=' . urlencode($email));
+$back = function (string $err) use ($email, $name) {
+    // Carry name + email back so the form isn't cleared on a server-side error.
+    header('Location: signup.php?error=' . urlencode($err)
+        . '&email=' . urlencode($email)
+        . '&name=' . urlencode($name));
     exit;
 };
 
@@ -38,10 +41,19 @@ try {
     legal_record_acceptance($userId, $_SERVER['REMOTE_ADDR'] ?? null);
 
     $code = create_otp($userId, $email, 'signup');
-    send_otp_email($email, $code, $name);
+    $mail = send_otp_email($email, $code, $name);
     log_audit('Auth', 'Client sign-up (pending verification)', $email);
 
-    header('Location: verify.php?email=' . urlencode($email));
+    // Surface mail problems instead of silently landing on the code page.
+    $q = 'email=' . urlencode($email);
+    if (empty($mail['ok'])) {
+        error_log('[OTP] send FAILED for ' . $email . ': ' . ($mail['error'] ?? 'unknown'));
+        $q .= '&mailerr=' . urlencode($mail['error'] ?? 'Email could not be sent.');
+    } elseif (!empty($mail['demo'])) {
+        error_log('[OTP] DEMO MODE (no mail transport configured) for ' . $email . '; code=' . $code);
+        $q .= '&demo=1';
+    }
+    header('Location: verify.php?' . $q);
     exit;
 } catch (PDOException $e) {
     if ($e->getCode() === '23000') $back('That email is already registered. Try signing in.');
