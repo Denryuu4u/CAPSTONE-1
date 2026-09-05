@@ -32,10 +32,10 @@ $projectName = trim((string) ($_POST['project_name'] ?? ''));
 $category    = trim((string) ($_POST['category'] ?? ''));
 $address     = trim((string) ($_POST['address'] ?? ''));
 $targetDate  = trim((string) ($_POST['target_completion'] ?? ''));
-if ($targetDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) $targetDate = '';
 
 if ($customerId <= 0) sp_fail('Select a customer.');
 if ($projectName === '') sp_fail('Enter a project name.');
+if ($targetDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) sp_fail('A valid target completion date is required.');
 
 // Confirm the customer exists.
 $cust = $pdo->prepare("SELECT id FROM customers WHERE id = ?");

@@ -288,8 +288,8 @@ $reqBadge = [
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label project-label">Target Completion Date <span class="text-muted fw-normal">(set or adjust)</span></label>
-                                <input type="date" class="form-control project-input" id="quotationTargetCompletion">
+                                <label class="form-label project-label">Target Completion Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control project-input" id="quotationTargetCompletion" required>
                             </div>
                         </div>
 
@@ -470,8 +470,8 @@ $reqBadge = [
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label project-label">Target Completion Date</label>
-                                <input type="date" class="form-control project-input" id="cpTarget">
+                                <label class="form-label project-label">Target Completion Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control project-input" id="cpTarget" required value="<?= date('Y-m-d', strtotime('+2 months')) ?>">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label project-label">Project Code</label>
@@ -744,7 +744,7 @@ $reqBadge = [
                 document.getElementById("quotationProject").value = data.project || "";
                 document.getElementById("quotationCategory").value = data.category || "";
                 document.getElementById("quotationDateSubmitted").value = data.dateSubmitted || "";
-                document.getElementById("quotationTargetCompletion").value = data.targetCompletion || "";
+                document.getElementById("quotationTargetCompletion").value = data.targetCompletion || "<?= date('Y-m-d', strtotime('+2 months')) ?>";
                 document.getElementById("quotationAddress").value = data.address || "";
                 document.getElementById("quotationNotes").value = data.notes || "";
 
@@ -868,6 +868,7 @@ $reqBadge = [
                 })).filter(i => i.description);
                 if (!items.length) { err.textContent = 'Add at least one line item before sending.'; err.style.display = 'block'; return; }
                 if (!qState.projectId) { err.textContent = 'No project linked to this request.'; err.style.display = 'block'; return; }
+                if (!document.getElementById('quotationTargetCompletion').value) { err.textContent = 'Set a target completion date.'; err.style.display = 'block'; return; }
 
                 const btn = this; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending…';
                 const body = new URLSearchParams();
@@ -1008,6 +1009,7 @@ $reqBadge = [
                     unit_cost: parseFloat(row.querySelector('.qc-cost').value) || 0,
                 })).filter(i => i.description);
                 if (!items.length) { err.textContent = 'Add at least one costing line item.'; err.style.display = 'block'; return; }
+                if (!document.getElementById('cpTarget').value) { err.textContent = 'Set a target completion date.'; err.style.display = 'block'; return; }
 
                 const btn = this; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Saving…';
                 const body = new URLSearchParams();

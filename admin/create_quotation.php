@@ -33,10 +33,10 @@ $customerId = (int) ($_POST['customer_id'] ?? 0);
 $requestId  = ($_POST['request_id'] ?? '') !== '' ? (int) $_POST['request_id'] : null;
 $notes      = trim((string) ($_POST['notes'] ?? ''));
 
-// Optional target completion date (YYYY-MM-DD). Validate before persisting.
+// Target completion date (YYYY-MM-DD) — required.
 $targetDate = trim((string) ($_POST['target_completion'] ?? ''));
-if ($targetDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
-    $targetDate = '';
+if ($targetDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
+    q_fail('A valid target completion date is required.');
 }
 
 $num = fn($k, $d = 0) => is_numeric($_POST[$k] ?? null) ? (float) $_POST[$k] : (float) $d;
