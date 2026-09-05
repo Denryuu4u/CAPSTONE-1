@@ -373,6 +373,11 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                 const modal = new bootstrap.Modal(document.getElementById('addCustomerModal'));
                 modal.show();
             }
+            // Open the Messages tab directly (e.g. from a notification link).
+            if (urlParams.get("tab") === "messages") {
+                const t = document.querySelector('[data-bs-target="#tab-messages"]');
+                if (t) new bootstrap.Tab(t).show();
+            }
         });
         document.addEventListener("DOMContentLoaded", function () {
 

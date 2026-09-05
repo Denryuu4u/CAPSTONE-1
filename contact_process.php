@@ -49,6 +49,8 @@ try {
          VALUES (?,?,?,?,?)"
     )->execute([$name, $email, $subject !== '' ? $subject : null, $message, $ip ?: null]);
 
+    contact_notify_backoffice($name); // ring the admin notification bell
+
     $back('sent');
 } catch (Throwable $e) {
     error_log('[CONTACT] insert failed: ' . $e->getMessage());

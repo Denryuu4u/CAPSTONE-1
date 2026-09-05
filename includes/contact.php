@@ -60,6 +60,34 @@ function contact_token_valid(string $token, int $min = 3, int $max = 7200): bool
     return $elapsed >= $min && $elapsed <= $max;
 }
 
+/**
+ * Notify every back-office user (Super Admin / Admin / Staff) about a new
+ * contact message so it shows in their notification bell. One row per user
+ * (the bell matches on user_id), links to the Messages tab in customers.php.
+ */
+function contact_notify_backoffice(string $senderName): void
+{
+    try {
+        $ids = db()->query(
+            "SELECT id FROM users WHERE role IN ('Super Admin','Admin','Staff')"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        if (!$ids) return;
+
+        $ins = db()->prepare(
+            "INSERT INTO notifications (user_id, type, title, message, link, severity)
+             VALUES (?, 'system', ?, ?, 'customers.php?tab=messages', 'info')"
+        );
+        $title = 'New contact message';
+        $msg   = 'From ' . ($senderName !== '' ? $senderName : 'a website visitor')
+               . ' — via the website contact form.';
+        foreach ($ids as $uid) {
+            $ins->execute([(int) $uid, $title, $msg]);
+        }
+    } catch (Throwable $e) {
+        // Non-fatal: a failed notification must not block storing the message.
+    }
+}
+
 /** Messages sent from this IP within the last N minutes (per-IP rate limiting). */
 function contact_recent_count_by_ip(string $ip, int $minutes = 60): int
 {
