@@ -483,6 +483,26 @@ CREATE TABLE `gallery_images` (
 
 
 -- ---------------------------------------------------------------------
+--  contact_messages — submissions from the public "Let's Talk" contact
+--  form (index.php). Reviewed + replied to manually in the Messages tab
+--  of admin/customers.php. Also auto-created at runtime by includes/contact.php.
+-- ---------------------------------------------------------------------
+CREATE TABLE `contact_messages` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`       VARCHAR(150) NOT NULL,
+  `email`      VARCHAR(150) NOT NULL,
+  `subject`    VARCHAR(200) DEFAULT NULL,
+  `message`    TEXT NOT NULL,
+  `ip_address` VARCHAR(45)  DEFAULT NULL,
+  `is_read`    TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_created` (`created_at`),
+  KEY `idx_ip_created` (`ip_address`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ---------------------------------------------------------------------
 --  legal_documents — editable Terms & Conditions and Privacy Policy.
 --  Edited by Super Admin (admin/settings.php). `version` bumps on every
 --  content change, which forces clients to re-accept (user_agreements).

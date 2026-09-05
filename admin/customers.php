@@ -19,6 +19,16 @@ $customers = db()->query(
       ORDER BY c.name"
 )->fetchAll();
 $initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '', array_slice(explode(' ', trim($name)), 0, 2))));
+
+// Contact-form messages (public "Let's Talk" form → reviewed/replied to here).
+require_once __DIR__ . '/../includes/contact.php';
+$messages = [];
+try {
+    ensure_contact_messages_table();
+    $messages = db()->query("SELECT * FROM contact_messages ORDER BY created_at DESC")->fetchAll();
+} catch (Throwable $e) { $messages = []; }
+$unreadCount = 0;
+foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -35,7 +45,7 @@ $initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '',
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=<?= @filemtime(__DIR__ . '/admin.css') ?: '1' ?>">
 </head>
 
 <body>
@@ -72,6 +82,27 @@ $initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '',
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h1 class="page-title mb-0">Customer Profiles</h1>
             </div>
+
+            <!-- Tabs: Customers | Messages (contact-form inbox) -->
+            <ul class="nav nav-pills page-tabs mb-3" id="customerTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-customers" type="button">
+                        <i class="bi bi-people me-1"></i> Customers
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-messages" type="button">
+                        <i class="bi bi-envelope me-1"></i> Messages
+                        <?php if ($unreadCount > 0): ?>
+                        <span class="badge rounded-pill bg-danger ms-1" id="msgUnreadBadge"><?= (int) $unreadCount ?></span>
+                        <?php endif; ?>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+            <!-- ===== CUSTOMERS TAB ===== -->
+            <div class="tab-pane fade show active" id="tab-customers" role="tabpanel">
 
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
                 <button type="button" class="customer-btn" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
@@ -139,6 +170,50 @@ $initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '',
                     </table>
                 </div>
             </div>
+
+            </div><!-- /#tab-customers -->
+
+            <!-- ===== MESSAGES TAB (contact-form inbox) ===== -->
+            <div class="tab-pane fade" id="tab-messages" role="tabpanel">
+                <p class="text-muted mb-3" style="font-size:.9rem;">
+                    Messages from the website contact form.
+                </p>
+                <?php if (empty($messages)): ?>
+                    <div class="customer-card p-4 text-center text-muted">No messages yet.</div>
+                <?php else: foreach ($messages as $m):
+                    $isRead   = !empty($m['is_read']);
+                    $subj     = trim((string) ($m['subject'] ?? ''));
+                    $mailSubj = 'Re: ' . ($subj !== '' ? $subj : 'Your inquiry to Vast Solutions');
+                    $mailto   = 'mailto:' . rawurlencode((string) $m['email']) . '?subject=' . rawurlencode($mailSubj);
+                ?>
+                <div class="card mb-2 contact-msg <?= $isRead ? '' : 'border-success border-2' ?>" data-id="<?= (int) $m['id'] ?>">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div>
+                                <strong><?= htmlspecialchars($m['name']) ?></strong>
+                                &lt;<a href="<?= htmlspecialchars($mailto) ?>"><?= htmlspecialchars($m['email']) ?></a>&gt;
+                                <?php if (!$isRead): ?><span class="badge bg-success ms-1">New</span><?php endif; ?>
+                            </div>
+                            <small class="text-muted"><?= htmlspecialchars(date('M d, Y g:i A', strtotime($m['created_at']))) ?></small>
+                        </div>
+                        <?php if ($subj !== ''): ?>
+                            <div class="fw-semibold mt-1"><?= htmlspecialchars($subj) ?></div>
+                        <?php endif; ?>
+                        <div class="mt-2" style="white-space:pre-wrap; font-size:.92rem; color:#374151;"><?= htmlspecialchars($m['message']) ?></div>
+                        <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary msg-read-btn"
+                                    data-id="<?= (int) $m['id'] ?>" data-read="<?= $isRead ? '1' : '0' ?>">
+                                <?= $isRead ? 'Mark unread' : 'Mark read' ?>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger msg-del-btn" data-id="<?= (int) $m['id'] ?>">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; endif; ?>
+            </div><!-- /#tab-messages -->
+            </div><!-- /.tab-content -->
 
         </div>
     </div>
@@ -354,6 +429,25 @@ $initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '',
             .then(() => location.reload()).catch(e => alert(e.message));
     });
 
+    // ===== CONTACT MESSAGES (Messages tab) =====
+    document.querySelectorAll('.msg-del-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            if (!confirm('Delete this message? This cannot be undone.')) return;
+            const id = this.dataset.id;
+            post('contact_action.php', { id: id, action: 'delete' })
+                .then(() => { const el = document.querySelector('.contact-msg[data-id="' + id + '"]'); if (el) el.remove(); })
+                .catch(e => alert(e.message));
+        });
+    });
+    document.querySelectorAll('.msg-read-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const id = this.dataset.id;
+            const action = this.dataset.read === '1' ? 'unread' : 'read';
+            post('contact_action.php', { id: id, action: action })
+                .then(() => location.reload())
+                .catch(e => alert(e.message));
+        });
+    });
 });
     </script>
     </script>

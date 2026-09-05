@@ -1,8 +1,11 @@
 <?php
 // Public landing page — pull the "Contact Us" details from settings (no auth needed).
 $contact = ['web_email' => 'support@vastsolutions.com', 'web_phone' => '+63 900 000 0000', 'web_location' => 'Calamba, Laguna, Philippines'];
+$contactToken = '';
 try {
     require_once __DIR__ . '/includes/db.php';
+    require_once __DIR__ . '/includes/contact.php';
+    $contactToken = contact_form_token(); // spam time-trap for the contact form
     $row = db()->query("SELECT web_email, web_phone, web_location FROM company_settings WHERE id = 1")->fetch();
     if ($row) {
         foreach ($contact as $k => $v) {
@@ -129,11 +132,25 @@ try {
         </div>
 
         <!-- RIGHT FORM -->
-        <form class="contact-form">
-          <input type="text" placeholder="Your Name" required />
-          <input type="email" placeholder="Your Email" required />
-          <input type="text" placeholder="Subject" />
-          <textarea placeholder="Your Message" rows="5" required></textarea>
+        <form class="contact-form" action="contact_process.php" method="POST">
+          <?php if (($_GET['contact'] ?? '') === 'sent'): ?>
+            <div style="background:#f0fdf9;color:#0a7a60;border:1px solid #6ee7d0;font-size:.9rem;padding:.7rem .9rem;border-radius:8px;margin-bottom:1rem;">
+              Thanks! Your message has been sent — we'll get back to you soon.
+            </div>
+          <?php elseif (($_GET['contact'] ?? '') === 'error'): ?>
+            <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.9rem;padding:.7rem .9rem;border-radius:8px;margin-bottom:1rem;">
+              Sorry, your message could not be sent. Please try again or email us directly.
+            </div>
+          <?php endif; ?>
+          <!-- Honeypot: hidden from people; bots fill it and get silently dropped. -->
+          <div style="position:absolute; left:-9999px; top:-9999px;" aria-hidden="true">
+            <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+          </div>
+          <input type="hidden" name="form_token" value="<?= htmlspecialchars($contactToken) ?>" />
+          <input type="text" name="name" placeholder="Your Name" maxlength="150" required />
+          <input type="email" name="email" placeholder="Your Email" maxlength="150" required />
+          <input type="text" name="subject" placeholder="Subject" maxlength="200" />
+          <textarea name="message" placeholder="Your Message" rows="5" maxlength="5000" required></textarea>
           <button type="submit">Send Message</button>
         </form>
 

@@ -1505,6 +1505,57 @@ body {
     overflow: hidden;
 }
 
+/* Page tabs (e.g. Customers / Messages) — teal segmented control, brand-matched */
+.page-tabs {
+    gap: 0.45rem;
+    border-bottom: none;
+    padding-left: 0;
+    margin-left: 0;
+}
+.page-tabs .nav-item {
+    padding-left: 0;   /* cancel a stray list padding so tabs align with the table/buttons */
+    margin-left: 0;
+}
+.page-tabs .nav-link {
+    color: #64748b;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.page-tabs .nav-link:hover {
+    color: var(--teal-dark);
+    border-color: var(--teal);
+    background: var(--teal-light);
+}
+.page-tabs .nav-link.active {
+    color: #fff;
+    background: var(--teal);
+    border-color: var(--teal);
+    box-shadow: 0 2px 6px rgba(13, 150, 118, 0.25);
+}
+.page-tabs .nav-link .badge {
+    font-size: 0.62rem;
+    padding: 0.2em 0.45em;
+}
+
+/* Contact-message cards (Messages tab) */
+.contact-msg {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+.contact-msg.border-success {
+    border-color: var(--teal) !important;
+    background: var(--teal-light);
+}
+.contact-msg a:not(.btn) { color: var(--teal-dark); }
+.contact-msg .btn-success { color: #fff; }
+
 .customer-btn {
     background: var(--teal);
     border: 1px solid var(--teal);
