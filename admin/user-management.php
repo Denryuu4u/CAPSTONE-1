@@ -306,7 +306,7 @@ $sysUsers = db()->query(
                     full_name: (val('newUserFirstName') + ' ' + val('newUserLastName')).trim(),
                     email: val('newUserEmail'), phone: val('newUserPhone'),
                     role: val('newUserRole'), status: val('newUserStatus'),
-                }).then(() => location.reload()).catch(e => alert(e.message));
+                }).then(() => { vsToastFlash('User account created.'); location.reload(); }).catch(e => alert(e.message));
             });
 
             // EDIT USER
@@ -329,7 +329,7 @@ $sysUsers = db()->query(
                     full_name: (val('editUserName') + (last ? ' ' + last : '')).trim(),
                     email: val('editUserEmail'), phone: val('editUserPhone'),
                     role: val('editUserRole'), status: val('editUserStatus'),
-                }).then(() => location.reload()).catch(e => alert(e.message));
+                }).then(() => { vsToastFlash('User account updated.'); location.reload(); }).catch(e => alert(e.message));
             });
 
             // ARCHIVE USER
@@ -342,7 +342,7 @@ $sysUsers = db()->query(
             });
             document.getElementById("confirmArchiveUserBtn").addEventListener("click", function() {
                 post('archive_entity.php', { type: 'user', id: selectedUserId, action: 'archive' })
-                    .then(() => location.reload()).catch(e => alert(e.message));
+                    .then(() => { vsToastFlash('User archived.'); location.reload(); }).catch(e => alert(e.message));
             });
 
         });

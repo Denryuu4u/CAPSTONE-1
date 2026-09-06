@@ -10,11 +10,15 @@ require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 $user_initial = strtoupper(substr($user_name, 0, 1));
 
+// Auto-confirm any completed projects the client left unconfirmed past the deadline.
+auto_confirm_completions();
+
 // Live projects (exclude rejected). materials_key / updates_key are the project id.
 $monitor_projects = [];
 foreach (db()->query(
     "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status,
-            p.target_completion, p.start_date, p.progress, p.approver, p.description
+            p.target_completion, p.start_date, p.progress, p.approver, p.description,
+            p.completion_notified_at, p.client_confirmed_at
        FROM projects p
        LEFT JOIN customers c ON c.id = p.customer_id
       WHERE p.status <> 'rejected'
@@ -31,6 +35,8 @@ foreach (db()->query(
         'progress' => (int) $r['progress'],
         'approver' => $r['approver'] ?? '',
         'details'  => $r['description'] ?? '',
+        'confirmed'     => $r['client_confirmed_at'] ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
+        'awaiting_conf' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
         'materials_key' => (string) $r['id'],
         'updates_key'   => (string) $r['id'],
     ];
@@ -233,9 +239,9 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                     </thead>
                     <tbody>
                         <?php foreach ($monitor_projects as $p):
-                            $step = project_step_index($p['status']);
-                            // "Complete" is offered once a project is actually in production.
-                            $can_complete = $step !== null && $step >= 2 && $p['status'] !== 'completed';
+                            // "Complete" is only offered at the final phase before completion,
+                            // so a project can't jump straight to Completed from mid-flow.
+                            $can_complete = project_status_key($p['status']) === 'final_approval';
                         ?>
                         <tr data-project="<?= $p['code'] ?>" data-status="<?= project_status_key($p['status']) ?>">
                             <td><?= $p['code'] ?></td>
@@ -260,6 +266,8 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                                             data-details="<?= htmlspecialchars($p['details']) ?>"
                                             data-start="<?= $p['start'] ?>" data-progress="<?= $p['progress'] ?>"
                                             data-approver="<?= htmlspecialchars($p['approver']) ?>"
+                                            data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
+                                            data-awaiting-conf="<?= $p['awaiting_conf'] ?>"
                                             data-materials-key="<?= $p['materials_key'] ?>"
                                             data-updates-key="<?= $p['updates_key'] ?>">
                                             <i class="bi bi-eye"></i><span>View</span>
@@ -322,6 +330,10 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                         <div>
                             <div class="pvm-field-label">Target Date</div>
                             <div class="pvm-field-value" id="viewProjectTarget">—</div>
+                        </div>
+                        <div id="wrapClientConfirm" style="display:none;">
+                            <div class="pvm-field-label">Client Confirmation</div>
+                            <div class="pvm-field-value" id="viewProjectConfirm">—</div>
                         </div>
                         <div id="wrapStartDate">
                             <div class="pvm-field-label">Start Date (Approved)</div>
@@ -498,32 +510,93 @@ document.getElementById('pvmPostBtn').addEventListener('click',function(){
             imgInput.value='';
             document.getElementById('pvmAttachLabel').textContent='Attach Image';
             renderFeed(currentUpdatesKey);
+            vsToast('Update posted.');
         })
         .catch(e=>alert(e.message))
         .finally(()=>btn.disabled=false);
 });
 
 // ── UPDATE PHASE ──
+// Tracks the phase the currently-open project is at, so we can lock backward moves.
+let currentPhaseIdx = -1;
+
+function applyPhase(status, label){
+    const badge=document.getElementById('viewProjectStatus');
+    badge.textContent=label; badge.className='monitor-badge '+statusClass(status);
+    renderStepTracker('pvmStepTracker', getStepIdx(status));
+    currentPhaseIdx = getStepIdx(status);
+    lockPhaseOptions(currentPhaseIdx);
+    // Reflect the change on the underlying table row immediately.
+    if(currentRow){
+        currentRow.dataset.status = status;
+        const cell = currentRow.querySelector('td:nth-child(4)');
+        if(cell) cell.innerHTML = '<span class="monitor-badge '+statusClass(status)+'">'+label+'</span>';
+        updateCompleteButton(currentRow, status);
+    }
+}
+
+// The "Complete" quick action only exists at Final Approval — add/remove it live
+// as a project's phase changes, so no page refresh is needed.
+function updateCompleteButton(row, status){
+    const left = row.querySelector('.action-left');
+    if(!left) return;
+    const existing = left.querySelector('.monitor-action.complete');
+    if(statusKey(status)==='final_approval'){
+        if(!existing){
+            left.innerHTML = '<a href="#" class="monitor-action complete"><i class="bi bi-check-circle"></i><span>Complete</span></a>';
+        }
+    } else if(existing){
+        existing.remove();
+    }
+}
+
+// Disable phase options that come before the project's current phase.
+function lockPhaseOptions(idx){
+    const sel=document.getElementById('pvmPhaseSelect');
+    if(!sel) return;
+    [...sel.options].forEach(o=>{ o.disabled = getStepIdx(o.value) < idx; });
+}
+
 document.getElementById('pvmPhaseSelect').addEventListener('change',function(){
-    const status=this.value;
+    const sel=this;
+    const status=sel.value;
+    const label=sel.options[sel.selectedIndex].text;
     if(!currentProjectId){ return; }
-    if(!confirm('Update this project\'s phase to "'+this.options[this.selectedIndex].text+'"?')){ return; }
-    fetch('update_project_status.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({project_id:currentProjectId,status})})
-        .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
-        .then(d=>{
-            const badge=document.getElementById('viewProjectStatus');
-            badge.textContent=d.label; badge.className='monitor-badge '+statusClass(status);
-            renderStepTracker('pvmStepTracker', getStepIdx(status));
-            // Reflect the change on the underlying table row immediately.
-            if(currentRow){
-                currentRow.dataset.status = status;
-                const cell = currentRow.querySelector('td:nth-child(4)');
-                if(cell) cell.innerHTML = '<span class="monitor-badge '+statusClass(status)+'">'+d.label+'</span>';
-            }
-        })
-        .catch(e=>alert(e.message));
+    const targetIdx=getStepIdx(status);
+    // Guard against moving backward (also enforced server-side).
+    if(currentPhaseIdx>=0 && targetIdx>=0 && targetIdx<currentPhaseIdx){
+        sel.value = statusKeyForIdx(currentPhaseIdx);
+        vsAlert('This project is already at a later phase and can\'t be moved back.', {title:'Phase locked'});
+        return;
+    }
+    const isCompleting = (status==='completed' && currentPhaseIdx!==getStepIdx('completed'));
+    const msg = isCompleting
+        ? 'Mark this project as Completed? The client will be notified to confirm they received it.'
+        : 'Update this project\'s phase to "'+label+'"?';
+    vsConfirm(msg, {title: isCompleting ? 'Complete project' : 'Update phase', okText: isCompleting ? 'Mark completed' : 'Update'}).then(function(ok){
+        if(!ok){ sel.value = statusKeyForIdx(currentPhaseIdx); return; }
+        fetch('update_project_status.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+            body:new URLSearchParams({project_id:currentProjectId,status})})
+            .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+            .then(d=>{
+                applyPhase(status, d.label);
+                if(d.completing){
+                    document.getElementById('wrapClientConfirm').style.display='';
+                    document.getElementById('viewProjectConfirm').innerHTML='<span style="color:#d97706;">Awaiting client confirmation</span>';
+                    vsToast('Project marked completed. The client has been notified to confirm.');
+                } else {
+                    vsToast('Project phase updated to "'+d.label+'".');
+                }
+            })
+            .catch(e=>{ sel.value = statusKeyForIdx(currentPhaseIdx); alert(e.message); });
+    });
 });
+
+// Map a step index back to its status key (for reverting the select).
+function statusKeyForIdx(idx){
+    const keys=Object.keys(PROJECT_STATUS.phases);
+    return keys[idx] || keys[0];
+}
 document.getElementById('pvmUpdateInput').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&e.ctrlKey) document.getElementById('pvmPostBtn').click();
 });
@@ -552,6 +625,20 @@ function fillProjectModal(btn){
     badge.textContent=statusLabel(d.status);
     badge.className='monitor-badge '+statusClass(d.status);
     renderStepTracker('pvmStepTracker', getStepIdx(d.status));
+    currentPhaseIdx = getStepIdx(d.status);
+    lockPhaseOptions(currentPhaseIdx);
+
+    // Client confirmation (only meaningful once completed)
+    const confWrap=document.getElementById('wrapClientConfirm');
+    const confVal=document.getElementById('viewProjectConfirm');
+    if(statusKey(d.status)==='completed'){
+        confWrap.style.display='';
+        if(d.confirmed){ confVal.innerHTML='<span style="color:#0a7a60;">Confirmed on '+d.confirmed+'</span>'; }
+        else if(d.awaitingConf==='1'){ confVal.innerHTML='<span style="color:#d97706;">Awaiting client confirmation</span>'; }
+        else { confVal.textContent='—'; }
+    } else {
+        confWrap.style.display='none';
+    }
 
     // Fields
     document.getElementById('viewProjectCustomer').textContent = d.customer||'—';
@@ -600,6 +687,31 @@ document.addEventListener('DOMContentLoaded',function(){
         });
     });
     document.getElementById('btnOpenMaterials').addEventListener('click',openMaterialsModal);
+
+    // "Complete" quick action — delegated so buttons added live (when a project
+    // reaches Final Approval in the modal) work without a page refresh.
+    document.addEventListener('click',function(e){
+        const link = e.target.closest ? e.target.closest('.monitor-action.complete') : null;
+        if(!link) return;
+        e.preventDefault();
+        const row=link.closest('tr');
+        if(!row) return;
+        const pid=parseInt(row.querySelector('.view-project-btn')?.dataset.updatesKey||0)||0;
+        if(!pid) return;
+        vsConfirm('Mark this project as Completed? The client will be notified to confirm they received it.',
+            {title:'Complete project', okText:'Mark completed'}).then(function(ok){
+            if(!ok) return;
+            fetch('update_project_status.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:new URLSearchParams({project_id:pid,status:'completed'})})
+                .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+                .then(d=>{
+                    // Reload so the table + any modal reflect the new status consistently.
+                    vsToastFlash('Project marked completed. The client has been notified to confirm.');
+                    location.reload();
+                })
+                .catch(e=>alert(e.message));
+        });
+    });
 
     // Status filter pills — match on the row's canonical status key.
     document.querySelectorAll('.monitor-pill').forEach(pill=>{

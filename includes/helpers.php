@@ -141,6 +141,80 @@ function add_project_update(int $projectId, string $text, bool $notifyClient = t
 }
 
 /* ---------------------------------------------------------------------
+ *  Completion confirmation — when a project is marked "completed" the
+ *  client is asked to confirm they received it (like a shopping app's
+ *  "Order received"). If they don't respond within this many days it is
+ *  auto-confirmed.
+ * ------------------------------------------------------------------- */
+
+/** Days after which an unconfirmed completed project auto-confirms. */
+const COMPLETION_AUTO_CONFIRM_DAYS = 7;
+
+/**
+ * Self-migration: make sure the two completion-tracking columns exist on
+ * `projects`. Runs once per request; safe to call anywhere. Lets the feature
+ * work on hosts (e.g. Railway) without a manual ALTER.
+ */
+function ensure_completion_columns(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $pdo  = db();
+        $cols = $pdo->query("SHOW COLUMNS FROM projects")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('completion_notified_at', $cols, true)) {
+            $pdo->exec("ALTER TABLE projects ADD COLUMN completion_notified_at DATETIME NULL DEFAULT NULL");
+        }
+        if (!in_array('client_confirmed_at', $cols, true)) {
+            $pdo->exec("ALTER TABLE projects ADD COLUMN client_confirmed_at DATETIME NULL DEFAULT NULL");
+        }
+    } catch (Throwable $e) {
+        // Non-fatal — the feature degrades gracefully if the ALTER can't run.
+    }
+}
+
+/**
+ * Sweep completed-but-unconfirmed projects and auto-confirm any that have sat
+ * past the deadline. Cheap enough to call on relevant page loads (monitoring,
+ * my_projects, dashboard) since there's no reliable cron here.
+ */
+function auto_confirm_completions(): void
+{
+    ensure_completion_columns();
+    try {
+        $pdo  = db();
+        $days = (int) COMPLETION_AUTO_CONFIRM_DAYS;
+        $rows = $pdo->query(
+            "SELECT id, project_code, project_name FROM projects
+              WHERE status = 'completed'
+                AND client_confirmed_at IS NULL
+                AND completion_notified_at IS NOT NULL
+                AND completion_notified_at < (NOW() - INTERVAL {$days} DAY)"
+        )->fetchAll();
+        foreach ($rows as $r) {
+            $pid = (int) $r['id'];
+            $pdo->prepare("UPDATE projects SET client_confirmed_at = NOW() WHERE id = ?")->execute([$pid]);
+            $pdo->prepare(
+                "INSERT INTO project_updates (project_id, author_id, author_name, update_text)
+                 VALUES (?, NULL, 'System', ?)"
+            )->execute([$pid, "Completion auto-confirmed after {$days} days without a client response."]);
+            notify([
+                'target_role' => 'Admin',
+                'type'        => 'system',
+                'title'       => 'Project auto-confirmed complete',
+                'message'     => "{$r['project_name']} ({$r['project_code']})",
+                'link'        => 'monitoring.php',
+                'severity'    => 'info',
+                'project_id'  => $pid,
+            ]);
+        }
+    } catch (Throwable $e) {
+        // Non-fatal.
+    }
+}
+
+/* ---------------------------------------------------------------------
  *  OTP (one-time codes) — client sign-up email verification.
  * ------------------------------------------------------------------- */
 

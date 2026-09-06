@@ -858,13 +858,14 @@ function fieldFull(label, val){
 document.querySelectorAll('.arch-restore-btn').forEach(btn => {
   btn.addEventListener('click', function(){
     const name = this.dataset.name, id = this.dataset.id, type = this.dataset.type;
-    if(confirm(`Restore "${name}"? They will be moved back to active records.`)){
+    vsConfirm(`Restore "${name}"? They will be moved back to active records.`, {title:'Restore record', okText:'Restore'}).then(function(ok){
+      if(!ok) return;
       fetch('archive_entity.php', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:new URLSearchParams({ type, id, action:'restore' }) })
         .then(async r => { const d = await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d; })
-        .then(() => location.reload())
+        .then(() => { vsToastFlash(`"${name}" restored.`); location.reload(); })
         .catch(e => alert(e.message));
-    }
+    });
   });
 });
 
@@ -948,10 +949,11 @@ document.querySelectorAll('.arch-cust-view-btn').forEach(btn => {
 
 // Modal restore
 document.getElementById('avmRestoreBtn').addEventListener('click', function(){
-  if(confirm(`Restore "${currentName}"? They will be moved back to active records.`)){
+  vsConfirm(`Restore "${currentName}"? They will be moved back to active records.`, {title:'Restore record', okText:'Restore'}).then(function(ok){
+    if(!ok) return;
     bootstrap.Modal.getInstance(document.getElementById('archViewModal')).hide();
-    alert(`"${currentName}" has been restored.`);
-  }
+    vsToast(`"${currentName}" has been restored.`);
+  });
 });
 </script>
 

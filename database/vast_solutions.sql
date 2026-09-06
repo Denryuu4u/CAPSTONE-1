@@ -196,6 +196,8 @@ CREATE TABLE `projects` (
   `start_date`     DATE DEFAULT NULL,
   `target_completion` DATE DEFAULT NULL,
   `approver`       VARCHAR(120) DEFAULT NULL,
+  `completion_notified_at` DATETIME NULL DEFAULT NULL, -- when marked completed (client asked to confirm)
+  `client_confirmed_at`    DATETIME NULL DEFAULT NULL, -- when the client confirmed receipt (or auto-confirmed)
   `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

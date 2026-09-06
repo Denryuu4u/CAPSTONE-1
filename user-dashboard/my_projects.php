@@ -16,6 +16,9 @@ $active_page = 'my_projects';
  */
 require_once __DIR__ . '/../includes/helpers.php';
 
+// Auto-confirm completed projects the client left unconfirmed past the deadline.
+auto_confirm_completions();
+
 // Build the current client's projects from the database, in the shape the page expects.
 $clientId  = current_user()['id'] ?? 0;
 $statusMap = ['Sent' => 'Pending', 'Accepted' => 'Accepted', 'Approved' => 'Approved', 'Rejected' => 'Rejected'];
@@ -81,6 +84,8 @@ foreach ($__rows->fetchAll() as $r) {
         'target' => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
         'start' => $r['start_date'] ?? '', 'progress' => (int) $r['progress'], 'approver' => $r['approver'] ?? '',
         'details' => $r['description'] ?? '', 'materials_key' => (string) $pid, 'updates_key' => (string) $pid,
+        'confirmed' => !empty($r['client_confirmed_at']) ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
+        'awaiting_confirm' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
     ];
 }
 
@@ -580,6 +585,8 @@ function awaitingClientDecision(array $p): bool {
                   data-progress="<?= $p['progress'] ?>"
                   data-approver="<?= htmlspecialchars($p['approver']) ?>"
                   data-details="<?= htmlspecialchars($p['details']) ?>"
+                  data-awaiting-confirm="<?= $p['awaiting_confirm'] ?>"
+                  data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
                   data-materials-key="<?= $p['materials_key'] ?>"
                   data-updates-key="<?= $p['updates_key'] ?>">
                   <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -827,6 +834,23 @@ function awaitingClientDecision(array $p): bool {
       </div>
 
       <div class="modal-body">
+        <!-- Completion confirmation banner (shown only while awaiting the client) -->
+        <div id="confirmCompletionBanner" style="display:none;margin:14px 22px 0;padding:14px 16px;border:1px solid #6ee7d0;background:#f0fdf9;border-radius:10px;">
+          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+            <i class="bi bi-check2-circle" style="color:#0a7a60;font-size:1.2rem;margin-top:1px;"></i>
+            <div style="flex:1;min-width:180px;">
+              <div style="font-weight:700;color:#0a7a60;font-size:.85rem;">Your project is marked completed</div>
+              <div style="font-size:.75rem;color:#4b5563;line-height:1.5;margin-top:2px;">
+                Please confirm you've received it. If you don't respond within <?= (int) COMPLETION_AUTO_CONFIRM_DAYS ?> days, it will be confirmed automatically.
+              </div>
+            </div>
+            <button type="button" id="btnConfirmCompletion"
+              style="background:#0D9676;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+              <i class="bi bi-check-lg"></i> Confirm Completion
+            </button>
+          </div>
+          <div id="confirmedNote" style="display:none;font-size:.78rem;color:#0a7a60;font-weight:600;margin-top:4px;"></div>
+        </div>
         <div class="pvm-details-section">
           <div class="pvm-grid-2">
             <div>
@@ -1014,7 +1038,9 @@ document.getElementById('btnAcceptQuote').addEventListener('click', function(){
   postQuoteDecision('accept_quote.php');
 });
 document.getElementById('btnRejectQuote').addEventListener('click', function(){
-  if(confirm('Are you sure you want to reject this quote?')) postQuoteDecision('reject_quote.php');
+  vsConfirm('Are you sure you want to reject this quote?', {title:'Reject quote', okText:'Reject', tone:'danger'}).then(function(ok){
+    if(ok) postQuoteDecision('reject_quote.php');
+  });
 });
 
 document.getElementById('vmDownloadBtn').addEventListener('click', function(){
@@ -1102,8 +1128,48 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     currentMatName = d.name||'';
     document.getElementById('viewWrapMaterials').style.display = currentMatsKey?'':'none';
 
+    // Completion-confirmation banner
+    currentViewProjectId = d.id || 0;
+    const banner = document.getElementById('confirmCompletionBanner');
+    const confBtn = document.getElementById('btnConfirmCompletion');
+    const confNote = document.getElementById('confirmedNote');
+    if (d.awaitingConfirm === '1') {
+      banner.style.display = '';
+      confBtn.style.display = '';
+      confBtn.disabled = false;
+      confNote.style.display = 'none';
+    } else if (statusKey(d.status) === 'completed' && d.confirmed) {
+      banner.style.display = '';
+      confBtn.style.display = 'none';
+      confNote.style.display = '';
+      confNote.textContent = '✓ You confirmed completion on ' + d.confirmed + '.';
+    } else {
+      banner.style.display = 'none';
+    }
+
     renderFeed(d.updatesKey||'');
     new bootstrap.Modal(document.getElementById('viewModal')).show();
+  });
+});
+
+// Confirm-completion action ("Order received" style)
+let currentViewProjectId = 0;
+document.getElementById('btnConfirmCompletion').addEventListener('click', function(){
+  if(!currentViewProjectId) return;
+  const self = this;
+  vsConfirm('Confirm that this project is completed and you have received it?', {title:'Confirm completion', okText:'Yes, confirm'}).then(function(ok){
+    if(!ok) return;
+    self.disabled = true;
+    fetch('confirm_completion.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({project_id: currentViewProjectId})})
+      .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+      .then(function(){
+        vsToast('Thank you! Your project completion has been confirmed.');
+        self.style.display='none';
+        const confNote = document.getElementById('confirmedNote');
+        confNote.style.display=''; confNote.textContent='✓ You confirmed completion just now.';
+      })
+      .catch(function(e){ self.disabled=false; alert(e.message); });
   });
 });
 
@@ -1115,6 +1181,17 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
   if(!viewId) return;
   const target = document.querySelector('.view-btn[data-id="'+CSS.escape(viewId)+'"]');
   if(target){ target.click(); }
+})();
+
+// Toast feedback after a quote decision redirect (?accepted / ?rejected).
+(function(){
+  const params = new URLSearchParams(location.search);
+  if(params.get('accepted')==='1'){ vsToast('Quote accepted. Awaiting final approval from Vast Solutions.'); }
+  else if(params.get('rejected')==='1'){ vsToast('Quote rejected.', {type:'info'}); }
+  else if(params.get('submitted')==='1'){ vsToast('Quote request submitted successfully.'); }
+  if(params.get('accepted')||params.get('rejected')||params.get('submitted')){
+    history.replaceState({}, document.title, 'my_projects.php');
+  }
 })();
 
 document.getElementById('btnViewMaterials').addEventListener('click', function(){

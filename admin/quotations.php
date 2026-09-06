@@ -383,12 +383,15 @@ $quoteBadge = [
                 a.addEventListener("click", function (e) {
                     e.preventDefault();
                     const action = this.dataset.do, id = this.dataset.id;
-                    if (!confirm(`${action === 'approve' ? 'Approve' : 'Reject'} this quotation?`)) return;
-                    const body = new URLSearchParams({ id, action });
-                    fetch('update_quotation.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                        .then(() => location.reload())
-                        .catch(err => alert(err.message));
+                    const isApprove = action === 'approve';
+                    vsConfirm(`${isApprove ? 'Approve' : 'Reject'} this quotation?`, {title: isApprove ? 'Approve quotation' : 'Reject quotation', okText: isApprove ? 'Approve' : 'Reject', tone: isApprove ? 'default' : 'danger'}).then(function(ok){
+                        if (!ok) return;
+                        const body = new URLSearchParams({ id, action });
+                        fetch('update_quotation.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                            .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                            .then(() => { vsToastFlash(isApprove ? 'Quotation approved.' : 'Quotation rejected.'); location.reload(); })
+                            .catch(err => alert(err.message));
+                    });
                 });
             });
 

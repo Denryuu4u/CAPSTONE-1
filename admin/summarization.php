@@ -456,6 +456,7 @@ try {
                     fabricationBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Marked Ready — ' + data.project_code;
                     fabricationBtn.disabled  = true;
                     fabricationBtn.style.opacity = '0.7';
+                    vsToast('Project ' + data.project_code + ' moved to production.');
                 })
                 .catch((err) => showError(err.message));
         });
@@ -522,7 +523,7 @@ try {
                 if (!code) { libShowError('Please enter a code.'); codeI.focus(); return; }
 
                 libApi({ action: 'add', type, code, value: valI.value.trim() })
-                    .then(() => { codeI.value = ''; valI.value = ''; libLoad(); codeI.focus(); })
+                    .then(() => { codeI.value = ''; valI.value = ''; libLoad(); codeI.focus(); vsToast('Library entry added.'); })
                     .catch((err) => libShowError(err.message));
             });
         });
@@ -540,6 +541,7 @@ try {
                 const value = tr.querySelector('.lib-cell-value').value.trim();
                 if (!code) { libShowError('Code cannot be empty.'); libLoad(); return; }
                 libApi({ action: 'update', type, id, code, value })
+                    .then(() => vsToast('Library entry updated.'))
                     .catch((err) => { libShowError(err.message); libLoad(); });
             });
 
@@ -548,7 +550,7 @@ try {
                 if (!del) return;
                 const tr = del.closest('tr');
                 libApi({ action: 'delete', type, id: tr.dataset.id })
-                    .then(() => tr.remove())
+                    .then(() => { tr.remove(); vsToast('Library entry deleted.'); })
                     .catch((err) => libShowError(err.message));
             });
         });

@@ -413,12 +413,17 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
     // ADD CUSTOMER
     const addBtn = document.getElementById("saveNewCustomerBtn");
     if (addBtn) addBtn.addEventListener("click", function () {
-        post('save_customer.php', {
-            name: document.getElementById("newCustomerName").value,
-            email: document.getElementById("newCustomerEmail").value,
-            phone: document.getElementById("newCustomerPhone").value,
-            address: document.getElementById("newCustomerAddress").value,
-        }).then(() => location.reload()).catch(e => alert(e.message));
+        const name = document.getElementById("newCustomerName").value.trim();
+        if (!name) { vsAlert('Customer name is required.', {title:'Missing details'}); return; }
+        vsConfirm('Please review the customer details.\nAre you sure everything is correct?', {title:'Add customer', okText:'Yes, add customer'}).then(function(ok){
+            if (!ok) return;
+            post('save_customer.php', {
+                name: name,
+                email: document.getElementById("newCustomerEmail").value,
+                phone: document.getElementById("newCustomerPhone").value,
+                address: document.getElementById("newCustomerAddress").value,
+            }).then(() => { vsToastFlash('Customer added successfully.'); location.reload(); }).catch(e => alert(e.message));
+        });
     });
 
     // EDIT CUSTOMER
@@ -434,13 +439,16 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
     });
     const updBtn = document.getElementById("updateCustomerBtn");
     if (updBtn) updBtn.addEventListener("click", function () {
-        post('save_customer.php', {
-            id: selectedCustomerId,
-            name: document.getElementById("editCustomerName").value,
-            email: document.getElementById("editCustomerEmail").value,
-            phone: document.getElementById("editCustomerPhone").value,
-            address: document.getElementById("editCustomerAddress").value,
-        }).then(() => location.reload()).catch(e => alert(e.message));
+        vsConfirm('Save these changes to the customer details?', {title:'Update customer', okText:'Save changes'}).then(function(ok){
+            if (!ok) return;
+            post('save_customer.php', {
+                id: selectedCustomerId,
+                name: document.getElementById("editCustomerName").value,
+                email: document.getElementById("editCustomerEmail").value,
+                phone: document.getElementById("editCustomerPhone").value,
+                address: document.getElementById("editCustomerAddress").value,
+            }).then(() => { vsToastFlash('Customer details updated.'); location.reload(); }).catch(e => alert(e.message));
+        });
     });
 
     // ARCHIVE CUSTOMER
@@ -453,7 +461,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
     });
     document.getElementById("confirmArchiveBtn").addEventListener("click", function () {
         post('archive_entity.php', { type: 'customer', id: selectedCustomerId, action: 'archive' })
-            .then(() => location.reload()).catch(e => alert(e.message));
+            .then(() => { vsToastFlash('Customer archived.'); location.reload(); }).catch(e => alert(e.message));
     });
 
     // ===== CONTACT MESSAGES (Messages tab) — open full message in a modal =====
@@ -499,14 +507,17 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 
     const mmDel = document.getElementById('mmDelBtn');
     if (mmDel) mmDel.addEventListener('click', function () {
-        if (!confirm('Delete this message? This cannot be undone.')) return;
-        post('contact_action.php', { id: curMsgId, action: 'delete' })
-            .then(() => location.reload()).catch(e => alert(e.message));
+        vsConfirm('Delete this message? This cannot be undone.', {title:'Delete message', okText:'Delete', tone:'danger'}).then(function(ok){
+            if (!ok) return;
+            post('contact_action.php', { id: curMsgId, action: 'delete' })
+                .then(() => { vsToastFlash('Message deleted.'); location.reload(); }).catch(e => alert(e.message));
+        });
     });
     const mmRead = document.getElementById('mmReadBtn');
     if (mmRead) mmRead.addEventListener('click', function () {
-        post('contact_action.php', { id: curMsgId, action: curMsgRead ? 'unread' : 'read' })
-            .then(() => location.reload()).catch(e => alert(e.message));
+        const willBe = curMsgRead ? 'unread' : 'read';
+        post('contact_action.php', { id: curMsgId, action: willBe })
+            .then(() => { vsToastFlash('Message marked ' + willBe + '.'); location.reload(); }).catch(e => alert(e.message));
     });
 });
     </script>

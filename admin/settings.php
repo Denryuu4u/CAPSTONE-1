@@ -469,7 +469,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 put('default_protection_pct', 'setProtection');
                 fetch('save_settings.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
                     .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(() => { const el = this.querySelector('span'); el.textContent = 'Saved ✓'; setTimeout(() => el.textContent = 'Save Changes', 1500); })
+                    .then(() => { const el = this.querySelector('span'); el.textContent = 'Saved ✓'; setTimeout(() => el.textContent = 'Save Changes', 1500); vsToast('Settings saved.'); })
                     .catch(err => alert(err.message));
             });
 
@@ -491,6 +491,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                         document.getElementById('newPassword').value = '';
                         document.getElementById('confirmPassword').value = '';
                         setTimeout(() => span.textContent = 'Update Password', 1500);
+                        vsToast('Password updated.');
                     })
                     .catch(err => alert(err.message));
             });
@@ -521,6 +522,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                         const empty = document.getElementById('galleryEmpty');
                         if (empty) empty.remove();
                         d.images.forEach(img => galleryGrid.appendChild(galleryCard(img)));
+                        vsToast((d.images.length > 1 ? d.images.length + ' images' : 'Image') + ' added to the gallery.');
                     })
                     .catch(e => { galleryError.textContent = e.message; galleryError.style.display = 'block'; });
             });
@@ -529,16 +531,19 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 const btn = e.target.closest('.gallery-remove-btn');
                 if (!btn) return;
                 const item = btn.closest('.gallery-manage-item');
-                if (!confirm('Remove this image from the gallery?')) return;
-                fetch('delete_gallery_image.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ id: btn.dataset.id }) })
-                    .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(() => {
-                        item.remove();
-                        if (!galleryGrid.querySelector('.gallery-manage-item')) {
-                            galleryGrid.innerHTML = '<div class="text-muted small" id="galleryEmpty">No images yet — add some with the button above.</div>';
-                        }
-                    })
-                    .catch(e => { galleryError.textContent = e.message; galleryError.style.display = 'block'; });
+                vsConfirm('Remove this image from the gallery?', {title:'Remove image', okText:'Remove', tone:'danger'}).then(function(ok){
+                    if (!ok) return;
+                    fetch('delete_gallery_image.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ id: btn.dataset.id }) })
+                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                        .then(() => {
+                            item.remove();
+                            if (!galleryGrid.querySelector('.gallery-manage-item')) {
+                                galleryGrid.innerHTML = '<div class="text-muted small" id="galleryEmpty">No images yet — add some with the button above.</div>';
+                            }
+                            vsToast('Image removed from the gallery.');
+                        })
+                        .catch(e => { galleryError.textContent = e.message; galleryError.style.display = 'block'; });
+                });
             });
 
             } // end if (galleryGrid)

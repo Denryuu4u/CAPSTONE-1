@@ -30,10 +30,23 @@ $progressMap = [
 ];
 
 $pdo = db();
+ensure_completion_columns();
 $row = $pdo->prepare("SELECT * FROM projects WHERE id = ?");
 $row->execute([$projectId]);
 $project = $row->fetch();
 if (!$project) ups_fail('Project not found.', 404);
+
+// ── Phase lock: a project can only move forward through the ordered phases.
+// Once advanced it can't be sent back (e.g. Approved → Quote Submitted).
+// Off-track statuses (on_hold/rejected) have no index and are exempt.
+$currentIdx = project_step_index($project['status']);
+$newIdx     = project_step_index($status);
+if ($currentIdx !== null && $newIdx !== null && $newIdx < $currentIdx) {
+    ups_fail('This project is already at a later phase and can\'t be moved back.');
+}
+
+// Is this transition the one that marks the project completed?
+$isCompleting = ($status === 'completed' && $project['status'] !== 'completed');
 
 try {
     if (isset($progressMap[$status])) {
@@ -44,10 +57,30 @@ try {
     }
 
     $label = project_status_label($status);
-    add_project_update($projectId, "Project status updated to \"{$label}\".");
+    // On completion, skip the generic client notice — we send a tailored
+    // "please confirm" notice below instead.
+    add_project_update($projectId, "Project status updated to \"{$label}\".", !$isCompleting);
     log_audit('Monitoring', "Updated {$project['project_code']} status to {$label}", $project['project_name']);
 
-    echo json_encode(['ok' => true, 'status' => $status, 'label' => $label]);
+    if ($isCompleting) {
+        // Open the confirmation window and reset any prior confirmation.
+        $pdo->prepare("UPDATE projects SET completion_notified_at = NOW(), client_confirmed_at = NULL WHERE id = ?")
+            ->execute([$projectId]);
+        $clientId = project_client_user_id($projectId);
+        if ($clientId) {
+            notify([
+                'user_id'    => $clientId,
+                'type'       => 'status_update',
+                'title'      => 'Project completed — please confirm',
+                'message'    => "{$project['project_name']} is marked completed. Please confirm you've received it.",
+                'link'       => "my_projects.php?view={$projectId}",
+                'severity'   => 'warning',
+                'project_id' => $projectId,
+            ]);
+        }
+    }
+
+    echo json_encode(['ok' => true, 'status' => $status, 'label' => $label, 'completing' => $isCompleting]);
 } catch (Throwable $e) {
     ups_fail('Server error: ' . $e->getMessage(), 500);
 }

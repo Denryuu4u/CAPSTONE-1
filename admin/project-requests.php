@@ -884,7 +884,7 @@ $reqBadge = [
                 });
                 fetch('create_quotation.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
                     .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(d => { alert('Quotation ' + d.quote_code + ' sent — ' + pesoFmt(d.total)); location.reload(); })
+                    .then(d => { vsToastFlash('Quotation ' + d.quote_code + ' sent — ' + pesoFmt(d.total)); location.reload(); })
                     .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-2"></i>Send Quotation'; });
             });
 
@@ -1029,7 +1029,7 @@ $reqBadge = [
                 body.append('accessories', parseFloat(document.getElementById('cpAccess').value) || 0);
                 fetch('save_project.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
                     .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(d => { alert('Project ' + d.project_code + ' created with quotation ' + d.quote_code + ' — ' + pesoFmt(d.total)); location.reload(); })
+                    .then(d => { vsToastFlash('Project ' + d.project_code + ' created with quotation ' + d.quote_code + ' — ' + pesoFmt(d.total)); location.reload(); })
                     .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy me-2"></i>Save Project'; });
             });
 
@@ -1083,6 +1083,7 @@ $reqBadge = [
                         sel.appendChild(opt);
                         bootstrap.Modal.getInstance(document.getElementById('addCustomerModal')).hide();
                         ['newCustomerName', 'newCustomerEmail', 'newCustomerPhone', 'newCustomerAddress'].forEach(id => document.getElementById(id).value = '');
+                        vsToast('Customer added.');
                     })
                     .catch(e => alert(e.message))
                     .finally(() => btn.disabled = false);

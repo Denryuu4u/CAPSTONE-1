@@ -60,3 +60,5 @@ if (!isset($active_page)) $active_page = '';
   <i class="bi bi-list"></i>
 </button>
 <div class="sidebar-overlay" onclick="document.body.classList.remove('sidebar-open')"></div>
+
+<?php include __DIR__ . '/../includes/ui_modal.php'; // shared alert/confirm modal ?>

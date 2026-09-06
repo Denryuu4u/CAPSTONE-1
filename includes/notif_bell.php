@@ -53,7 +53,7 @@ $__allLink = $__isAdmin ? 'monitoring.php' : 'my_projects.php';
         $dot = $__sevDot[$n['severity']] ?? '#0D9676';
         $link = $n['link'] ?: $__allLink;
     ?>
-    <a href="<?= htmlspecialchars($link) ?>" class="notif-item" style="<?= $n['is_read'] ? 'opacity:.6;' : '' ?>">
+    <a href="<?= htmlspecialchars($link) ?>" class="notif-item" data-id="<?= (int) $n['id'] ?>" style="<?= $n['is_read'] ? 'opacity:.6;' : '' ?>">
       <span class="notif-dot" style="background:<?= $dot ?>;box-shadow:0 0 0 2px <?= $dot ?>33;"></span>
       <span class="notif-item-body">
         <span class="notif-item-title"><?= htmlspecialchars($n['title']) ?></span>
@@ -73,10 +73,29 @@ $__allLink = $__isAdmin ? 'monitoring.php' : 'my_projects.php';
       if (!d.contains(e.target)) d.classList.remove('open');
     });
   });
+  // Clicking a notification marks just that one read, then follows its link.
+  document.addEventListener('click', function (e) {
+    var item = e.target.closest ? e.target.closest('.notif-item[data-id]') : null;
+    if (!item) return;
+    var id = item.getAttribute('data-id');
+    if (!id) return;
+    var base = location.pathname.indexOf('/admin/') !== -1 ? 'mark_notifications_read.php' : '../admin/mark_notifications_read.php';
+    try {
+      fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'id=' + encodeURIComponent(id),
+        keepalive: true   // completes even as the page navigates to the link
+      });
+    } catch (err) {}
+  });
   window.markNotifsRead = function (ev) {
     ev.preventDefault();
     var base = location.pathname.indexOf('/admin/') !== -1 ? 'mark_notifications_read.php' : '../admin/mark_notifications_read.php';
-    fetch(base, { method: 'POST' }).then(function () { location.reload(); });
+    fetch(base, { method: 'POST' }).then(function () {
+      if (window.vsToastFlash) vsToastFlash('All notifications marked as read.');
+      location.reload();
+    });
   };
 })();
 </script>
