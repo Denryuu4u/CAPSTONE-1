@@ -6,9 +6,11 @@ FROM php:8.2-apache
 # System libs + PHP extensions the app needs:
 #   pdo_mysql -> db() PDO connection
 #   mbstring  -> mb_encode_mimeheader() in includes/mailer.php (needs libonig-dev)
+#   zip       -> ZipArchive: summary "Download all" ZIP + .xlsx exports
+#                (includes/xlsx_writer.php). Needs libzip-dev.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libonig-dev \
- && docker-php-ext-install pdo_mysql mbstring \
+ && apt-get install -y --no-install-recommends libonig-dev libzip-dev \
+ && docker-php-ext-install pdo_mysql mbstring zip \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy the app into Apache's document root.

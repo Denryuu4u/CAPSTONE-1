@@ -18,9 +18,13 @@ $monitor_projects = [];
 foreach (db()->query(
     "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status,
             p.target_completion, p.start_date, p.progress, p.approver, p.description,
-            p.completion_notified_at, p.client_confirmed_at
+            p.completion_notified_at, p.client_confirmed_at,
+            q.id AS quotation_id, q.quote_code, q.total_amount AS quote_total, q.status AS quote_status
        FROM projects p
        LEFT JOIN customers c ON c.id = p.customer_id
+       LEFT JOIN quotations q ON q.id = (
+            SELECT id FROM quotations qq WHERE qq.project_id = p.id
+             ORDER BY (qq.status='Approved') DESC, qq.id DESC LIMIT 1)
       WHERE p.status <> 'rejected'
       ORDER BY p.created_at DESC, p.id DESC"
 ) as $r) {
@@ -37,6 +41,10 @@ foreach (db()->query(
         'details'  => $r['description'] ?? '',
         'confirmed'     => $r['client_confirmed_at'] ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
         'awaiting_conf' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
+        'quote_id'      => (int) ($r['quotation_id'] ?? 0),
+        'quote_code'    => $r['quote_code'] ?? '',
+        'quote_total'   => $r['quote_total'] !== null ? peso((float) $r['quote_total']) : '',
+        'quote_status'  => $r['quote_status'] ?? '',
         'materials_key' => (string) $r['id'],
         'updates_key'   => (string) $r['id'],
     ];
@@ -268,6 +276,9 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                                             data-approver="<?= htmlspecialchars($p['approver']) ?>"
                                             data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
                                             data-awaiting-conf="<?= $p['awaiting_conf'] ?>"
+                                            data-quote-id="<?= $p['quote_id'] ?>"
+                                            data-quote-code="<?= htmlspecialchars($p['quote_code']) ?>"
+                                            data-quote-total="<?= htmlspecialchars($p['quote_total']) ?>"
                                             data-materials-key="<?= $p['materials_key'] ?>"
                                             data-updates-key="<?= $p['updates_key'] ?>">
                                             <i class="bi bi-eye"></i><span>View</span>
@@ -350,6 +361,12 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                             <button class="btn-materials" id="btnOpenMaterials">
                                 <i class="bi bi-box-seam"></i> View Materials List
                             </button>
+                        </div>
+                        <div id="wrapQuotation">
+                            <div class="pvm-field-label">Quotation <span id="pvmQuoteMeta" style="color:#6b7280;font-weight:500;"></span></div>
+                            <a class="btn-materials" id="btnViewQuotation" target="_blank" style="border-color:#2563eb;color:#2563eb;background:#eff6ff;">
+                                <i class="bi bi-file-earmark-text"></i> View Quotation
+                            </a>
                         </div>
                         <div id="wrapTracking">
                             <div class="pvm-field-label">Cost Tracking</div>
@@ -771,6 +788,18 @@ function fillProjectModal(btn){
     currentMaterialsKey=d.materialsKey||'';
     currentProjectName=d.project||'';
     document.getElementById('wrapMaterials').style.display=currentMaterialsKey?'':'none';
+
+    // Quotation (view the quote made for this project)
+    const wrapQ=document.getElementById('wrapQuotation');
+    const qid=parseInt(d.quoteId||0)||0;
+    if(qid){
+        wrapQ.style.display='';
+        document.getElementById('btnViewQuotation').href='<?= BASE_URL ?>/download_quote.php?id='+qid;
+        const meta=(d.quoteCode?d.quoteCode:'')+(d.quoteTotal?' · '+d.quoteTotal:'');
+        document.getElementById('pvmQuoteMeta').textContent=meta?'· '+meta:'';
+    } else {
+        wrapQ.style.display='none';
+    }
 
     // Updates + current project id (for posting updates / phase changes)
     currentUpdatesKey=d.updatesKey||'';

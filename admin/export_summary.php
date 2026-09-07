@@ -20,15 +20,19 @@ require __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_page('summarization', true); // back-office only
 
+/** Redirect to the friendly error page instead of dumping raw text. */
+function summ_error(string $msg, string $title = 'Download failed'): void
+{
+    header('Location: ' . BASE_URL . '/error.php?title=' . urlencode($title) . '&msg=' . urlencode($msg));
+    exit;
+}
+
 $batchId  = isset($_GET['batch']) ? (int) $_GET['batch'] : 0;
 $category = strtolower($_GET['category'] ?? 'all');
 $valid    = ['wood', 'alu', 'hw', 'all'];
 
 if ($batchId <= 0 || !in_array($category, $valid, true)) {
-    http_response_code(400);
-    header('Content-Type: text/plain');
-    echo 'Invalid request. Expected ?batch=<id>&category=wood|alu|hw|all';
-    exit;
+    summ_error('Invalid request. Expected a valid batch and category.');
 }
 
 $pdo = db();
@@ -38,10 +42,7 @@ $batchStmt = $pdo->prepare("SELECT * FROM summ_batches WHERE id = ?");
 $batchStmt->execute([$batchId]);
 $batch = $batchStmt->fetch();
 if (!$batch) {
-    http_response_code(404);
-    header('Content-Type: text/plain');
-    echo 'Batch not found.';
-    exit;
+    summ_error('That summarization batch could not be found.', 'Not found');
 }
 
 const SUMMARY_HEADERS = ['PARTNAME', 'MATERIAL', 'QTY', 'WIDTH', 'LENGTH', 'EDGING', 'COMMENT'];
@@ -125,19 +126,13 @@ if ($category !== 'all') {
 
 // ── All categories → ZIP of three .xls files ─────────────────────────
 if (!class_exists('ZipArchive')) {
-    http_response_code(500);
-    header('Content-Type: text/plain');
-    echo 'ZIP support (ext-zip) is not available on this server.';
-    exit;
+    summ_error('ZIP downloads aren\'t available on this server yet. You can still download each category (Wood, Aluminum, Hardware) individually.', 'ZIP not supported');
 }
 
 $tmpZip = tempnam(sys_get_temp_dir(), 'summ');
 $zip    = new ZipArchive();
 if ($zip->open($tmpZip, ZipArchive::OVERWRITE) !== true) {
-    http_response_code(500);
-    header('Content-Type: text/plain');
-    echo 'Could not create the ZIP archive.';
-    exit;
+    summ_error('The ZIP archive could not be created. Please try again.');
 }
 
 foreach (['wood', 'alu', 'hw'] as $cat) {
