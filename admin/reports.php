@@ -9,7 +9,8 @@ require_page($active_page); // role gate (Super Admin / Admin)
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
-$reportData = ['project' => [], 'quotation' => [], 'cutting' => [], 'costing' => []];
+require_once __DIR__ . '/../includes/tracking.php';
+$reportData = ['project' => [], 'quotation' => [], 'cutting' => [], 'costing' => [], 'tracking' => []];
 
 foreach (db()->query(
     "SELECT p.project_code AS code, c.name AS customer, p.project_name, p.created_at, r.date_submitted, p.status
@@ -45,6 +46,26 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
     $reportData['costing'][] = [
         'project' => $x['project_name'], 'materials' => $mat,
         'labor' => round(max(0, (float) $x['total_amount'] - $mat - $other), 2), 'other' => round($other, 2),
+    ];
+}
+
+// Project Tracking — one row per project that has a tracking ledger.
+ensure_tracking_tables();
+foreach (db()->query(
+    "SELECT pt.id AS tid, pt.project_id, p.project_code, p.project_name, c.name AS customer, pt.project_amount,
+            (SELECT COALESCE(SUM(amount),0)        FROM tracking_expenses te WHERE te.tracking_id = pt.id) AS exp_total,
+            (SELECT COALESCE(SUM(rate + gas_toll),0) FROM tracking_labor    tl WHERE tl.tracking_id = pt.id) AS labor_total
+       FROM project_tracking pt
+       JOIN projects p ON p.id = pt.project_id
+       LEFT JOIN customers c ON c.id = p.customer_id
+      ORDER BY p.created_at DESC, pt.id DESC"
+) as $x) {
+    $amount = (float) $x['project_amount'];
+    $cost   = (float) $x['exp_total'] + (float) $x['labor_total'];
+    $reportData['tracking'][] = [
+        'project_id' => (int) $x['project_id'], 'code' => $x['project_code'],
+        'customer' => $x['customer'] ?? '—', 'project' => $x['project_name'],
+        'amount' => round($amount, 2), 'cost' => round($cost, 2), 'profit' => round($amount - $cost, 2),
     ];
 }
 ?>
@@ -154,9 +175,15 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
         /* ── summary strip ── */
         .summary-strip { display:none; gap:12px; flex-wrap:wrap; margin-top:16px; }
         .summary-strip.active { display:flex; }
-        .sum-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px 18px; flex:1 1 120px; box-shadow:0 1px 3px rgba(15,23,42,.04); }
+        .sum-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px 18px; flex:1 1 120px; box-shadow:0 1px 3px rgba(15,23,42,.04); transition:border-color .15s, box-shadow .15s, transform .1s; }
         .sum-card-num   { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:700; color:#0D9676; }
         .sum-card-label { font-size:0.65rem; color:#6b7280; margin-top:2px; }
+        /* Clickable category cards → filter + scroll to the table below */
+        .sum-card[data-cat] { cursor:pointer; }
+        .sum-card[data-cat]:hover { border-color:#0D9676; box-shadow:0 3px 10px rgba(13,150,118,.15); transform:translateY(-1px); }
+        .sum-card.sum-card-active { border-color:#0D9676; box-shadow:0 0 0 2px rgba(13,150,118,.25); }
+        .inline-table-title .it-filter-note { font-weight:500; font-size:.7rem; color:#0D9676; margin-left:8px; }
+        .inline-table-title .it-clear { font-size:.66rem; color:#6b7280; cursor:pointer; margin-left:6px; text-decoration:underline; }
 
         /* ── chart panels ── */
         .chart-panel { display:none; gap:16px; flex-wrap:wrap; margin-top:16px; }
@@ -226,6 +253,7 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
                 <a href="#" class="report-tab" data-tab="quotation">Quotation Reports</a>
                 <a href="#" class="report-tab" data-tab="cutting">Cutting List Summary</a>
                 <a href="#" class="report-tab" data-tab="costing">Costing Reports</a>
+                <a href="#" class="report-tab" data-tab="tracking">Project Tracking</a>
             </div>
         </div>
 
@@ -256,31 +284,38 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
 
         <!-- ════ SUMMARY STRIPS ════ -->
         <!-- Per-phase cards are appended by renderProject() — one per status actually present. -->
-        <div class="summary-strip active" id="strip-project">
-            <div class="sum-card"><div class="sum-card-num" id="sc-prj-total">0</div><div class="sum-card-label">Total Projects</div></div>
+        <div class="summary-strip active" id="strip-project" data-tab="project">
+            <div class="sum-card" data-cat=""><div class="sum-card-num" id="sc-prj-total">0</div><div class="sum-card-label">Total Projects</div></div>
         </div>
 
-        <div class="summary-strip" id="strip-quotation">
-            <div class="sum-card"><div class="sum-card-num" id="sc-qt-total">0</div><div class="sum-card-label">Total Quotations</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-qt-approved">0</div><div class="sum-card-label">Approved</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-qt-pending">0</div><div class="sum-card-label">Pending</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-qt-rejected">0</div><div class="sum-card-label">Rejected</div></div>
+        <div class="summary-strip" id="strip-quotation" data-tab="quotation">
+            <div class="sum-card" data-cat=""><div class="sum-card-num" id="sc-qt-total">0</div><div class="sum-card-label">Total Quotations</div></div>
+            <div class="sum-card" data-cat="approved"><div class="sum-card-num" id="sc-qt-approved">0</div><div class="sum-card-label">Approved</div></div>
+            <div class="sum-card" data-cat="pending"><div class="sum-card-num" id="sc-qt-pending">0</div><div class="sum-card-label">Pending</div></div>
+            <div class="sum-card" data-cat="rejected"><div class="sum-card-num" id="sc-qt-rejected">0</div><div class="sum-card-label">Rejected</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-qt-revenue" style="font-size:1rem;">₱0</div><div class="sum-card-label">Est. Revenue (Approved)</div></div>
         </div>
 
-        <div class="summary-strip" id="strip-cutting">
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-types">0</div><div class="sum-card-label">Material Types</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-panels">0</div><div class="sum-card-label">Panels (qty)</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-edges">0</div><div class="sum-card-label">Edges (qty)</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-ct-hardware">0</div><div class="sum-card-label">Hardware (qty)</div></div>
+        <div class="summary-strip" id="strip-cutting" data-tab="cutting">
+            <div class="sum-card" data-cat=""><div class="sum-card-num" id="sc-ct-types">0</div><div class="sum-card-label">Material Types</div></div>
+            <div class="sum-card" data-cat="Panels"><div class="sum-card-num" id="sc-ct-panels">0</div><div class="sum-card-label">Panels (qty)</div></div>
+            <div class="sum-card" data-cat="Edges"><div class="sum-card-num" id="sc-ct-edges">0</div><div class="sum-card-label">Edges (qty)</div></div>
+            <div class="sum-card" data-cat="Hardware"><div class="sum-card-num" id="sc-ct-hardware">0</div><div class="sum-card-label">Hardware (qty)</div></div>
         </div>
 
-        <div class="summary-strip" id="strip-costing">
-            <div class="sum-card"><div class="sum-card-num" id="sc-co-projects">0</div><div class="sum-card-label">Projects Costed</div></div>
+        <div class="summary-strip" id="strip-costing" data-tab="costing">
+            <div class="sum-card" data-cat=""><div class="sum-card-num" id="sc-co-projects">0</div><div class="sum-card-label">Projects Costed</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-materials" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Materials</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-labor" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Labor</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-grand" style="font-size:1rem;">₱0</div><div class="sum-card-label">Grand Total</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-avg" style="font-size:1rem;">₱0</div><div class="sum-card-label">Avg Cost / Project</div></div>
+        </div>
+
+        <div class="summary-strip" id="strip-tracking" data-tab="tracking">
+            <div class="sum-card" data-cat=""><div class="sum-card-num" id="sc-tr-projects">0</div><div class="sum-card-label">Projects Tracked</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-tr-amount" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Amount</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-tr-cost" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Cost</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-tr-profit" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Profit / Loss</div></div>
         </div>
 
         <!-- ════ CHART PANELS ════ -->
@@ -328,6 +363,17 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
             </div>
         </div>
 
+        <div class="chart-panel" id="charts-tracking">
+            <div class="chart-card">
+                <div class="chart-card-title">Amount vs Cost per Project</div>
+                <div class="chart-canvas-wrap"><canvas id="chart-tr-ac"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-title">Profit / Loss per Project</div>
+                <div class="chart-canvas-wrap"><canvas id="chart-tr-profit"></canvas></div>
+            </div>
+        </div>
+
         <!-- ════ INLINE TABLES ════ -->
         <div class="inline-table-wrap active" id="tbl-wrap-project">
             <div class="inline-table-title">Project List</div>
@@ -369,6 +415,16 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
             </div>
         </div>
 
+        <div class="inline-table-wrap" id="tbl-wrap-tracking">
+            <div class="inline-table-title">Project Tracking List</div>
+            <div class="table-responsive">
+                <table class="inline-tbl">
+                    <thead><tr><th>Code</th><th>Project</th><th>Customer</th><th>Amount</th><th>Cost</th><th>Profit / Loss</th><th class="text-end">Actions</th></tr></thead>
+                    <tbody id="tbl-tracking"></tbody>
+                </table>
+            </div>
+        </div>
+
     </div><!-- /page-content -->
 </div><!-- /main -->
 
@@ -393,7 +449,13 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
                         <label class="report-check"><input type="checkbox" class="report-type-chk" value="quotation"><span>Quotation Reports</span></label>
                         <label class="report-check"><input type="checkbox" class="report-type-chk" value="cutting"><span>Cutting List Summary</span></label>
                         <label class="report-check"><input type="checkbox" class="report-type-chk" value="costing"><span>Costing Reports</span></label>
+                        <label class="report-check"><input type="checkbox" class="report-type-chk" value="tracking"><span>Project Tracking</span></label>
                     </div>
+                </div>
+                <div class="mb-3" id="categoryWrap">
+                    <div class="report-modal-label">Category</div>
+                    <div class="report-modal-subtext mb-1" id="categoryHint">Narrow the report to a single category, or leave as “All”.</div>
+                    <select id="reportCategory" class="form-select form-select-sm"><option value="">All</option></select>
                 </div>
                 <div class="mb-2">
                     <div class="report-modal-label">Format</div>
@@ -431,6 +493,26 @@ foreach (db()->query("SELECT project_name, material_total, total_amount, special
             </div>
         </div>
     </div>
+</div>
+
+<!-- ════ TRACKING VIEWER MODAL ════ -->
+<div class="modal fade" id="trackingViewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header" style="background:#0d1b2a;color:#fff;border-radius:12px 12px 0 0;">
+        <h6 class="modal-title fw-semibold"><i class="bi bi-cash-coin me-2"></i>Project Tracking — <span id="tvName">—</span></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="tvBody" style="background:#f8fafc;">
+        <div class="text-center text-muted py-4">Loading…</div>
+      </div>
+      <div class="rp-modal-actions">
+        <button class="btn btn-light border btn-sm" data-bs-dismiss="modal">Close</button>
+        <a class="btn btn-sm btn-outline-secondary" id="tvPdf" target="_blank"><i class="bi bi-printer me-1"></i>PDF</a>
+        <a class="btn btn-sm" id="tvXlsx" style="background:#16a34a;color:#fff;"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -534,6 +616,7 @@ function renderProject(){
         const card=document.createElement('div');
         card.className='sum-card';
         card.dataset.status=k;
+        card.dataset.cat=k; // clickable → filter the table to this status
         card.innerHTML=`<div class="sum-card-num">${cnt[k]}</div><div class="sum-card-label">${PROJECT_ALL[k]}</div>`;
         strip.appendChild(card);
     });
@@ -568,11 +651,12 @@ function renderProject(){
 
     // inline table
     document.getElementById('tbl-project').innerHTML = rows.length
-        ? rows.map(r=>`<tr>
+        ? rows.map(r=>`<tr data-cat="${statusKey(r.status)}">
             <td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td>
             <td>${fmtDate(r.submitted)}</td><td>${fmtDate(r.request)}</td>
             <td>${itProjBadge(r.status)}</td></tr>`).join('')
         : '<tr><td colspan="6" class="text-center text-muted py-3">No data for selected range.</td></tr>';
+    applyCardFilter('project'); // re-apply any active card filter after re-render
 }
 
 // ════════════════════════════════════════════════════
@@ -621,11 +705,12 @@ function renderQuotation(){
     });
 
     document.getElementById('tbl-quotation').innerHTML = rows.length
-        ? rows.map(r=>`<tr>
+        ? rows.map(r=>`<tr data-cat="${r.status}">
             <td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td>
             <td>${fmtDate(r.created)}</td><td>${itQuoteBadge(r.status)}</td>
             <td>${peso(r.amount)}</td></tr>`).join('')
         : '<tr><td colspan="6" class="text-center text-muted py-3">No data for selected range.</td></tr>';
+    applyCardFilter('quotation');
 }
 
 // ════════════════════════════════════════════════════
@@ -670,11 +755,12 @@ function renderCutting(){
     });
 
     document.getElementById('tbl-cutting').innerHTML = rows.length
-        ? rows.map(r=>`<tr>
+        ? rows.map(r=>`<tr data-cat="${r.category}">
             <td><strong>${r.material}</strong></td>
             <td><span class="it-badge it-cat">${r.category}</span></td>
             <td>${r.qty}</td><td>${r.grouped}</td></tr>`).join('')
         : '<tr><td colspan="4" class="text-center text-muted py-3">No data.</td></tr>';
+    applyCardFilter('cutting');
 }
 
 // ════════════════════════════════════════════════════
@@ -738,6 +824,98 @@ function renderCosting(){
 }
 
 // ════════════════════════════════════════════════════
+//  RENDER — PROJECT TRACKING
+// ════════════════════════════════════════════════════
+function renderTracking(){
+    const rows = SAMPLE.tracking;
+    const amt  = rows.reduce((s,r)=>s+r.amount,0);
+    const cost = rows.reduce((s,r)=>s+r.cost,0);
+    const profit = amt-cost;
+
+    document.getElementById('sc-tr-projects').textContent = rows.length;
+    document.getElementById('sc-tr-amount').textContent   = peso(amt);
+    document.getElementById('sc-tr-cost').textContent     = peso(cost);
+    const pEl = document.getElementById('sc-tr-profit');
+    pEl.textContent = peso(profit);
+    pEl.style.color = profit>=0 ? '#0a7a60' : '#dc2626';
+
+    const shortLabel = p => p && p.length>16 ? p.slice(0,14)+'…' : (p||'');
+
+    makeChart('chart-tr-ac',{
+        type:'bar',
+        data:{labels:rows.map(r=>shortLabel(r.project)),
+            datasets:[
+                {label:'Amount',data:rows.map(r=>r.amount),backgroundColor:C.teal,borderRadius:4,borderSkipped:false},
+                {label:'Cost',  data:rows.map(r=>r.cost),  backgroundColor:C.navy,borderRadius:4,borderSkipped:false},
+            ]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}},tooltip:{callbacks:{label:ctx=>' '+peso(ctx.parsed.y)}}},
+            scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{callback:v=>'₱'+Number(v/1000).toFixed(0)+'k'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+    });
+    makeChart('chart-tr-profit',{
+        type:'bar',
+        data:{labels:rows.map(r=>shortLabel(r.project)),
+            datasets:[{label:'Profit / Loss',data:rows.map(r=>r.profit),
+                backgroundColor:rows.map(r=>r.profit>=0?'rgba(34,197,94,.8)':'rgba(239,68,68,.8)'),borderRadius:4,borderSkipped:false}]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+peso(ctx.parsed.y)}}},
+            scales:{y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{callback:v=>'₱'+Number(v/1000).toFixed(0)+'k'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+    });
+
+    document.getElementById('tbl-tracking').innerHTML = rows.length
+        ? rows.map(r=>`<tr>
+            <td><strong>${r.code}</strong></td><td>${r.project}</td><td>${r.customer}</td>
+            <td>${peso(r.amount)}</td><td>${peso(r.cost)}</td>
+            <td style="color:${r.profit>=0?'#0a7a60':'#dc2626'};font-weight:700">${peso(r.profit)}</td>
+            <td class="text-end" style="white-space:nowrap">
+                <button class="btn btn-sm btn-outline-secondary trk-view-btn" data-id="${r.project_id}" data-name="${r.project.replace(/"/g,'&quot;')}"><i class="bi bi-eye"></i></button>
+                <a class="btn btn-sm btn-outline-success" href="export_tracking_xlsx.php?project_id=${r.project_id}" title="Excel"><i class="bi bi-file-earmark-excel"></i></a>
+                <a class="btn btn-sm btn-outline-secondary" href="tracking_print.php?project_id=${r.project_id}" target="_blank" title="PDF"><i class="bi bi-printer"></i></a>
+            </td></tr>`).join('')
+        : '<tr><td colspan="7" class="text-center text-muted py-3">No tracking records yet. Add cost tracking from Monitoring.</td></tr>';
+}
+
+// Tracking viewer modal — fetch + render a project's ledger read-only.
+const tvPeso = n => '₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+document.addEventListener('click',function(e){
+    const btn=e.target.closest && e.target.closest('.trk-view-btn');
+    if(!btn) return;
+    const id=btn.dataset.id, name=btn.dataset.name;
+    document.getElementById('tvName').textContent=name||'—';
+    document.getElementById('tvXlsx').href='export_tracking_xlsx.php?project_id='+id;
+    document.getElementById('tvPdf').href='tracking_print.php?project_id='+id;
+    document.getElementById('tvBody').innerHTML='<div class="text-center text-muted py-4">Loading…</div>';
+    new bootstrap.Modal(document.getElementById('trackingViewModal')).show();
+    fetch('tracking_data.php?project_id='+id).then(r=>r.json()).then(d=>{
+        if(!d.ok) throw new Error(d.error||'Failed');
+        const t=d.totals;
+        const laborRows=(phase)=>{
+            const rs=(d.labor||[]).filter(l=>l.phase===phase);
+            if(!rs.length) return '<tr><td colspan="5" class="text-center text-muted">No rows.</td></tr>';
+            return rs.map(l=>`<tr><td>${l.work_date?fmtDate(l.work_date):'—'}</td><td>${l.manpower}</td><td class="text-end">${tvPeso(l.rate)}</td><td class="text-end">${tvPeso(l.gas_toll)}</td><td class="text-end">${tvPeso((+l.rate)+(+l.gas_toll))}</td></tr>`).join('');
+        };
+        const exp=(d.expenses||[]).length
+            ? d.expenses.map(x=>`<tr><td>${x.label}</td><td class="text-end">${tvPeso(x.amount)}</td></tr>`).join('')
+            : '<tr><td colspan="2" class="text-center text-muted">No expenses.</td></tr>';
+        document.getElementById('tvBody').innerHTML=`
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <div class="sum-card"><div class="sum-card-label">Project Amount</div><div class="sum-card-num" style="font-size:1rem">${tvPeso(d.amount)}</div></div>
+              <div class="sum-card"><div class="sum-card-label">Project Cost</div><div class="sum-card-num" style="font-size:1rem">${tvPeso(t.project_cost)}</div></div>
+              <div class="sum-card"><div class="sum-card-label">Profit / Loss</div><div class="sum-card-num" style="font-size:1rem;color:${t.profit_loss>=0?'#0a7a60':'#dc2626'}">${tvPeso(t.profit_loss)}</div></div>
+            </div>
+            <div class="inline-table-title">Expenses</div>
+            <table class="inline-tbl mb-3"><thead><tr><th>Item</th><th class="text-end">Amount</th></tr></thead><tbody>${exp}</tbody>
+              <tfoot><tr><td class="fw-bold">Total Expenses</td><td class="text-end fw-bold">${tvPeso(t.expenses_total)}</td></tr></tfoot></table>
+            <div class="inline-table-title">Labor — Assembly</div>
+            <table class="inline-tbl mb-3"><thead><tr><th>Date</th><th>Manpower</th><th class="text-end">Rate</th><th class="text-end">Gas &amp; Toll</th><th class="text-end">Line Total</th></tr></thead><tbody>${laborRows('assembly')}</tbody>
+              <tfoot><tr><td colspan="4" class="fw-bold">Total Assembly</td><td class="text-end fw-bold">${tvPeso(t.assembly_total)}</td></tr></tfoot></table>
+            <div class="inline-table-title">Labor — Installation</div>
+            <table class="inline-tbl"><thead><tr><th>Date</th><th>Manpower</th><th class="text-end">Rate</th><th class="text-end">Gas &amp; Toll</th><th class="text-end">Line Total</th></tr></thead><tbody>${laborRows('installation')}</tbody>
+              <tfoot><tr><td colspan="4" class="fw-bold">Total Installation</td><td class="text-end fw-bold">${tvPeso(t.installation_total)}</td></tr></tfoot></table>`;
+    }).catch(err=>{ document.getElementById('tvBody').innerHTML='<div class="text-danger text-center py-4">'+err.message+'</div>'; });
+});
+
+// ════════════════════════════════════════════════════
 //  PRINTABLE REPORT BUILDERS  (same data, styled for print)
 // ════════════════════════════════════════════════════
 function rpHeader(title){
@@ -759,19 +937,19 @@ function rpHeader(title){
     </div>`;
 }
 
-function buildProject(){
-    const rows=filterDate(SAMPLE.project,'submitted');
+function buildProject(cat){
+    const rows=applyCategory('project',filterDate(SAMPLE.project,'submitted'),cat);
     const cnt={};rows.forEach(r=>cnt[statusKey(r.status)]=(cnt[statusKey(r.status)]||0)+1);
     const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td><td>${fmtDate(r.submitted)}</td><td>${fmtDate(r.request)}</td><td>${rpProjBadge(r.status)}</td></tr>`).join('');
     let sum=`<div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Total Projects</div></div>`;
     Object.keys(PROJECT_ALL).filter(k=>cnt[k]).forEach(k=>sum+=`<div class="rp-sum-item"><div class="rp-sum-num">${cnt[k]}</div><div class="rp-sum-label">${PROJECT_ALL[k]}</div></div>`);
-    return `<div class="rp-doc">${rpHeader('Project Report')}
+    return `<div class="rp-doc">${rpHeader('Project Report'+(cat?' — '+(CAT_LABEL[cat]||cat):''))}
         <table class="rp-table"><thead><tr><th>Project Code</th><th>Customer Name</th><th>Project Name</th><th>Date Submitted</th><th>Request Date</th><th>Status</th></tr></thead><tbody>${trs||'<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px">No records</td></tr>'}</tbody></table>
         <div class="rp-summary"><div class="rp-summary-title">Summary</div><div class="rp-summary-grid">${sum}</div></div></div>`;
 }
 
-function buildQuotation(){
-    const rows=filterDate(SAMPLE.quotation,'created');
+function buildQuotation(cat){
+    const rows=applyCategory('quotation',filterDate(SAMPLE.quotation,'created'),cat);
     const app=rows.filter(r=>r.status==='approved'),rej=rows.filter(r=>r.status==='rejected');
     const rev=app.reduce((s,r)=>s+r.amount,0);
     const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.customer}</td><td>${r.project}</td><td>${fmtDate(r.created)}</td><td>${rpQuoteBadge(r.status)}</td><td>${peso(r.amount)}</td></tr>`).join('');
@@ -779,18 +957,18 @@ function buildQuotation(){
         <div class="rp-sum-item"><div class="rp-sum-num">${app.length}</div><div class="rp-sum-label">Approved</div></div>
         <div class="rp-sum-item"><div class="rp-sum-num">${rej.length}</div><div class="rp-sum-label">Rejected</div></div>
         <div class="rp-sum-item"><div class="rp-sum-num" style="font-size:.9rem">${peso(rev)}</div><div class="rp-sum-label">Est. Revenue</div></div>`;
-    return `<div class="rp-doc">${rpHeader('Quotation Report')}
+    return `<div class="rp-doc">${rpHeader('Quotation Report'+(cat?' — '+(CAT_LABEL[cat]||cat):''))}
         <table class="rp-table"><thead><tr><th>Quotation Code</th><th>Customer Name</th><th>Project Name</th><th>Date Created</th><th>Status</th><th>Est. Amount</th></tr></thead><tbody>${trs||'<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px">No records</td></tr>'}</tbody></table>
         <div class="rp-summary"><div class="rp-summary-title">Summary</div><div class="rp-summary-grid">${sum}</div></div></div>`;
 }
 
-function buildCutting(){
-    const rows=SAMPLE.cutting;
+function buildCutting(cat){
+    const rows=applyCategory('cutting',SAMPLE.cutting,cat);
     const cats={};rows.forEach(r=>cats[r.category]=(cats[r.category]||0)+r.qty);
     const trs=rows.map(r=>`<tr><td><strong>${r.material}</strong></td><td><span class="rp-badge" style="background:#f0f9ff;color:#0369a1">${r.category}</span></td><td>${r.qty}</td><td>${r.grouped}</td></tr>`).join('');
     let sum=`<div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Material Types</div></div>`;
     Object.entries(cats).forEach(([c,q])=>sum+=`<div class="rp-sum-item"><div class="rp-sum-num">${q}</div><div class="rp-sum-label">${c}</div></div>`);
-    return `<div class="rp-doc">${rpHeader('Cutting List Summary')}
+    return `<div class="rp-doc">${rpHeader('Cutting List Summary'+(cat?' — '+(CAT_LABEL[cat]||cat):''))}
         <table class="rp-table"><thead><tr><th>Material Name</th><th>Category</th><th>Total Qty</th><th>Line Items</th></tr></thead><tbody>${trs||'<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:16px">No records</td></tr>'}</tbody></table>
         <div class="rp-summary"><div class="rp-summary-title">Summary – Total per Category</div><div class="rp-summary-grid">${sum}</div></div></div>`;
 }
@@ -807,8 +985,41 @@ function buildCosting(){
         <div class="rp-summary"><div class="rp-summary-title">Summary</div><div class="rp-summary-grid">${sum}</div></div></div>`;
 }
 
-const BUILDERS = {project:buildProject,quotation:buildQuotation,cutting:buildCutting,costing:buildCosting};
-const TITLES   = {project:'Project Report',quotation:'Quotation Report',cutting:'Cutting List Summary',costing:'Costing Report'};
+function buildTracking(){
+    const rows=SAMPLE.tracking;
+    const amt=rows.reduce((s,r)=>s+r.amount,0), cost=rows.reduce((s,r)=>s+r.cost,0), profit=amt-cost;
+    const trs=rows.map(r=>`<tr><td><strong>${r.code}</strong></td><td>${r.project}</td><td>${r.customer}</td><td>${peso(r.amount)}</td><td>${peso(r.cost)}</td><td style="color:${r.profit>=0?'#0a7a60':'#dc2626'};font-weight:700">${peso(r.profit)}</td></tr>`).join('');
+    const sum=`<div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Projects Tracked</div></div>
+        <div class="rp-sum-item"><div class="rp-sum-num" style="font-size:.9rem">${peso(amt)}</div><div class="rp-sum-label">Total Amount</div></div>
+        <div class="rp-sum-item"><div class="rp-sum-num" style="font-size:.9rem">${peso(cost)}</div><div class="rp-sum-label">Total Cost</div></div>
+        <div class="rp-sum-item"><div class="rp-sum-num" style="font-size:.9rem">${peso(profit)}</div><div class="rp-sum-label">Total Profit / Loss</div></div>`;
+    return `<div class="rp-doc">${rpHeader('Project Tracking Report')}
+        <table class="rp-table"><thead><tr><th>Code</th><th>Project</th><th>Customer</th><th>Amount</th><th>Cost</th><th>Profit / Loss</th></tr></thead><tbody>${trs||'<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px">No tracking records</td></tr>'}</tbody></table>
+        <div class="rp-summary"><div class="rp-summary-title">Summary</div><div class="rp-summary-grid">${sum}</div></div></div>`;
+}
+
+const BUILDERS = {project:buildProject,quotation:buildQuotation,cutting:buildCutting,costing:buildCosting,tracking:buildTracking};
+const TITLES   = {project:'Project Report',quotation:'Quotation Report',cutting:'Cutting List Summary',costing:'Costing Report',tracking:'Project Tracking Report'};
+
+// ── Category options per report type (for "generate one category") ──
+const CATEGORIES = {
+    project:   Object.keys(PROJECT_ALL).map(k=>({v:k, label:PROJECT_ALL[k]})),
+    quotation: [{v:'pending',label:'Pending'},{v:'approved',label:'Approved'},{v:'rejected',label:'Rejected'}],
+    cutting:   [{v:'Panels',label:'Panels'},{v:'Edges',label:'Edges'},{v:'Hardware',label:'Hardware'}],
+    costing:   [],
+    tracking:  [],
+};
+const CAT_LABEL = {};
+Object.values(CATEGORIES).forEach(list=>list.forEach(o=>CAT_LABEL[o.v]=o.label));
+
+/** Filter a type's rows by a chosen category value (empty = all). */
+function applyCategory(type, rows, cat){
+    if(!cat) return rows;
+    if(type==='project')   return rows.filter(r=>statusKey(r.status)===cat);
+    if(type==='quotation') return rows.filter(r=>r.status===cat);
+    if(type==='cutting')   return rows.filter(r=>r.category===cat);
+    return rows; // costing / tracking have no sub-category
+}
 
 // ════════════════════════════════════════════════════
 //  CSV
@@ -819,6 +1030,7 @@ function toCSV(type){
     if(type==='quotation') return ['Quotation Code,Customer Name,Project Name,Date Created,Status,Est. Amount',...r.map(x=>[x.code,x.customer,x.project,x.created,x.status,x.amount].join(','))].join('\n');
     if(type==='cutting')   return ['Material Name,Category,Total Qty,Line Items',...r.map(x=>[x.material,x.category,x.qty,x.grouped].join(','))].join('\n');
     if(type==='costing')   return ['Project Name,Materials Cost,Labor Cost,Other Cost,Total Cost',...r.map(x=>[x.project,x.materials,x.labor,x.other,x.materials+x.labor+x.other].join(','))].join('\n');
+    if(type==='tracking')  return ['Code,Project,Customer,Amount,Cost,Profit/Loss',...r.map(x=>[x.code,x.project,x.customer,x.amount,x.cost,x.profit].join(','))].join('\n');
 }
 function dlCSV(type){
     const b=new Blob([toCSV(type)],{type:'text/csv'});
@@ -830,8 +1042,8 @@ function dlCSV(type){
 //  TAB SWITCHING
 // ════════════════════════════════════════════════════
 let activeTab='project';
-const RENDER={project:renderProject,quotation:renderQuotation,cutting:renderCutting,costing:renderCosting};
-const TABS=['project','quotation','cutting','costing'];
+const RENDER={project:renderProject,quotation:renderQuotation,cutting:renderCutting,costing:renderCosting,tracking:renderTracking};
+const TABS=['project','quotation','cutting','costing','tracking'];
 
 function switchTab(tab){
     activeTab=tab;
@@ -872,11 +1084,23 @@ document.querySelectorAll('.report-period').forEach(p=>p.addEventListener('click
 // ════════════════════════════════════════════════════
 //  GENERATE → PREVIEW
 // ════════════════════════════════════════════════════
+function populateCategory(){
+    const sel=document.getElementById('reportCategory');
+    const opts=CATEGORIES[activeTab]||[];
+    sel.innerHTML='<option value="">All</option>'+opts.map(o=>`<option value="${o.v}">${o.label}</option>`).join('');
+    const wrap=document.getElementById('categoryWrap');
+    wrap.style.display = opts.length ? '' : 'none';
+    document.getElementById('categoryHint').textContent =
+        opts.length ? `Narrow the ${TITLES[activeTab].replace(' Report','')} to a single category, or leave as “All”.`
+                    : 'This report type has no sub-categories.';
+}
+
 document.getElementById('openGenerateModal').addEventListener('click',()=>{
     const f=document.getElementById('dateFrom').value, t=document.getElementById('dateTo').value;
     document.getElementById('modalDateDisplay').textContent=(f&&t)?`${fmtDate(f)} to ${fmtDate(t)}`:'No date range selected — showing all data.';
     document.querySelectorAll('.report-type-chk').forEach(c=>c.checked=c.value===activeTab);
     document.getElementById('chkAll').checked=false;
+    populateCategory();
     new bootstrap.Modal(document.getElementById('generateReportModal')).show();
 });
 
@@ -887,13 +1111,16 @@ document.getElementById('chkAll').addEventListener('change',function(){
 document.getElementById('btnGenerate').addEventListener('click',()=>{
     const checked=[...document.querySelectorAll('.report-type-chk:checked')].map(c=>c.value);
     const fmtSel=document.querySelector('input[name="format"]:checked').value;
+    const category=document.getElementById('reportCategory').value;
     if(!checked.length){alert('Please select at least one report type.');return;}
     bootstrap.Modal.getInstance(document.getElementById('generateReportModal')).hide();
 
+    // The chosen category applies to whichever selected type it belongs to.
     document.getElementById('reportPreviewBody').innerHTML=
-        checked.map(t=>BUILDERS[t]()).join('<hr style="border:none;border-top:2px dashed #e5e7eb;margin:0">');
+        checked.map(t=>BUILDERS[t](category)).join('<hr style="border:none;border-top:2px dashed #e5e7eb;margin:0">');
+    const catSuffix = (checked.length===1 && category && CAT_LABEL[category]) ? ' — '+CAT_LABEL[category] : '';
     document.getElementById('previewModalTitle').innerHTML=
-        `<i class="bi bi-file-earmark-text me-2"></i>${checked.length>1?'Combined Report':TITLES[checked[0]]}`;
+        `<i class="bi bi-file-earmark-text me-2"></i>${checked.length>1?'Combined Report':TITLES[checked[0]]+catSuffix}`;
 
     const csvBtn=document.getElementById('btnDownloadCSV');
     if(fmtSel==='excel'){csvBtn.style.display='inline-flex';csvBtn.onclick=()=>checked.forEach(dlCSV);}
@@ -903,6 +1130,48 @@ document.getElementById('btnGenerate').addEventListener('click',()=>{
 });
 
 document.getElementById('btnPrint').addEventListener('click',()=>window.print());
+
+// ════════════════════════════════════════════════════
+//  CLICKABLE CATEGORY CARDS → filter table + scroll
+// ════════════════════════════════════════════════════
+const cardFilter = {project:'', quotation:'', cutting:''};
+
+function applyCardFilter(tab){
+    if(!(tab in cardFilter)) return;
+    const cat=cardFilter[tab];
+    const tbody=document.getElementById('tbl-'+tab);
+    if(tbody){
+        tbody.querySelectorAll('tr[data-cat]').forEach(tr=>{
+            tr.style.display=(!cat || tr.dataset.cat===cat)?'':'none';
+        });
+    }
+    const strip=document.getElementById('strip-'+tab);
+    if(strip) strip.querySelectorAll('.sum-card[data-cat]').forEach(c=>c.classList.toggle('sum-card-active',(c.dataset.cat||'')===cat));
+    const wrap=document.getElementById('tbl-wrap-'+tab);
+    const titleEl=wrap?wrap.querySelector('.inline-table-title'):null;
+    if(titleEl){
+        let note=titleEl.querySelector('.it-filter-note');
+        if(cat){
+            if(!note){ note=document.createElement('span'); note.className='it-filter-note'; titleEl.appendChild(note); }
+            note.innerHTML='· '+(CAT_LABEL[cat]||cat)+' <span class="it-clear" data-clear="'+tab+'">clear</span>';
+        } else if(note){ note.remove(); }
+    }
+}
+
+document.addEventListener('click',function(e){
+    const clear=e.target.closest && e.target.closest('.it-clear');
+    if(clear){ const tab=clear.dataset.clear; if(tab in cardFilter){ cardFilter[tab]=''; applyCardFilter(tab); } return; }
+    const card=e.target.closest && e.target.closest('.summary-strip .sum-card[data-cat]');
+    if(!card) return;
+    const strip=card.closest('.summary-strip'); const tab=strip?strip.dataset.tab:null; if(!tab) return;
+    const cat=card.dataset.cat||'';
+    if(tab in cardFilter){
+        cardFilter[tab]=(cardFilter[tab]===cat && cat!=='') ? '' : cat; // click active again = clear
+        applyCardFilter(tab);
+    }
+    const wrap=document.getElementById('tbl-wrap-'+tab);
+    if(wrap) wrap.scrollIntoView({behavior:'smooth',block:'start'});
+});
 
 // ════════════════════════════════════════════════════
 //  INIT

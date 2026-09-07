@@ -351,6 +351,12 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                                 <i class="bi bi-box-seam"></i> View Materials List
                             </button>
                         </div>
+                        <div id="wrapTracking">
+                            <div class="pvm-field-label">Cost Tracking</div>
+                            <button class="btn-materials" id="btnOpenTracking" style="border-color:#7c3aed;color:#7c3aed;background:#f5f3ff;">
+                                <i class="bi bi-cash-coin"></i> Open Cost Tracking
+                            </button>
+                        </div>
                     </div>
                     <div style="margin-top:14px;">
                         <div class="pvm-field-label">Project Details</div>
@@ -414,6 +420,115 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
     </div>
 </div>
 
+
+<!-- COST TRACKING MODAL -->
+<div class="modal fade" id="trackingModal" tabindex="-1" aria-hidden="true" style="z-index:1075;">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:14px;border:none;">
+      <div class="modal-header" style="background:#0d1b2a;color:#fff;border-radius:14px 14px 0 0;">
+        <h6 class="modal-title fw-semibold">
+          <i class="bi bi-cash-coin me-2"></i>Project Tracking — <span id="trkProjectName">—</span>
+          <span id="trkProjectCode" class="ms-2" style="font-size:.72rem;opacity:.7;"></span>
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="background:#f4f5f7;">
+
+        <!-- Summary strip -->
+        <div class="trk-summary">
+          <div class="trk-sum-card">
+            <div class="trk-sum-label">Project Amount</div>
+            <div class="trk-amount-wrap">₱ <input type="number" step="0.01" id="trkAmount" class="trk-amount-input" placeholder="0.00"></div>
+          </div>
+          <div class="trk-sum-card"><div class="trk-sum-label">Project Cost</div><div class="trk-sum-num" id="trkCost">₱0.00</div></div>
+          <div class="trk-sum-card" id="trkProfitCard"><div class="trk-sum-label">Profit / Loss</div><div class="trk-sum-num" id="trkProfit">₱0.00</div></div>
+        </div>
+
+        <!-- Expenses -->
+        <div class="trk-section">
+          <div class="trk-section-head">
+            <span><i class="bi bi-box-seam me-1"></i>Expenses (materials / hardware)</span>
+            <button type="button" class="trk-add-btn" data-add="expense"><i class="bi bi-plus-lg"></i> Add expense</button>
+          </div>
+          <div class="table-responsive">
+            <table class="trk-table">
+              <thead><tr><th style="width:60%">Item</th><th class="text-end">Amount</th><th style="width:44px"></th></tr></thead>
+              <tbody id="trkExpenseBody"></tbody>
+              <tfoot><tr><td class="fw-bold">Total Expenses</td><td class="text-end fw-bold" id="trkExpenseTotal">₱0.00</td><td></td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Labor: Assembly -->
+        <div class="trk-section">
+          <div class="trk-section-head">
+            <span><i class="bi bi-tools me-1"></i>Labor — Assembly</span>
+            <button type="button" class="trk-add-btn" data-add="assembly"><i class="bi bi-plus-lg"></i> Add row</button>
+          </div>
+          <div class="table-responsive">
+            <table class="trk-table">
+              <thead><tr><th>Date</th><th>Manpower</th><th class="text-end">Rate</th><th class="text-end">Gas &amp; Toll</th><th class="text-end">Line Total</th><th style="width:44px"></th></tr></thead>
+              <tbody id="trkAssemblyBody"></tbody>
+              <tfoot><tr><td colspan="4" class="fw-bold">Total Assembly</td><td class="text-end fw-bold" id="trkAssemblyTotal">₱0.00</td><td></td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Labor: Installation -->
+        <div class="trk-section">
+          <div class="trk-section-head">
+            <span><i class="bi bi-truck me-1"></i>Labor — Installation</span>
+            <button type="button" class="trk-add-btn" data-add="installation"><i class="bi bi-plus-lg"></i> Add row</button>
+          </div>
+          <div class="table-responsive">
+            <table class="trk-table">
+              <thead><tr><th>Date</th><th>Manpower</th><th class="text-end">Rate</th><th class="text-end">Gas &amp; Toll</th><th class="text-end">Line Total</th><th style="width:44px"></th></tr></thead>
+              <tbody id="trkInstallBody"></tbody>
+              <tfoot><tr><td colspan="4" class="fw-bold">Total Installation</td><td class="text-end fw-bold" id="trkInstallTotal">₱0.00</td><td></td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="trk-section">
+          <div class="trk-section-head"><span><i class="bi bi-sticky me-1"></i>Notes</span></div>
+          <textarea id="trkNotes" class="form-control" rows="2" placeholder="Optional notes for this tracking sheet..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="background:#fff;border-top:1px solid #e5e7eb;border-radius:0 0 14px 14px;gap:8px;">
+        <a href="#" class="btn btn-sm btn-outline-secondary" id="trkDownloadPdf" target="_blank"><i class="bi bi-printer me-1"></i>PDF</a>
+        <a href="#" class="btn btn-sm btn-outline-success" id="trkDownloadXlsx"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+        <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-sm btn-success" id="trkSaveBtn"><i class="bi bi-check-lg me-1"></i>Save Tracking</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .trk-summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .trk-sum-card{flex:1 1 160px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;}
+  .trk-sum-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:4px;}
+  .trk-sum-num{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:#0d1b2a;}
+  #trkProfitCard.profit .trk-sum-num{color:#0a7a60;} #trkProfitCard.loss .trk-sum-num{color:#dc2626;}
+  .trk-amount-wrap{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:#0d1b2a;display:flex;align-items:center;gap:4px;}
+  .trk-amount-input{border:1px solid #e5e7eb;border-radius:6px;padding:3px 8px;font-size:1rem;font-weight:700;width:130px;font-family:'Inter',sans-serif;}
+  .trk-amount-input:focus{outline:none;border-color:#0D9676;}
+  .trk-section{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+  .trk-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;color:#0d1b2a;}
+  .trk-add-btn{border:1px solid #0D9676;color:#0D9676;background:#f0fdf9;border-radius:7px;padding:4px 10px;font-size:.72rem;font-weight:600;cursor:pointer;}
+  .trk-add-btn:hover{background:#0D9676;color:#fff;}
+  .trk-table{width:100%;border-collapse:collapse;font-size:.78rem;}
+  .trk-table thead th{background:#f8fafc;font-size:.6rem;font-weight:700;color:#9ca3af;letter-spacing:.04em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid #e5e7eb;}
+  .trk-table tbody td{padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+  .trk-table tfoot td{padding:9px 10px;border-top:2px solid #e5e7eb;font-size:.82rem;}
+  .trk-table input{border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:.76rem;width:100%;font-family:'Inter',sans-serif;}
+  .trk-table input:focus{outline:none;border-color:#0D9676;}
+  .trk-table input.trk-num{text-align:right;}
+  .trk-line-total{text-align:right;font-weight:600;color:#374151;white-space:nowrap;}
+  .trk-del{border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:1rem;line-height:1;}
+  .trk-del:hover{color:#b91c1c;}
+  .trk-empty td{color:#9ca3af;text-align:center;padding:12px;font-size:.74rem;}
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?= project_status_js() ?>
@@ -745,6 +860,115 @@ document.addEventListener('DOMContentLoaded',function(){
         }
     }
 });
+
+// ════════════════════════════════════════════════════
+//  COST TRACKING EDITOR
+// ════════════════════════════════════════════════════
+(function(){
+  const pesoT = n => '₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const $ = id => document.getElementById(id);
+  let trkProjectId = 0;
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
+
+  function expenseRow(e){ e=e||{};
+    const tr=document.createElement('tr'); tr.className='trk-exp-row';
+    tr.innerHTML =
+      '<td><input type="text" class="trk-label" placeholder="e.g. World Class" value="'+esc(e.label)+'"></td>'+
+      '<td><input type="number" step="0.01" class="trk-num trk-amt" placeholder="0.00" value="'+(e.amount!=null?e.amount:'')+'"></td>'+
+      '<td class="text-center"><button type="button" class="trk-del" title="Remove">&times;</button></td>';
+    return tr;
+  }
+  function laborRow(l){ l=l||{};
+    const tr=document.createElement('tr'); tr.className='trk-lab-row';
+    tr.innerHTML=
+      '<td><input type="date" class="trk-date" value="'+esc(l.work_date)+'"></td>'+
+      '<td><input type="text" class="trk-man" placeholder="Name" value="'+esc(l.manpower)+'"></td>'+
+      '<td><input type="number" step="0.01" class="trk-num trk-rate" placeholder="0.00" value="'+(l.rate!=null?l.rate:'')+'"></td>'+
+      '<td><input type="number" step="0.01" class="trk-num trk-gas" placeholder="0.00" value="'+(l.gas_toll!=null?l.gas_toll:'')+'"></td>'+
+      '<td class="trk-line-total">₱0.00</td>'+
+      '<td class="text-center"><button type="button" class="trk-del" title="Remove">&times;</button></td>';
+    return tr;
+  }
+
+  function recompute(){
+    let exp=0;
+    $('trkExpenseBody').querySelectorAll('.trk-exp-row').forEach(r=>{ exp+=parseFloat(r.querySelector('.trk-amt').value)||0; });
+    $('trkExpenseTotal').textContent=pesoT(exp);
+    const sumBody=id=>{ let t=0; $(id).querySelectorAll('.trk-lab-row').forEach(r=>{
+        const rate=parseFloat(r.querySelector('.trk-rate').value)||0, gas=parseFloat(r.querySelector('.trk-gas').value)||0;
+        r.querySelector('.trk-line-total').textContent=pesoT(rate+gas); t+=rate+gas; }); return t; };
+    const asm=sumBody('trkAssemblyBody'), ins=sumBody('trkInstallBody');
+    $('trkAssemblyTotal').textContent=pesoT(asm);
+    $('trkInstallTotal').textContent=pesoT(ins);
+    const cost=exp+asm+ins, amount=parseFloat($('trkAmount').value)||0, profit=amount-cost;
+    $('trkCost').textContent=pesoT(cost);
+    $('trkProfit').textContent=pesoT(profit);
+    const card=$('trkProfitCard'); card.classList.toggle('profit',profit>=0); card.classList.toggle('loss',profit<0);
+  }
+
+  const modal=$('trackingModal');
+  modal.addEventListener('input',recompute);
+  modal.addEventListener('click',function(e){
+    const del=e.target.closest('.trk-del'); if(del){ del.closest('tr').remove(); recompute(); return; }
+    const add=e.target.closest('.trk-add-btn');
+    if(add){ const w=add.dataset.add;
+      if(w==='expense') $('trkExpenseBody').appendChild(expenseRow());
+      else if(w==='assembly') $('trkAssemblyBody').appendChild(laborRow());
+      else if(w==='installation') $('trkInstallBody').appendChild(laborRow());
+      recompute();
+    }
+  });
+
+  function collect(){
+    const expenses=[]; $('trkExpenseBody').querySelectorAll('.trk-exp-row').forEach(r=>{
+      const label=r.querySelector('.trk-label').value.trim(), amount=parseFloat(r.querySelector('.trk-amt').value)||0;
+      if(label||amount) expenses.push({label,amount});
+    });
+    const labor=[]; const grab=(id,phase)=>$(id).querySelectorAll('.trk-lab-row').forEach(r=>{
+      const man=r.querySelector('.trk-man').value.trim(), rate=parseFloat(r.querySelector('.trk-rate').value)||0,
+            gas=parseFloat(r.querySelector('.trk-gas').value)||0, date=r.querySelector('.trk-date').value;
+      if(man||rate||gas) labor.push({phase,work_date:date,manpower:man,rate,gas_toll:gas});
+    });
+    grab('trkAssemblyBody','assembly'); grab('trkInstallBody','installation');
+    return {expenses,labor};
+  }
+
+  window.openTracking=function(projectId,name,code){
+    trkProjectId=projectId;
+    $('trkProjectName').textContent=name||'—';
+    $('trkProjectCode').textContent=code||'';
+    $('trkExpenseBody').innerHTML=''; $('trkAssemblyBody').innerHTML=''; $('trkInstallBody').innerHTML='';
+    $('trkAmount').value=''; $('trkNotes').value='';
+    $('trkDownloadXlsx').href='export_tracking_xlsx.php?project_id='+projectId;
+    $('trkDownloadPdf').href='tracking_print.php?project_id='+projectId;
+    fetch('tracking_data.php?project_id='+projectId).then(r=>r.json()).then(d=>{
+      if(!d.ok) throw new Error(d.error||'Failed to load');
+      $('trkAmount').value=d.amount||''; $('trkNotes').value=d.notes||'';
+      (d.expenses||[]).forEach(e=>$('trkExpenseBody').appendChild(expenseRow(e)));
+      (d.labor||[]).forEach(l=>{ (l.phase==='installation'?$('trkInstallBody'):$('trkAssemblyBody')).appendChild(laborRow(l)); });
+      if(!$('trkExpenseBody').children.length) $('trkExpenseBody').appendChild(expenseRow());
+      if(!$('trkAssemblyBody').children.length) $('trkAssemblyBody').appendChild(laborRow());
+      if(!$('trkInstallBody').children.length) $('trkInstallBody').appendChild(laborRow());
+      recompute();
+    }).catch(e=>alert(e.message));
+    new bootstrap.Modal(modal).show();
+  };
+
+  $('trkSaveBtn').addEventListener('click',function(){
+    const {expenses,labor}=collect(); const btn=this; btn.disabled=true;
+    fetch('save_tracking.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({project_id:trkProjectId, project_amount:parseFloat($('trkAmount').value)||0,
+        notes:$('trkNotes').value, expenses:JSON.stringify(expenses), labor:JSON.stringify(labor)})})
+      .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+      .then(()=>vsToast('Cost tracking saved.'))
+      .catch(e=>alert(e.message)).finally(()=>btn.disabled=false);
+  });
+
+  $('btnOpenTracking').addEventListener('click',function(){
+    if(!currentProjectId){ vsAlert('Open a project first.'); return; }
+    openTracking(currentProjectId, currentProjectName || $('viewProjectModalLabel').textContent, $('viewProjectCode').textContent);
+  });
+})();
 </script>
 </body>
 </html>

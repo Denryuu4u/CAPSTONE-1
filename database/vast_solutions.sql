@@ -637,6 +637,49 @@ INSERT INTO `legal_documents` (`doc_key`, `title`, `body`, `version`) VALUES
   ('privacy', 'Privacy Policy',
    '# 1. Introduction\nThis Privacy Policy explains how Vast Solutions (\"we\", \"our\", \"us\") collects, uses, and protects personal information provided by clients, website visitors, and project partners through our online platform and services.\n\n# 2. Information We Collect\nWe may collect the following information:\n- Name, contact number, and email address\n- Account credentials (passwords are stored only in encrypted form)\n- Project details, measurements, and site photos you upload\n- Quotation, billing, and payment information\n- Communication and activity records (messages, notifications, and system logs)\n\n# 3. How We Use Your Information\nWe use collected information to:\n- Provide design, fabrication, and installation services\n- Create and manage your account and client portal\n- Prepare quotations, drawings, and project documentation\n- Communicate updates, schedules, and revisions\n- Improve our products, services, and customer experience\n- Maintain internal records, audit trails, and accounting\n\n# 4. Data Protection\n- We implement reasonable security measures to protect your information.\n- Passwords are hashed and are never stored in plain text.\n- Only authorized personnel have access to client data, based on their role.\n- We do not sell, rent, or share your personal information with third parties except as required to complete your project (e.g., suppliers, logistics partners).\n\n# 5. Cookies & Sessions\n- The Platform uses session cookies to keep you signed in and to operate securely.\n- These cookies are essential to the service and are not used for advertising.\n\n# 6. Third-Party Services\nWe may work with external suppliers, delivery partners, or subcontractors. These parties receive only the information necessary to perform their function and are expected to maintain confidentiality.\n\n# 7. Data Retention\nWe retain project and client information for as long as necessary to:\n- Complete the project\n- Comply with legal and accounting requirements\n- Support warranty claims and after-sales service\n\n# 8. Your Rights\nYou may request:\n- Access to your personal data\n- Correction of inaccurate information\n- Deletion of data that is no longer needed\nRequests can be made through our official contact channels.\n\n# 9. Updates to This Policy\nWe may update this Privacy Policy periodically. When we make significant changes, you will be asked to review and accept the updated policy the next time you sign in. Continued use of our services indicates acceptance of the updated policy.\n\n# 10. Contact Information\nFor questions or requests related to privacy or data handling, you may contact us through our official business channels.', 1);
 
+-- ---------------------------------------------------------------------
+-- project_tracking — per-project cost ledger (Project Amount vs Cost →
+--   Profit/Loss). Entered in admin Monitoring, viewed/exported in Reports.
+--   Also created on demand by includes/tracking.php (self-migrating).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `project_tracking` (
+  `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `project_id`     INT UNSIGNED NOT NULL,
+  `project_amount` DECIMAL(14,2) NOT NULL DEFAULT 0,
+  `notes`          TEXT DEFAULT NULL,
+  `created_by`     INT UNSIGNED DEFAULT NULL,
+  `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_tracking_project` (`project_id`),
+  CONSTRAINT `fk_tracking_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tracking_expenses` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tracking_id` INT UNSIGNED NOT NULL,
+  `label`       VARCHAR(120) NOT NULL,
+  `amount`      DECIMAL(14,2) NOT NULL DEFAULT 0,
+  `sort_order`  INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `ix_texp_tracking` (`tracking_id`),
+  CONSTRAINT `fk_texp_tracking` FOREIGN KEY (`tracking_id`) REFERENCES `project_tracking` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tracking_labor` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tracking_id` INT UNSIGNED NOT NULL,
+  `phase`       ENUM('assembly','installation') NOT NULL DEFAULT 'assembly',
+  `work_date`   DATE DEFAULT NULL,
+  `manpower`    VARCHAR(120) NOT NULL,
+  `rate`        DECIMAL(12,2) NOT NULL DEFAULT 0,
+  `gas_toll`    DECIMAL(12,2) NOT NULL DEFAULT 0,
+  `sort_order`  INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `ix_tlab_tracking` (`tracking_id`),
+  CONSTRAINT `fk_tlab_tracking` FOREIGN KEY (`tracking_id`) REFERENCES `project_tracking` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =====================================================================
 --  END
 -- =====================================================================
