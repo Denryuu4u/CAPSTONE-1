@@ -455,6 +455,13 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             <script>
             document.getElementById('saveSettingsBtn').addEventListener('click', function (e) {
                 e.preventDefault();
+                const self = this;
+                vsConfirm('Save these settings changes?', { title: 'Save changes', okText: 'Save' }).then(function (ok) {
+                    if (!ok) return;
+                    saveSettings.call(self);
+                });
+            });
+            function saveSettings() {
                 // Only send fields that exist on the page — Staff sees profile fields only.
                 const body = new URLSearchParams();
                 const put = (key, id) => { const el = document.getElementById(id); if (el) body.append(key, el.value); };
@@ -476,7 +483,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                     .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
                     .then(() => { const el = this.querySelector('span'); el.textContent = 'Saved ✓'; setTimeout(() => el.textContent = 'Save Changes', 1500); vsToast('Settings saved.'); })
                     .catch(err => alert(err.message));
-            });
+            }
 
             // Change password
             document.getElementById('updatePasswordBtn').addEventListener('click', function () {
@@ -487,18 +494,21 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 if (nw.length < 8) { alert('New password must be at least 8 characters.'); return; }
                 if (nw !== cf) { alert('New password and confirmation do not match.'); return; }
                 const btn = this, span = btn.querySelector('span');
-                const body = new URLSearchParams({ current_password: cur, new_password: nw });
-                fetch('save_password.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-                    .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(() => {
-                        span.textContent = 'Updated ✓';
-                        document.getElementById('currentPassword').value = '';
-                        document.getElementById('newPassword').value = '';
-                        document.getElementById('confirmPassword').value = '';
-                        setTimeout(() => span.textContent = 'Update Password', 1500);
-                        vsToast('Password updated.');
-                    })
-                    .catch(err => alert(err.message));
+                vsConfirm('Update your password?', { title: 'Change password', okText: 'Update' }).then(function (ok) {
+                    if (!ok) return;
+                    const body = new URLSearchParams({ current_password: cur, new_password: nw });
+                    fetch('save_password.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                        .then(() => {
+                            span.textContent = 'Updated ✓';
+                            document.getElementById('currentPassword').value = '';
+                            document.getElementById('newPassword').value = '';
+                            document.getElementById('confirmPassword').value = '';
+                            setTimeout(() => span.textContent = 'Update Password', 1500);
+                            vsToast('Password updated.');
+                        })
+                        .catch(err => alert(err.message));
+                });
             });
 
             // ── Design Gallery: add / remove images (admin only; skip if absent) ──

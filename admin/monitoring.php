@@ -711,14 +711,13 @@ document.getElementById('pvmPhaseSelect').addEventListener('change',function(){
             body:new URLSearchParams({project_id:currentProjectId,status})})
             .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
             .then(d=>{
-                applyPhase(status, d.label);
-                if(d.completing){
-                    document.getElementById('wrapClientConfirm').style.display='';
-                    document.getElementById('viewProjectConfirm').innerHTML='<span style="color:#d97706;">Awaiting client confirmation</span>';
-                    vsToast('Project marked completed. The client has been notified to confirm.');
-                } else {
-                    vsToast('Project phase updated to "'+d.label+'".');
-                }
+                // Reload so the table row, the view button's data and the modal all
+                // reflect the new phase — otherwise reopening the modal shows the
+                // stale status until a manual refresh.
+                vsToastFlash(d.completing
+                    ? 'Project marked completed. The client has been notified to confirm.'
+                    : 'Project phase updated to "'+d.label+'".');
+                location.reload();
             })
             .catch(e=>{ sel.value = statusKeyForIdx(currentPhaseIdx); alert(e.message); });
     });

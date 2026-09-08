@@ -771,16 +771,6 @@ function industryIcon($i){
             <div class="avm-grid-2" id="avmArchGrid"></div>
           </div>
 
-          <div class="avm-card">
-            <div class="avm-card-title">
-              <i class="bi bi-exclamation-triangle-fill" style="color:#ef4444;"></i> Reason for Archiving
-            </div>
-            <div class="avm-reason-box">
-              <i class="bi bi-info-circle-fill"></i>
-              <div class="avm-reason-text" id="avmReasonText">—</div>
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -870,12 +860,12 @@ document.querySelectorAll('.arch-restore-btn').forEach(btn => {
 });
 
 // ── MODAL OPEN ───────────────────────────────────────────────────────
-let currentName = '';
+let currentName = '', currentId = '', currentType = '';
 
 document.querySelectorAll('.arch-user-view-btn').forEach(btn => {
   btn.addEventListener('click', function(){
     const d = this.dataset;
-    currentName = d.name;
+    currentName = d.name; currentId = d.id; currentType = 'user';
 
     // Hero
     const av = document.getElementById('avmBigAvatar');
@@ -904,7 +894,6 @@ document.querySelectorAll('.arch-user-view-btn').forEach(btn => {
       field('Date Archived', fmtDate(d.archived)) +
       field('Archived By',   d.archivedBy);
 
-    document.getElementById('avmReasonText').textContent = d.reason || 'No reason provided.';
     new bootstrap.Modal(document.getElementById('archViewModal')).show();
   });
 });
@@ -912,7 +901,7 @@ document.querySelectorAll('.arch-user-view-btn').forEach(btn => {
 document.querySelectorAll('.arch-cust-view-btn').forEach(btn => {
   btn.addEventListener('click', function(){
     const d = this.dataset;
-    currentName = d.name;
+    currentName = d.name; currentId = d.id; currentType = 'customer';
 
     // Hero
     const av = document.getElementById('avmBigAvatar');
@@ -942,7 +931,6 @@ document.querySelectorAll('.arch-cust-view-btn').forEach(btn => {
       field('Date Archived', fmtDate(d.archived)) +
       field('Archived By',   d.archivedBy);
 
-    document.getElementById('avmReasonText').textContent = d.reason || 'No reason provided.';
     new bootstrap.Modal(document.getElementById('archViewModal')).show();
   });
 });
@@ -951,8 +939,11 @@ document.querySelectorAll('.arch-cust-view-btn').forEach(btn => {
 document.getElementById('avmRestoreBtn').addEventListener('click', function(){
   vsConfirm(`Restore "${currentName}"? They will be moved back to active records.`, {title:'Restore record', okText:'Restore'}).then(function(ok){
     if(!ok) return;
-    bootstrap.Modal.getInstance(document.getElementById('archViewModal')).hide();
-    vsToast(`"${currentName}" has been restored.`);
+    fetch('archive_entity.php', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({ type: currentType, id: currentId, action:'restore' }) })
+      .then(async r => { const d = await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d; })
+      .then(() => { vsToastFlash(`"${currentName}" restored.`); location.reload(); })
+      .catch(e => alert(e.message));
   });
 });
 </script>

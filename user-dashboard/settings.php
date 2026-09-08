@@ -9,17 +9,22 @@ $active_page = 'settings';
 
 // Real profile for the signed-in client (session only carries id/full_name/role).
 $uid = current_user()['id'] ?? 0;
-$user = ['full_name' => '', 'email' => '', 'phone' => '', 'avatar' => ''];
+$user = ['full_name' => '', 'email' => '', 'phone' => '', 'avatar' => '', 'location' => ''];
 $accountName = '';
+$address = '';
 if ($uid) {
-    $stmt = db()->prepare("SELECT full_name, email, phone, avatar FROM users WHERE id = ?");
+    $stmt = db()->prepare("SELECT full_name, email, phone, avatar, location FROM users WHERE id = ?");
     $stmt->execute([$uid]);
     $row = $stmt->fetch();
     if ($row) $user = array_merge($user, $row);
 
-    $c = db()->prepare("SELECT name FROM customers WHERE user_id = ? ORDER BY id LIMIT 1");
+    $c = db()->prepare("SELECT name, address FROM customers WHERE user_id = ? ORDER BY id LIMIT 1");
     $c->execute([$uid]);
-    $accountName = (string) ($c->fetchColumn() ?: '');
+    $cust = $c->fetch() ?: [];
+    $accountName = (string) ($cust['name'] ?? '');
+    // The address shown on the quotation lives on the customer record; fall back
+    // to the user's own saved location for clients without a customer row yet.
+    $address = (string) ($cust['address'] ?? '') ?: (string) ($user['location'] ?? '');
 }
 $initials  = strtoupper(mb_substr(trim($user['full_name']) ?: 'U', 0, 1));
 $avatarUrl = $user['avatar'] ? (BASE_URL . '/' . $user['avatar']) : '';
@@ -83,6 +88,10 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
             <label class="settings-label">Phone</label>
             <input type="text" name="phone" id="pfPhone" class="settings-input" value="<?= $e($user['phone']) ?>"/>
           </div>
+          <div class="mb-2">
+            <label class="settings-label">Installation Address</label>
+            <textarea name="address" id="pfAddress" class="settings-input" rows="2" placeholder="Where the cabinetry will be installed — this appears on your quotation."><?= $e($address) ?></textarea>
+          </div>
           <?php if ($accountName !== ''): ?>
           <div class="mb-3">
             <label class="settings-label">Account Name</label>
@@ -144,22 +153,26 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
   // ── Profile save ──
   document.getElementById('profileForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    const btn = document.getElementById('profileSaveBtn');
-    const body = new URLSearchParams({
-      full_name: document.getElementById('pfName').value,
-      email:     document.getElementById('pfEmail').value,
-      phone:     document.getElementById('pfPhone').value,
+    vsConfirm('Save these changes to your profile?', { title: 'Save changes', okText: 'Save' }).then(function (ok) {
+      if (!ok) return;
+      const btn = document.getElementById('profileSaveBtn');
+      const body = new URLSearchParams({
+        full_name: document.getElementById('pfName').value,
+        email:     document.getElementById('pfEmail').value,
+        phone:     document.getElementById('pfPhone').value,
+        address:   document.getElementById('pfAddress').value,
+      });
+      btn.disabled = true;
+      fetch('save_profile.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Save failed'); return d; })
+        .then(() => {
+          vsToast('Profile updated.');
+          const ini = document.getElementById('avatarInitials');
+          if (ini) ini.textContent = (document.getElementById('pfName').value.trim()[0] || 'U').toUpperCase();
+        })
+        .catch(err => vsToast(err.message, { type: 'error' }))
+        .finally(() => { btn.disabled = false; });
     });
-    btn.disabled = true;
-    fetch('save_profile.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-      .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Save failed'); return d; })
-      .then(() => {
-        vsToast('Profile updated.');
-        const ini = document.getElementById('avatarInitials');
-        if (ini) ini.textContent = (document.getElementById('pfName').value.trim()[0] || 'U').toUpperCase();
-      })
-      .catch(err => vsToast(err.message, { type: 'error' }))
-      .finally(() => { btn.disabled = false; });
   });
 
   // ── Change photo ──
@@ -188,20 +201,23 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     const cf = document.getElementById('confirmPassword').value;
     if (nw !== cf) { msg.style.display = 'block'; return; }
     msg.style.display = 'none';
-    const btn = document.getElementById('pwSaveBtn');
-    btn.disabled = true;
-    const body = new URLSearchParams({
-      current_password: document.getElementById('currentPassword').value,
-      new_password: nw,
+    vsConfirm('Update your password?', { title: 'Change password', okText: 'Update' }).then(function (ok) {
+      if (!ok) return;
+      const btn = document.getElementById('pwSaveBtn');
+      btn.disabled = true;
+      const body = new URLSearchParams({
+        current_password: document.getElementById('currentPassword').value,
+        new_password: nw,
+      });
+      fetch('change_password.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+        .then(() => {
+          vsToast('Password updated.');
+          document.getElementById('pwForm').reset();
+        })
+        .catch(err => vsToast(err.message, { type: 'error' }))
+        .finally(() => { btn.disabled = false; });
     });
-    fetch('change_password.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-      .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-      .then(() => {
-        vsToast('Password updated.');
-        document.getElementById('pwForm').reset();
-      })
-      .catch(err => vsToast(err.message, { type: 'error' }))
-      .finally(() => { btn.disabled = false; });
   });
 
   // ── Show/hide password ──

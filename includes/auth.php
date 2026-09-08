@@ -88,6 +88,26 @@ if (DEV_MODE && empty($_SESSION['real_login'])) {
     }
 }
 
+// A real-login session for an account that has since been archived or deactivated
+// must not stay valid — the login check only runs once, so re-verify on every
+// request and sign the user out if the account is no longer active. (DEV_MODE
+// auto-login is a testing bypass and is intentionally exempt.)
+if (!empty($_SESSION['real_login']) && !empty($_SESSION['user_id'])) {
+    try {
+        $__chk = db()->prepare("SELECT is_archived, status FROM users WHERE id = ? LIMIT 1");
+        $__chk->execute([(int) $_SESSION['user_id']]);
+        $__acct = $__chk->fetch();
+        if (!$__acct || (int) $__acct['is_archived'] === 1 || $__acct['status'] !== 'Active') {
+            $_SESSION = [];
+            if (session_status() === PHP_SESSION_ACTIVE) session_destroy();
+            header('Location: ' . BASE_URL . '/login.php?error=' . urlencode('This account is no longer active.'));
+            exit;
+        }
+    } catch (Throwable $e) {
+        // DB unavailable — don't lock everyone out over a transient error.
+    }
+}
+
 /**
  * Current logged-in user, or null.
  * @return array{id:int, full_name:string, role:string}|null

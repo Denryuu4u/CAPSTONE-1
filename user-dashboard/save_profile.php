@@ -61,9 +61,10 @@ if (!empty($_FILES['avatar']['name'])) {
 }
 
 // ── Profile fields ───────────────────────────────────────────────────
-$name  = trim((string) ($_POST['full_name'] ?? ''));
-$email = trim((string) ($_POST['email'] ?? ''));
-$phone = trim((string) ($_POST['phone'] ?? ''));
+$name    = trim((string) ($_POST['full_name'] ?? ''));
+$email   = trim((string) ($_POST['email'] ?? ''));
+$phone   = trim((string) ($_POST['phone'] ?? ''));
+$address = trim((string) ($_POST['address'] ?? ''));
 
 if ($name === '')  sp_fail('Name is required.');
 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) sp_fail('Enter a valid email address.');
@@ -74,12 +75,13 @@ try {
     $dupe->execute([$email, $uid]);
     if ($dupe->fetch()) sp_fail('That email is already in use by another account.');
 
-    $pdo->prepare("UPDATE users SET full_name = ?, email = ?, phone = NULLIF(?, '') WHERE id = ?")
-        ->execute([$name, $email, $phone, $uid]);
+    $pdo->prepare("UPDATE users SET full_name = ?, email = ?, phone = NULLIF(?, ''), location = NULLIF(?, '') WHERE id = ?")
+        ->execute([$name, $email, $phone, $address, $uid]);
 
-    // Keep the client's customer record's contact details in sync, if linked.
-    $pdo->prepare("UPDATE customers SET email = ?, phone = NULLIF(?, '') WHERE user_id = ?")
-        ->execute([$email, $phone, $uid]);
+    // Keep the client's customer record in sync (this address is what appears on
+    // the quotation as the installation / bill-to address), if a customer is linked.
+    $pdo->prepare("UPDATE customers SET email = ?, phone = NULLIF(?, ''), address = NULLIF(?, '') WHERE user_id = ?")
+        ->execute([$email, $phone, $address, $uid]);
 
     if (isset($_SESSION['full_name'])) $_SESSION['full_name'] = $name;
     log_audit('Settings', 'Updated profile information');
