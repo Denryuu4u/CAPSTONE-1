@@ -12,6 +12,9 @@ $n = fn($k, $d) => is_numeric($_POST[$k] ?? null) ? (float) $_POST[$k] : (float)
 try {
     // Company / website / default-costing settings — admin-managed only.
     if (role_can('settings')) {
+        // Ensure the singleton row exists (a fresh DB — e.g. Railway — may not have
+        // it, in which case a bare UPDATE ... WHERE id=1 would silently save nothing).
+        $pdo->exec("INSERT IGNORE INTO company_settings (id, company_name) VALUES (1, 'Vast Solutions')");
         $pdo->prepare(
             "UPDATE company_settings SET
                 company_name=?, email=?, contact_number=?, address=?,

@@ -122,3 +122,4 @@ if (!isset($active_page)) $active_page = '';
 <div class="sidebar-overlay" onclick="document.body.classList.remove('sidebar-open')"></div>
 
 <?php include __DIR__ . '/../includes/ui_modal.php'; // shared alert/confirm modal ?>
+<?php include __DIR__ . '/../includes/table_search.php'; // shared list-page search ?>

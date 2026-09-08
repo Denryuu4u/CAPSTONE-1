@@ -411,6 +411,7 @@ try {
     value: item.dataset.value
   }));
 
+  const TOTAL_REFS = refImages.length;
   let confirmedRef = null;
   let pendingRef   = null;
   let lbIndex      = 0;

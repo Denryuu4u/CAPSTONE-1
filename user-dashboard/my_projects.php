@@ -83,7 +83,11 @@ foreach ($__rows->fetchAll() as $r) {
         'code' => $r['project_code'], 'customer' => $r['customer_name'],
         'target' => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
         'start' => $r['start_date'] ?? '', 'progress' => (int) $r['progress'], 'approver' => $r['approver'] ?? '',
-        'details' => $r['description'] ?? '', 'materials_key' => (string) $pid, 'updates_key' => (string) $pid,
+        'details' => $r['description'] ?? '',
+        // Only expose the materials list when the project actually has materials
+        // (populated once it reaches production via Summarization → Mark Ready).
+        'materials_key' => isset($materialsByProject[(string) $pid]) ? (string) $pid : '',
+        'updates_key' => (string) $pid,
         'confirmed' => !empty($r['client_confirmed_at']) ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
         'awaiting_confirm' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
     ];

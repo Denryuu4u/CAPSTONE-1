@@ -8,6 +8,17 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
 $auditLogs = db()->query("SELECT * FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 200")->fetchAll();
+
+// Filter options built from the actual log rows (not hard-coded names).
+$auditUsers = $auditModules = [];
+foreach ($auditLogs as $__l) {
+    $u = trim((string) ($__l['user_name'] ?? ''));
+    $m = trim((string) ($__l['module'] ?? ''));
+    if ($u !== '') $auditUsers[$u] = true;
+    if ($m !== '') $auditModules[$m] = true;
+}
+$auditUsers = array_keys($auditUsers);   sort($auditUsers);
+$auditModules = array_keys($auditModules); sort($auditModules);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -76,22 +87,20 @@ $auditLogs = db()->query("SELECT * FROM audit_logs ORDER BY created_at DESC, id 
                 <div class="audit-filter-item">
                     <label for="userFilter">User</label>
                     <select id="userFilter" class="form-select audit-select">
-                        <option selected>All</option>
-                        <option>John Admin</option>
-                        <option>Maria Santos</option>
-                        <option>Carlos Reyes</option>
-                        <option>Ana Cruz</option>
+                        <option value="">All</option>
+                        <?php foreach ($auditUsers as $u): ?>
+                        <option value="<?= htmlspecialchars($u) ?>"><?= htmlspecialchars($u) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
 
                 <div class="audit-filter-item">
                     <label for="moduleFilter">Module</label>
                     <select id="moduleFilter" class="form-select audit-select">
-                        <option selected>All</option>
-                        <option>Quotations</option>
-                        <option>Project Requests</option>
-                        <option>Customers</option>
-                        <option>Auth</option>
+                        <option value="">All</option>
+                        <?php foreach ($auditModules as $m): ?>
+                        <option value="<?= htmlspecialchars($m) ?>"><?= htmlspecialchars($m) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
             </div>
@@ -134,6 +143,42 @@ $auditLogs = db()->query("SELECT * FROM audit_logs ORDER BY created_at DESC, id 
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    (function () {
+        var dateFrom = document.getElementById('dateFrom');
+        var dateTo   = document.getElementById('dateTo');
+        var userSel  = document.getElementById('userFilter');
+        var modSel   = document.getElementById('moduleFilter');
+        var tbody    = document.querySelector('.audit-table tbody');
+        if (!tbody) return;
+
+        var rows = Array.prototype.filter.call(tbody.querySelectorAll('tr'), function (tr) {
+            return !tr.querySelector('td[colspan]');
+        });
+        if (!rows.length) return; // nothing logged yet
+
+        var noRow = document.createElement('tr');
+        noRow.innerHTML = '<td colspan="6" class="text-center text-muted py-4">No activity matches these filters.</td>';
+        noRow.style.display = 'none';
+        tbody.appendChild(noRow);
+
+        function run() {
+            var from = dateFrom.value, to = dateTo.value;
+            var u = userSel.value, m = modSel.value, visible = 0;
+            rows.forEach(function (tr) {
+                var d = tr.dataset.date || '';
+                var ok = (!from || d >= from) && (!to || d <= to)
+                      && (!u || tr.dataset.user === u)
+                      && (!m || tr.dataset.module === m);
+                tr.style.display = ok ? '' : 'none';
+                if (ok) visible++;
+            });
+            noRow.style.display = visible === 0 ? '' : 'none';
+        }
+        [dateFrom, dateTo].forEach(function (el) { el.addEventListener('change', run); el.addEventListener('input', run); });
+        [userSel, modSel].forEach(function (el) { el.addEventListener('change', run); });
+    })();
+    </script>
 </body>
 
 </html>

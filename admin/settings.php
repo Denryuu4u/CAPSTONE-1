@@ -117,10 +117,15 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
 
                         <div>
                             <label class="settings-label">Company Logo</label>
-                            <a href="#" class="settings-upload-btn">
-                                <i class="bi bi-upload"></i>
-                                <span>Upload Logo</span>
-                            </a>
+                            <div class="d-flex align-items-center gap-3">
+                                <img id="companyLogoPreview" src="<?= $settings['logo_path'] ? '../' . $sv('logo_path') : '' ?>"
+                                     alt="Company logo" style="height:48px;max-width:160px;object-fit:contain;border-radius:6px;<?= $settings['logo_path'] ? '' : 'display:none;' ?>">
+                                <label class="settings-upload-btn mb-0" style="cursor:pointer;">
+                                    <i class="bi bi-upload"></i>
+                                    <span>Upload Logo</span>
+                                    <input type="file" id="companyLogoInput" accept=".jpg,.jpeg,.png,.gif,.webp,.svg" hidden>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -547,6 +552,26 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             });
 
             } // end if (galleryGrid)
+
+            // ── Company logo upload ──
+            const companyLogoInput = document.getElementById('companyLogoInput');
+            if (companyLogoInput) {
+                companyLogoInput.addEventListener('change', function () {
+                    if (!this.files.length) return;
+                    const fd = new FormData();
+                    fd.append('logo', this.files[0]);
+                    this.value = '';
+                    fetch('save_logo.php', { method: 'POST', body: fd })
+                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Upload failed'); return d; })
+                        .then(d => {
+                            const img = document.getElementById('companyLogoPreview');
+                            img.src = d.logo + '?t=' + Date.now();
+                            img.style.display = '';
+                            vsToast('Company logo updated.');
+                        })
+                        .catch(e => alert(e.message));
+                });
+            }
             </script>
 
         </div>
