@@ -44,6 +44,17 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     .avatar { overflow: hidden; }
     .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .settings-readonly { background:#f3f4f6; color:#6b7280; cursor:not-allowed; }
+    /* Highlight fields the client was sent here to complete (from Request Quote). */
+    .field-highlight {
+      border-color: #f59e0b !important;
+      box-shadow: 0 0 0 3px rgba(245,158,11,.28) !important;
+      background: #fffbeb;
+      animation: fieldPulse 1s ease-in-out 2;
+    }
+    @keyframes fieldPulse {
+      0%,100% { box-shadow: 0 0 0 3px rgba(245,158,11,.28); }
+      50%     { box-shadow: 0 0 0 6px rgba(245,158,11,.15); }
+    }
   </style>
 </head>
 <body>
@@ -219,6 +230,28 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
         .finally(() => { btn.disabled = false; });
     });
   });
+
+  // ── Highlight fields the client came here to complete (Request Quote → Fill now) ──
+  (function () {
+    const focus = new URLSearchParams(location.search).get('focus');
+    if (!focus) return;
+    const map = { phone: 'pfPhone', address: 'pfAddress' };
+    let first = null;
+    focus.split(',').forEach(function (key) {
+      const el = document.getElementById(map[key.trim()]);
+      // Only highlight when the field is still empty (nothing entered yet).
+      if (el && el.value.trim() === '') {
+        el.classList.add('field-highlight');
+        if (!first) first = el;
+        // Clear the highlight once the client starts typing.
+        el.addEventListener('input', function () { el.classList.remove('field-highlight'); }, { once: true });
+      }
+    });
+    if (first) {
+      first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function () { first.focus({ preventScroll: true }); }, 300);
+    }
+  })();
 
   // ── Show/hide password ──
   document.querySelectorAll('.settings-pw-toggle').forEach(function (btn) {

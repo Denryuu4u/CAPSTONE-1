@@ -271,6 +271,10 @@ body {
         transform: translateX(-100%);
         transition: transform 0.25s ease;
         box-shadow: 0 0 45px rgba(0, 0, 0, 0.25);
+        /* Use the actual visible height (not 100vh, which exceeds the screen when
+           the mobile address bar shows) so the Logout footer stays on-screen. */
+        min-height: 0;
+        height: 100dvh;
     }
 
     body.sidebar-open .sidebar {

@@ -57,6 +57,7 @@
      position: fixed;
      top: 0; left: 0; bottom: 0;
      z-index: 50;
+     overflow-y: auto; /* keep the footer (Logout) reachable if content overflows */
    }
    
    .sidebar-brand {
@@ -867,6 +868,11 @@
        transform: translateX(-100%);
        transition: transform 0.25s ease;
        box-shadow: 0 0 45px rgba(0,0,0,0.25);
+       /* Use the ACTUAL visible height (not 100vh, which is taller than the
+          screen when the mobile address bar shows) so the Logout footer stays
+          on-screen; overflow-y lets it scroll into view on very short screens. */
+       min-height: 0;
+       height: 100dvh;
      }
      body.sidebar-open .sidebar { transform: translateX(0); }
      body.sidebar-open { overflow: hidden; }

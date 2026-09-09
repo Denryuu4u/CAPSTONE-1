@@ -12,6 +12,29 @@ $galleryImages = [];
 try {
     $galleryImages = db()->query("SELECT file_path, label FROM gallery_images ORDER BY sort_order, id")->fetchAll();
 } catch (Throwable $e) { $galleryImages = []; }
+
+// A quote request needs the client's contact number + installation address so we
+// can prepare and deliver the quotation. Work out what (if anything) is still
+// missing on their profile, to gate the submit and steer them to Settings.
+$__uid = current_user()['id'] ?? 0;
+$profilePhone = $profileAddress = '';
+if ($__uid) {
+    try {
+        $st = db()->prepare(
+            "SELECT u.phone, u.location, c.address
+               FROM users u
+               LEFT JOIN customers c ON c.user_id = u.id
+              WHERE u.id = ? ORDER BY c.id LIMIT 1"
+        );
+        $st->execute([$__uid]);
+        $pr = $st->fetch() ?: [];
+        $profilePhone   = trim((string) ($pr['phone'] ?? ''));
+        $profileAddress = trim((string) ($pr['address'] ?? '')) ?: trim((string) ($pr['location'] ?? ''));
+    } catch (Throwable $e) { /* leave blank → will prompt */ }
+}
+$missingFields = [];
+if ($profilePhone === '')   $missingFields[] = 'phone';
+if ($profileAddress === '') $missingFields[] = 'address';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -211,7 +234,7 @@ try {
   <div class="page-content">
     <h1 class="page-title">Request a Quote</h1>
 
-    <form action="submit_quote.php" method="POST" enctype="multipart/form-data">
+    <form action="submit_quote.php" method="POST" enctype="multipart/form-data" id="quoteForm">
       <div class="quote-grid">
 
         <!-- LEFT COLUMN: Upload + Reference -->
@@ -495,6 +518,24 @@ try {
     if (e.key === 'ArrowRight') openLightbox(lbIndex + 1);
     if (e.key === 'Escape')     closeLightbox();
   });
+
+  // ── Require phone + installation address before submitting ──
+  // If the client hasn't filled these in Settings, block the submit and offer to
+  // take them there (highlighting the empty fields).
+  const MISSING_PROFILE = <?= json_encode(array_values($missingFields)) ?>;
+  if (MISSING_PROFILE.length) {
+    document.getElementById('quoteForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const labels = MISSING_PROFILE.map(f => f === 'phone' ? 'phone number' : 'installation address');
+      const list = labels.length === 2 ? labels.join(' and ') : labels[0];
+      vsConfirm(
+        'Please add your ' + list + ' in Settings before submitting a request, so we can prepare and deliver your quotation.',
+        { title: 'Complete your details', okText: 'Fill now', cancelText: 'Maybe later' }
+      ).then(function (ok) {
+        if (ok) location.href = 'settings.php?focus=' + MISSING_PROFILE.join(',');
+      });
+    });
+  }
 </script>
 </body>
 </html>
