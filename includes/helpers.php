@@ -226,11 +226,30 @@ function generate_otp(int $len = 6): string
 }
 
 /**
- * Issue a fresh signup OTP for an email: invalidates any prior unconsumed
- * codes, inserts a new one valid ~10 minutes, and returns the code.
+ * Ensure the otp_codes.purpose enum allows every purpose the app issues codes
+ * for (signup, reset). Self-migrating so it also works on an already-deployed
+ * database (e.g. Railway) without a manual ALTER.
+ */
+function ensure_otp_purposes(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $col = db()->query("SHOW COLUMNS FROM otp_codes LIKE 'purpose'")->fetch();
+        if ($col && stripos((string) $col['Type'], "'reset'") === false) {
+            db()->exec("ALTER TABLE otp_codes MODIFY purpose ENUM('signup','reset') NOT NULL DEFAULT 'signup'");
+        }
+    } catch (Throwable $e) { /* non-fatal */ }
+}
+
+/**
+ * Issue a fresh OTP for an email: invalidates any prior unconsumed codes,
+ * inserts a new one valid ~10 minutes, and returns the code.
  */
 function create_otp(?int $userId, string $email, string $purpose = 'signup', int $ttlMinutes = 10): string
 {
+    if ($purpose !== 'signup') ensure_otp_purposes(); // widen the enum on demand
     $code = generate_otp();
     try {
         // Consume any outstanding codes for this email+purpose so only the latest works.

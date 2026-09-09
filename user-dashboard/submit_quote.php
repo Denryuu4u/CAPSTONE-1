@@ -52,6 +52,49 @@ if ($projectName === '') {
     exit;
 }
 
+// Contact number + installation address are required so the quote can be
+// prepared and delivered. Enforced here on the server too — the client-side
+// prompt in request_quote.php can be bypassed (JS off, stale page, direct POST).
+$prof = $pdo->prepare(
+    "SELECT u.phone, u.location, c.address
+       FROM users u LEFT JOIN customers c ON c.user_id = u.id
+      WHERE u.id = ? ORDER BY c.id LIMIT 1"
+);
+$prof->execute([$user['id']]);
+$pr = $prof->fetch() ?: [];
+$hasPhone   = trim((string) ($pr['phone'] ?? '')) !== '';
+$hasAddress = trim((string) ($pr['address'] ?? '')) !== '' || trim((string) ($pr['location'] ?? '')) !== '';
+if (!$hasPhone || !$hasAddress) {
+    header('Location: request_quote.php?error=profile');
+    exit;
+}
+
+// Target completion date, if provided, cannot be in the past. (YYYY-MM-DD from
+// the date input, so a plain string comparison against today is correct.)
+if ($targetDate !== '' && $targetDate < date('Y-m-d')) {
+    header('Location: request_quote.php?error=pastdate');
+    exit;
+}
+
+// Material type is required.
+$allowedMaterials = ['Plywood', 'MDF', 'Particle Board', 'Aluminum', 'Steel'];
+if ($materialType === '' || !in_array($materialType, $allowedMaterials, true)) {
+    header('Location: request_quote.php?error=material');
+    exit;
+}
+
+// Estimated budget is required and must be a valid positive amount.
+$budgetClean = preg_replace('/[^0-9.]/', '', $budgetRaw);
+if ($budgetRaw === '' || !is_numeric($budgetClean) || (float) $budgetClean <= 0) {
+    header('Location: request_quote.php?error=budget');
+    exit;
+}
+$budget = (float) $budgetClean;
+
+// Cap free-text fields defensively (the form also enforces maxlength).
+$dimensions = mb_substr($dimensions, 0, 150);
+$notes      = mb_substr($notes, 0, 1000);
+
 $customerId = resolve_customer($pdo, $user);
 
 try {

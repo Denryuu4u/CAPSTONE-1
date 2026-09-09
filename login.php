@@ -2,6 +2,7 @@
 $loginError = trim((string) ($_GET['error'] ?? ''));
 $loginEmail = trim((string) ($_GET['email'] ?? ''));
 $verified   = isset($_GET['verified']);
+$reset      = isset($_GET['reset']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,7 +20,7 @@ $verified   = isset($_GET['verified']);
 
   <!-- LEFT -->
   <div class="left-panel">
-    <a class="brand" href="index.html">
+    <a class="brand" href="index.php">
       <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
       Vast Solutions
     </a>
@@ -38,6 +39,9 @@ $verified   = isset($_GET['verified']);
 
       <?php if ($verified): ?>
         <div style="background:#f0fdf9;color:#0a7a60;border:1px solid #6ee7d0;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;">Email verified — please sign in.</div>
+      <?php endif; ?>
+      <?php if ($reset): ?>
+        <div style="background:#f0fdf9;color:#0a7a60;border:1px solid #6ee7d0;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;">Password reset — please sign in with your new password.</div>
       <?php endif; ?>
       <?php if ($loginError): ?>
         <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;"><?= htmlspecialchars($loginError) ?></div>

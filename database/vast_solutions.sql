@@ -84,7 +84,7 @@ CREATE TABLE `otp_codes` (
   `user_id`     INT UNSIGNED DEFAULT NULL,
   `email`       VARCHAR(150) NOT NULL,
   `code`        VARCHAR(6)   NOT NULL,
-  `purpose`     ENUM('signup') NOT NULL DEFAULT 'signup',
+  `purpose`     ENUM('signup','reset') NOT NULL DEFAULT 'signup',
   `expires_at`  DATETIME NOT NULL,
   `consumed_at` DATETIME DEFAULT NULL,
   `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

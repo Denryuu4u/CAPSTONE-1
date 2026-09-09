@@ -16,6 +16,9 @@ RUN apt-get update \
 # Copy the app into Apache's document root.
 COPY . /var/www/html/
 
+# Route Apache's raw 404/403/500 pages to the branded error.php.
+COPY apache-errors.conf /etc/apache2/conf-enabled/zz-errors.conf
+
 # Let Apache (www-data) write uploaded files.
 RUN chown -R www-data:www-data /var/www/html/uploads 2>/dev/null || true
 

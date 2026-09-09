@@ -1,0 +1,8 @@
+# Friendly error pages for LOCAL XAMPP (app served under /CAPSTONE-1).
+# On Railway the app is at "/" and .htaccess overrides are disabled, so this file
+# is ignored there — production error pages come from apache-errors.conf (see the
+# Dockerfile). Routes Apache's raw 404/403/500 to the branded error.php.
+ErrorDocument 400 /CAPSTONE-1/error.php
+ErrorDocument 403 /CAPSTONE-1/error.php
+ErrorDocument 404 /CAPSTONE-1/error.php
+ErrorDocument 500 /CAPSTONE-1/error.php

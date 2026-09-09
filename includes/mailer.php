@@ -56,7 +56,7 @@ function mail_log_otp(string $to, string $code): void
  *
  * @return array{ok:bool, error:?string, demo:bool}
  */
-function send_otp_email(string $to, string $code, string $name = ''): array
+function send_otp_email(string $to, string $code, string $name = '', string $purpose = 'signup'): array
 {
     if (DEV_MODE) mail_log_otp($to, $code);
 
@@ -65,17 +65,22 @@ function send_otp_email(string $to, string $code, string $name = ''): array
         return ['ok' => true, 'error' => null, 'demo' => true];
     }
 
-    $c       = mail_config();
-    $subject = 'Your Vast Solutions verification code';
+    $c        = mail_config();
+    $isReset  = ($purpose === 'reset');
+    $subject  = $isReset ? 'Your Vast Solutions password reset code' : 'Your Vast Solutions verification code';
     $safeName = $name !== '' ? htmlspecialchars($name) : 'there';
+    $intro    = $isReset
+        ? 'Hi ' . $safeName . ', use this code to reset your password:'
+        : 'Hi ' . $safeName . ', use this code to verify your email and finish creating your account:';
     $html = '<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:auto">'
           . '<h2 style="color:#0D9676;margin:0 0 8px">Vast Solutions</h2>'
-          . '<p>Hi ' . $safeName . ', use this code to verify your email and finish creating your account:</p>'
+          . '<p>' . $intro . '</p>'
           . '<div style="font-size:30px;font-weight:800;letter-spacing:8px;background:#f0fdf9;border:1px solid #6ee7d0;'
           . 'border-radius:10px;padding:16px;text-align:center;color:#0a7a60;margin:16px 0">' . htmlspecialchars($code) . '</div>'
           . '<p style="color:#6b7280;font-size:13px">This code expires in 10 minutes. If you didn\'t request it, you can ignore this email.</p>'
           . '</div>';
-    $text = "Vast Solutions verification code: {$code}\nThis code expires in 10 minutes.";
+    $text = ($isReset ? 'Vast Solutions password reset code' : 'Vast Solutions verification code')
+          . ": {$code}\nThis code expires in 10 minutes.";
 
     // Route to the configured transport: Brevo (HTTP) on Railway, else Gmail SMTP.
     $res = (mail_provider() === 'brevo')

@@ -233,6 +233,25 @@ if ($profileAddress === '') $missingFields[] = 'address';
 
   <div class="page-content">
     <h1 class="page-title">Request a Quote</h1>
+    <?php
+      $__err = $_GET['error'] ?? '';
+      $__errMsg = [
+        'profile'  => 'Please add your phone number and installation address in Settings before submitting a request.',
+        'pastdate' => 'The target completion date cannot be in the past. Please choose today or a later date.',
+        'name'     => 'Please enter a project name.',
+        'material' => 'Please select a material type.',
+        'budget'   => 'Please enter a valid estimated budget (a positive amount).',
+        'server'   => 'Something went wrong submitting your request. Please try again.',
+      ][$__err] ?? '';
+      if ($__errMsg):
+    ?>
+    <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.85rem;padding:.7rem .9rem;border-radius:8px;margin-bottom:1rem;">
+      <?= htmlspecialchars($__errMsg) ?>
+      <?php if ($__err === 'profile'): ?>
+        <a href="settings.php?focus=phone,address" style="color:#0D9676;font-weight:600;">Go to Settings</a>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <form action="submit_quote.php" method="POST" enctype="multipart/form-data" id="quoteForm">
       <div class="quote-grid">
@@ -303,7 +322,7 @@ if ($profileAddress === '') $missingFields[] = 'address';
 
           <div class="form-group">
             <label class="form-label" for="material_type">Material Type</label>
-            <select id="material_type" name="material_type" class="form-control">
+            <select id="material_type" name="material_type" class="form-control" required>
               <option value="" disabled selected>Select material</option>
               <option value="Plywood">Plywood</option>
               <option value="MDF">MDF</option>
@@ -315,22 +334,23 @@ if ($profileAddress === '') $missingFields[] = 'address';
 
           <div class="form-group">
             <label class="form-label" for="dimensions">Dimensions <span style="font-weight:400;color:#9ca3af;">(Optional)</span></label>
-            <input type="text" id="dimensions" name="dimensions" class="form-control" placeholder="e.g. 2400 × 720 × 600 mm (W × H × D)"/>
+            <input type="text" id="dimensions" name="dimensions" class="form-control" placeholder="e.g. 2400 × 720 × 600 mm (W × H × D)" maxlength="150"/>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="target_completion">Target Completion Date <span style="font-weight:400;color:#9ca3af;">(Optional)</span></label>
-            <input type="date" id="target_completion" name="target_completion" class="form-control"/>
+            <input type="date" id="target_completion" name="target_completion" class="form-control" min="<?= date('Y-m-d') ?>"/>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="budget">Estimated Budget</label>
-            <input type="text" id="budget" name="budget" class="form-control" placeholder="₱0.00"/>
+            <input type="text" id="budget" name="budget" class="form-control" placeholder="₱0.00"
+                   inputmode="decimal" required title="Enter an estimated amount, e.g. 50000"/>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="notes">Additional Notes</label>
-            <textarea id="notes" name="notes" class="form-control" placeholder="Describe your requirements, preferred materials, timeline..."></textarea>
+            <textarea id="notes" name="notes" class="form-control" placeholder="Describe your requirements, preferred materials, timeline..." maxlength="1000"></textarea>
           </div>
 
           <button type="submit" class="btn-submit">Submit Quotation Request</button>
@@ -517,6 +537,20 @@ if ($profileAddress === '') $missingFields[] = 'address';
     if (e.key === 'ArrowLeft')  openLightbox(lbIndex - 1);
     if (e.key === 'ArrowRight') openLightbox(lbIndex + 1);
     if (e.key === 'Escape')     closeLightbox();
+  });
+
+  // ── Estimated budget must be a valid positive amount ──
+  // (HTML5 `required` on a text field still allows non-numeric input.) Added
+  // before the profile gate so an invalid budget is reported first.
+  document.getElementById('quoteForm').addEventListener('submit', function (e) {
+    const el = document.getElementById('budget');
+    const val = parseFloat(el.value.replace(/[^0-9.]/g, ''));
+    if (el.value.trim() === '' || isNaN(val) || val <= 0) {
+      e.preventDefault();
+      e.stopImmediatePropagation(); // don't also trigger the profile prompt below
+      vsAlert('Please enter a valid estimated budget (a positive amount).', { title: 'Invalid budget' });
+      el.focus();
+    }
   });
 
   // ── Require phone + installation address before submitting ──

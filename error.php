@@ -10,9 +10,25 @@
  */
 require_once __DIR__ . '/includes/auth.php';
 
+// When Apache serves this as an ErrorDocument (404/403/500…), it sets
+// REDIRECT_STATUS and no query string — fall back to status-appropriate copy.
+$status = (int) ($_SERVER['REDIRECT_STATUS'] ?? 0);
+$defaults = [
+    400 => ['Bad request',   'That request could not be understood. Check the link and try again.'],
+    403 => ['Access denied',  "You don't have permission to view this page."],
+    404 => ['Page not found', "We couldn't find the page you were looking for. It may have been moved, or the link is incorrect."],
+    500 => ['Server error',   'Something went wrong on our end. Please try again in a moment.'],
+];
+
 $msg   = trim((string) ($_GET['msg'] ?? ''));
-$title = trim((string) ($_GET['title'] ?? 'Something went wrong'));
-if ($msg === '') $msg = 'The request could not be completed. Please try again, or contact support if it keeps happening.';
+$title = trim((string) ($_GET['title'] ?? ''));
+if ($status && isset($defaults[$status])) {
+    if ($title === '') $title = $defaults[$status][0];
+    if ($msg === '')   $msg   = $defaults[$status][1];
+    http_response_code($status); // keep the real status (don't turn a 404 into 200)
+}
+if ($title === '') $title = 'Something went wrong';
+if ($msg === '')   $msg   = 'The request could not be completed. Please try again, or contact support if it keeps happening.';
 
 // Where "home" goes depends on who's viewing.
 $home = function_exists('role_home') ? role_home() : (BASE_URL . '/index.php');
