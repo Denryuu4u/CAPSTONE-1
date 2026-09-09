@@ -262,11 +262,24 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             <div class="settings-card mt-3">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
                     <div class="settings-card-title mb-0">Design Gallery</div>
-                    <label class="settings-upload-btn mb-0" style="cursor:pointer;">
-                        <i class="bi bi-upload"></i>
-                        <span>Add Images</span>
-                        <input type="file" id="galleryUploadInput" accept=".jpg,.jpeg,.png,.gif,.webp" multiple hidden>
-                    </label>
+                    <div class="d-flex align-items-center gap-2" id="galleryDefaultActions">
+                        <button type="button" class="gallery-select-toggle" id="gallerySelectBtn">
+                            <i class="bi bi-check2-square"></i> <span>Select</span>
+                        </button>
+                        <label class="settings-upload-btn mb-0" style="cursor:pointer;">
+                            <i class="bi bi-upload"></i>
+                            <span>Add Images</span>
+                            <input type="file" id="galleryUploadInput" accept=".jpg,.jpeg,.png,.gif,.webp" multiple hidden>
+                        </label>
+                    </div>
+                    <!-- Shown only while selecting -->
+                    <div class="d-flex align-items-center gap-2" id="gallerySelectActions" style="display:none !important;">
+                        <span class="gallery-select-count" id="gallerySelectCount">0 selected</span>
+                        <button type="button" class="gallery-del-selected" id="galleryDeleteSelectedBtn" disabled>
+                            <i class="bi bi-trash"></i> <span>Delete selected</span>
+                        </button>
+                        <button type="button" class="gallery-cancel-select" id="galleryCancelSelectBtn">Cancel</button>
+                    </div>
                 </div>
                 <p class="settings-card-sub">These images appear in the public landing page gallery and in the client's “Browse Designs” reference picker.</p>
                 <div class="gallery-manage-grid" id="galleryGrid">
@@ -274,6 +287,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                     <div class="text-muted small" id="galleryEmpty">No images yet — add some with the button above.</div>
                     <?php else: foreach ($galleryImages as $g): ?>
                     <div class="gallery-manage-item" data-id="<?= (int) $g['id'] ?>">
+                        <span class="gallery-check"><i class="bi bi-check-lg"></i></span>
                         <img src="../<?= htmlspecialchars($g['file_path']) ?>" alt="<?= htmlspecialchars($g['label'] ?? '') ?>" loading="lazy">
                         <button type="button" class="gallery-remove-btn" title="Remove" data-id="<?= (int) $g['id'] ?>">&times;</button>
                     </div>
@@ -293,6 +307,35 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                     display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.25);
                 }
                 .gallery-remove-btn:hover { background:#b91c1c; }
+
+                /* Multi-select controls */
+                .gallery-select-toggle, .gallery-cancel-select {
+                    display:inline-flex; align-items:center; gap:6px; font-size:.82rem; font-weight:600;
+                    padding:7px 14px; border-radius:8px; cursor:pointer;
+                    background:#fff; border:1px solid #e5e7eb; color:#374151; transition:background .15s,border-color .15s;
+                }
+                .gallery-select-toggle:hover, .gallery-cancel-select:hover { border-color:#cbd5e1; background:#f9fafb; }
+                .gallery-select-count { font-size:.82rem; color:#6b7280; font-weight:600; }
+                .gallery-del-selected {
+                    display:inline-flex; align-items:center; gap:6px; font-size:.82rem; font-weight:600;
+                    padding:7px 14px; border-radius:8px; cursor:pointer;
+                    background:#dc2626; color:#fff; border:1px solid transparent; transition:background .15s,opacity .15s;
+                }
+                .gallery-del-selected:hover:not(:disabled) { background:#b91c1c; }
+                .gallery-del-selected:disabled { opacity:.5; cursor:not-allowed; }
+
+                /* While selecting: hide per-image remove ×, show a checkbox, make cards clickable */
+                #galleryGrid.selecting .gallery-remove-btn { display:none; }
+                #galleryGrid.selecting .gallery-manage-item { cursor:pointer; }
+                .gallery-check {
+                    position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%;
+                    background:rgba(255,255,255,.9); border:2px solid #9ca3af; display:none;
+                    align-items:center; justify-content:center; color:#fff; font-size:14px; z-index:2;
+                }
+                #galleryGrid.selecting .gallery-check { display:flex; }
+                .gallery-manage-item.selected { outline:3px solid #0D9676; outline-offset:-3px; }
+                .gallery-manage-item.selected .gallery-check { background:#0D9676; border-color:#0D9676; }
+                .gallery-manage-item.selected img { opacity:.85; }
             </style>
 
             <?php if ($isSuperAdmin): ?>
@@ -520,7 +563,8 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 const div = document.createElement('div');
                 div.className = 'gallery-manage-item';
                 div.dataset.id = img.id;
-                div.innerHTML = '<img src="../' + img.file_path + '" alt="' + (img.label || '') + '" loading="lazy">' +
+                div.innerHTML = '<span class="gallery-check"><i class="bi bi-check-lg"></i></span>' +
+                    '<img src="../' + img.file_path + '" alt="' + (img.label || '') + '" loading="lazy">' +
                     '<button type="button" class="gallery-remove-btn" title="Remove" data-id="' + img.id + '">&times;</button>';
                 return div;
             }
@@ -542,7 +586,55 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                     .catch(e => { galleryError.textContent = e.message; galleryError.style.display = 'block'; });
             });
 
+            function galleryShowEmptyIfNeeded() {
+                if (!galleryGrid.querySelector('.gallery-manage-item')) {
+                    galleryGrid.innerHTML = '<div class="text-muted small" id="galleryEmpty">No images yet — add some with the button above.</div>';
+                }
+            }
+
+            // ── Multi-select delete ──
+            const gSelectBtn     = document.getElementById('gallerySelectBtn');
+            const gCancelBtn     = document.getElementById('galleryCancelSelectBtn');
+            const gDeleteSelBtn  = document.getElementById('galleryDeleteSelectedBtn');
+            const gSelectCount   = document.getElementById('gallerySelectCount');
+            const gDefaultActions= document.getElementById('galleryDefaultActions');
+            const gSelectActions = document.getElementById('gallerySelectActions');
+            let gallerySelecting = false;
+
+            function galleryUpdateCount() {
+                const n = galleryGrid.querySelectorAll('.gallery-manage-item.selected').length;
+                gSelectCount.textContent = n + ' selected';
+                gDeleteSelBtn.disabled = n === 0;
+                const span = gDeleteSelBtn.querySelector('span');
+                span.textContent = n > 0 ? ('Delete selected (' + n + ')') : 'Delete selected';
+            }
+            function galleryEnterSelect() {
+                gallerySelecting = true;
+                galleryGrid.classList.add('selecting');
+                gDefaultActions.style.setProperty('display', 'none', 'important');
+                gSelectActions.style.setProperty('display', 'flex', 'important');
+                galleryUpdateCount();
+            }
+            function galleryExitSelect() {
+                gallerySelecting = false;
+                galleryGrid.classList.remove('selecting');
+                galleryGrid.querySelectorAll('.gallery-manage-item.selected').forEach(el => el.classList.remove('selected'));
+                gSelectActions.style.setProperty('display', 'none', 'important');
+                gDefaultActions.style.setProperty('display', 'flex', 'important');
+            }
+            if (gSelectBtn) gSelectBtn.addEventListener('click', galleryEnterSelect);
+            if (gCancelBtn) gCancelBtn.addEventListener('click', galleryExitSelect);
+
             galleryGrid.addEventListener('click', function (e) {
+                // Selecting mode: toggle the clicked card's selection.
+                if (gallerySelecting) {
+                    const item = e.target.closest('.gallery-manage-item');
+                    if (!item) return;
+                    item.classList.toggle('selected');
+                    galleryUpdateCount();
+                    return;
+                }
+                // Normal mode: single-image remove (×).
                 const btn = e.target.closest('.gallery-remove-btn');
                 if (!btn) return;
                 const item = btn.closest('.gallery-manage-item');
@@ -552,12 +644,30 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                         .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
                         .then(() => {
                             item.remove();
-                            if (!galleryGrid.querySelector('.gallery-manage-item')) {
-                                galleryGrid.innerHTML = '<div class="text-muted small" id="galleryEmpty">No images yet — add some with the button above.</div>';
-                            }
+                            galleryShowEmptyIfNeeded();
                             vsToast('Image removed from the gallery.');
                         })
                         .catch(e => { galleryError.textContent = e.message; galleryError.style.display = 'block'; });
+                });
+            });
+
+            if (gDeleteSelBtn) gDeleteSelBtn.addEventListener('click', function () {
+                const items = [...galleryGrid.querySelectorAll('.gallery-manage-item.selected')];
+                if (!items.length) return;
+                const ids = items.map(el => el.dataset.id);
+                vsConfirm('Delete ' + ids.length + ' selected image' + (ids.length > 1 ? 's' : '') + ' from the gallery?',
+                    {title:'Delete images', okText:'Delete', tone:'danger'}).then(function(ok){
+                    if (!ok) return;
+                    gDeleteSelBtn.disabled = true;
+                    fetch('delete_gallery_image.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ ids: ids.join(',') }) })
+                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                        .then(d => {
+                            items.forEach(el => el.remove());
+                            galleryShowEmptyIfNeeded();
+                            galleryExitSelect();
+                            vsToast((d.deleted || ids.length) + ' image' + ((d.deleted || ids.length) > 1 ? 's' : '') + ' removed from the gallery.');
+                        })
+                        .catch(e => { galleryUpdateCount(); galleryError.textContent = e.message; galleryError.style.display = 'block'; });
                 });
             });
 
