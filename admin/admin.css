@@ -3116,6 +3116,8 @@ body {
     overflow: hidden;
 }
 .notif-dropdown.open .notif-menu { display: block; }
+.notif-list { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.notif-item.is-read { opacity: 0.6; }
 .notif-head {
     display: flex;
     align-items: center;

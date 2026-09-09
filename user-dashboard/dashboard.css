@@ -835,6 +835,8 @@
      box-shadow: 0 12px 32px rgba(15,23,42,.14); overflow: hidden;
    }
    .notif-dropdown.open .notif-menu { display: block; }
+   .notif-list { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+   .notif-item.is-read { opacity: 0.6; }
    .notif-head {
      display: flex; align-items: center; justify-content: space-between;
      padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--border);

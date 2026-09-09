@@ -47,13 +47,14 @@ $__allLink = $__isAdmin ? 'monitoring.php' : 'my_projects.php';
       <span>Notifications</span>
       <span class="notif-head-count"><?= $__count ?> unread</span>
     </div>
+    <div class="notif-list">
     <?php if (empty($__items)): ?>
       <div class="notif-item"><span class="notif-item-body"><span class="notif-item-sub">You're all caught up.</span></span></div>
     <?php else: foreach ($__items as $n):
         $dot = $__sevDot[$n['severity']] ?? '#0D9676';
         $link = $n['link'] ?: $__allLink;
     ?>
-    <a href="<?= htmlspecialchars($link) ?>" class="notif-item" data-id="<?= (int) $n['id'] ?>" style="<?= $n['is_read'] ? 'opacity:.6;' : '' ?>">
+    <a href="<?= htmlspecialchars($link) ?>" class="notif-item<?= $n['is_read'] ? ' is-read' : '' ?>" data-id="<?= (int) $n['id'] ?>">
       <span class="notif-dot" style="background:<?= $dot ?>;box-shadow:0 0 0 2px <?= $dot ?>33;"></span>
       <span class="notif-item-body">
         <span class="notif-item-title"><?= htmlspecialchars($n['title']) ?></span>
@@ -61,6 +62,7 @@ $__allLink = $__isAdmin ? 'monitoring.php' : 'my_projects.php';
       </span>
     </a>
     <?php endforeach; endif; ?>
+    </div>
     <a href="#" class="notif-foot" onclick="markNotifsRead(event)">Mark all as read</a>
   </div>
 </div>
@@ -74,20 +76,34 @@ $__allLink = $__isAdmin ? 'monitoring.php' : 'my_projects.php';
     });
   });
   // Clicking a notification marks just that one read, then follows its link.
+  function notifMarkOne(id) {
+    var base = location.pathname.indexOf('/admin/') !== -1 ? 'mark_notifications_read.php' : '../admin/mark_notifications_read.php';
+    var body = new URLSearchParams({ id: id });
+    // sendBeacon is designed to complete during navigation (the anchor's link),
+    // where a fire-and-forget fetch can be dropped — especially on mobile.
+    var sent = false;
+    try { sent = navigator.sendBeacon && navigator.sendBeacon(base, body); } catch (err) {}
+    if (!sent) {
+      try { fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id=' + encodeURIComponent(id), keepalive: true }); } catch (err) {}
+    }
+  }
   document.addEventListener('click', function (e) {
     var item = e.target.closest ? e.target.closest('.notif-item[data-id]') : null;
-    if (!item) return;
+    if (!item || item.classList.contains('is-read')) return;
     var id = item.getAttribute('data-id');
     if (!id) return;
-    var base = location.pathname.indexOf('/admin/') !== -1 ? 'mark_notifications_read.php' : '../admin/mark_notifications_read.php';
-    try {
-      fetch(base, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'id=' + encodeURIComponent(id),
-        keepalive: true   // completes even as the page navigates to the link
-      });
-    } catch (err) {}
+    notifMarkOne(id);
+    // Optimistically reflect the change so it looks read immediately.
+    item.classList.add('is-read');
+    document.querySelectorAll('.notif-badge').forEach(function (b) {
+      var n = parseInt(b.textContent, 10) - 1;
+      if (n > 0) b.textContent = n; else b.remove();
+    });
+    document.querySelectorAll('.notif-head-count').forEach(function (c) {
+      var m = (c.textContent.match(/\d+/) || ['0'])[0];
+      var n = Math.max(0, parseInt(m, 10) - 1);
+      c.textContent = n + ' unread';
+    });
   });
   window.markNotifsRead = function (ev) {
     ev.preventDefault();
