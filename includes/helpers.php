@@ -291,6 +291,58 @@ function verify_otp(string $email, string $code, string $purpose = 'signup'): bo
     }
 }
 
+/**
+ * Company branding (name, tagline, logo). Reads company_settings, self-migrating
+ * the `tagline` column and singleton row so it works on a deployed DB too.
+ * The row is cached per request.
+ */
+function ensure_company_branding(): array
+{
+    static $row = null;
+    if ($row !== null) return $row;
+    try {
+        $col = db()->query("SHOW COLUMNS FROM company_settings LIKE 'tagline'")->fetch();
+        if (!$col) {
+            db()->exec("ALTER TABLE company_settings ADD COLUMN tagline VARCHAR(255) NULL AFTER company_name");
+        }
+        db()->exec("INSERT IGNORE INTO company_settings (id, company_name) VALUES (1, 'Vast Solutions')");
+        $row = db()->query("SELECT * FROM company_settings WHERE id = 1")->fetch() ?: [];
+    } catch (Throwable $e) {
+        $row = [];
+    }
+    return $row;
+}
+
+/** The configured company name, falling back to the default. */
+function company_name(): string
+{
+    $n = trim((string) (ensure_company_branding()['company_name'] ?? ''));
+    return $n !== '' ? $n : 'Vast Solutions';
+}
+
+/** The configured landing-page tagline, falling back to the default. */
+function company_tagline(): string
+{
+    $t = trim((string) (ensure_company_branding()['tagline'] ?? ''));
+    return $t !== '' ? $t : 'Every Inch, Endless Possibilities';
+}
+
+/**
+ * URL to the system logo. Uses the uploaded logo when its file is present,
+ * otherwise the committed default (style/assets/logo.jpg) — so a custom logo
+ * lost to an ephemeral filesystem (e.g. after a Railway redeploy) falls back
+ * gracefully instead of breaking.
+ */
+function company_logo_url(): string
+{
+    $base = defined('BASE_URL') ? BASE_URL : '';
+    $lp = trim((string) (ensure_company_branding()['logo_path'] ?? ''));
+    if ($lp !== '' && is_file(__DIR__ . '/../' . $lp)) {
+        return $base . '/' . $lp;
+    }
+    return $base . '/style/assets/logo.jpg';
+}
+
 /** Peso formatter. */
 function peso($n): string
 {

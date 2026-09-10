@@ -4,8 +4,8 @@ if (!isset($active_page)) $active_page = '';
 
 <aside class="sidebar">
   <a class="sidebar-brand" href="admin-dashboard.php">
-  <img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
-  Vast Solutions
+  <img src="<?= function_exists('company_logo_url') ? htmlspecialchars(company_logo_url()) : '../style/assets/logo.jpg' ?>" alt="Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+  <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?>
 </a>
 
   <nav class="sidebar-nav">

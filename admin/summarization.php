@@ -142,7 +142,7 @@ try {
                     $summSections = [
                         ['category' => 'wood', 'title' => 'Panels',   'icon' => 'bi-grid-3x3-gap'],
                         ['category' => 'hw',   'title' => 'Hardware', 'icon' => 'bi-tools'],
-                        ['category' => 'alu',  'title' => 'Edges',    'icon' => 'bi-border-all'],
+                        ['category' => 'alu',  'title' => 'Aluminum Profile', 'icon' => 'bi-border-all'],
                     ];
                     foreach ($summSections as $sec): ?>
                     <div class="summ-section-card mb-3" data-category="<?= $sec['category'] ?>">
@@ -402,7 +402,7 @@ try {
 
             const c = data.counts || {};
             footerHint.textContent =
-                `Panels ${c.wood || 0} · Hardware ${c.hw || 0} · Edges ${c.alu || 0}`;
+                `Panels ${c.wood || 0} · Hardware ${c.hw || 0} · Aluminum Profile ${c.alu || 0}`;
 
             results.style.display      = 'block';
             stickyFooter.style.display = 'block';

@@ -12,9 +12,13 @@ require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/project_status.php';
 $customers = db()->query(
     "SELECT c.*,
+            COALESCE(NULLIF(c.email, ''),   u.email)    AS email,
+            COALESCE(NULLIF(c.phone, ''),   u.phone)    AS phone,
+            COALESCE(NULLIF(c.address, ''), u.location) AS address,
             (SELECT COUNT(*) FROM projects p WHERE p.customer_id = c.id) AS project_count,
             (SELECT p.status FROM projects p WHERE p.customer_id = c.id ORDER BY p.created_at DESC LIMIT 1) AS last_status
        FROM customers c
+       LEFT JOIN users u ON u.id = c.user_id
       WHERE c.is_archived = 0
       ORDER BY c.name"
 )->fetchAll();

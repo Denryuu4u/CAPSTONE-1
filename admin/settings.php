@@ -18,6 +18,7 @@ $isSuperAdmin = (current_role() === 'Super Admin');
 $legalDocs = [];
 foreach (legal_docs() as $__d) { $legalDocs[$__d['doc_key']] = $__d; }
 $sv = fn($k, $d = '') => htmlspecialchars((string) ($settings[$k] ?? $d), ENT_QUOTES);
+$e  = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 
 // Current user (for the Profile Information card) — full row, since current_user()
 // only carries id/full_name/role.
@@ -90,17 +91,18 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 <div class="col-lg-6">
                     <?php if ($canAdminSettings): ?>
                     <div class="settings-card mb-3">
-                        <div class="settings-card-title">Company Information</div>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <div class="settings-card-title mb-0">Company Information</div>
+                            <?php if ($isSuperAdmin): ?>
+                            <button type="button" class="settings-save-btn" id="openBrandingBtn" style="width:auto;padding:7px 14px;">
+                                <i class="bi bi-palette"></i> <span>Branding &amp; Identity</span>
+                            </button>
+                            <?php endif; ?>
+                        </div>
 
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-6">
-                                <label class="settings-label">Company Name</label>
-                                <input type="text" class="settings-input" id="setCompanyName" value="<?= $sv('company_name', 'Vast Solutions') ?>">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="settings-label">Email</label>
-                                <input type="email" class="settings-input" id="setEmail" value="<?= $sv('email') ?>">
-                            </div>
+                        <div class="mb-2">
+                            <label class="settings-label">Email</label>
+                            <input type="email" class="settings-input" id="setEmail" value="<?= $sv('email') ?>">
                         </div>
 
                         <div class="mb-2">
@@ -112,21 +114,11 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                             <label class="settings-label">Contact Number</label>
                             <input type="text" class="settings-input" id="setContact" value="<?= $sv('contact_number') ?>">
                         </div>
-
-                        <hr class="settings-divider">
-
-                        <div>
-                            <label class="settings-label">Company Logo</label>
-                            <div class="d-flex align-items-center gap-3">
-                                <img id="companyLogoPreview" src="<?= $settings['logo_path'] ? '../' . $sv('logo_path') : '' ?>"
-                                     alt="Company logo" style="height:48px;max-width:160px;object-fit:contain;border-radius:6px;<?= $settings['logo_path'] ? '' : 'display:none;' ?>">
-                                <label class="settings-upload-btn mb-0" style="cursor:pointer;">
-                                    <i class="bi bi-upload"></i>
-                                    <span>Upload Logo</span>
-                                    <input type="file" id="companyLogoInput" accept=".jpg,.jpeg,.png,.gif,.webp,.svg" hidden>
-                                </label>
-                            </div>
-                        </div>
+                        <?php if ($isSuperAdmin): ?>
+                        <p class="settings-card-sub mb-0" style="margin-top:.4rem;">
+                            Company name, tagline &amp; logo are managed under <strong>Branding &amp; Identity</strong>.
+                        </p>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
 
@@ -275,6 +267,9 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                     <!-- Shown only while selecting -->
                     <div class="d-flex align-items-center gap-2" id="gallerySelectActions" style="display:none !important;">
                         <span class="gallery-select-count" id="gallerySelectCount">0 selected</span>
+                        <button type="button" class="gallery-select-toggle" id="gallerySelectAllBtn">
+                            <i class="bi bi-check-all"></i> <span>Select all</span>
+                        </button>
                         <button type="button" class="gallery-del-selected" id="galleryDeleteSelectedBtn" disabled>
                             <i class="bi bi-trash"></i> <span>Delete selected</span>
                         </button>
@@ -489,6 +484,82 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             </script>
             <?php endif; ?>
 
+            <?php if ($isSuperAdmin): ?>
+            <!-- Branding & Identity modal (Super Admin) — logo, company name, tagline -->
+            <div class="modal fade" id="brandingModal" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-palette me-1"></i> Branding &amp; Identity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="settings-label">System Logo</label>
+                      <div class="d-flex align-items-center gap-3">
+                        <img id="companyLogoPreview" src="<?= $e(company_logo_url()) ?>?t=<?= time() ?>"
+                             alt="Company logo" style="height:52px;max-width:170px;object-fit:contain;border-radius:6px;border:1px solid #e5e7eb;padding:4px;background:#fff;">
+                        <label class="settings-upload-btn mb-0" style="cursor:pointer;">
+                          <i class="bi bi-upload"></i> <span>Upload Logo</span>
+                          <input type="file" id="companyLogoInput" accept=".jpg,.jpeg,.png,.gif,.webp,.svg" hidden>
+                        </label>
+                      </div>
+                      <p class="settings-card-sub mb-0" style="margin-top:.4rem;">If a custom logo is ever lost (e.g. after a redeploy), the built-in default logo is shown automatically.</p>
+                    </div>
+                    <div class="mb-3">
+                      <label class="settings-label">Company Name</label>
+                      <input type="text" class="settings-input" id="setBrandName" value="<?= $sv('company_name', 'Vast Solutions') ?>" maxlength="150">
+                    </div>
+                    <div class="mb-1">
+                      <label class="settings-label">Tagline <span style="font-weight:400;color:#9ca3af;">(shown on the landing page)</span></label>
+                      <input type="text" class="settings-input" id="setBrandTagline" value="<?= $e(company_tagline()) ?>" maxlength="255">
+                    </div>
+                    <div class="small mt-2" id="brandingStatus"></div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="settings-save-btn" id="saveBrandingBtn" style="width:auto;">
+                      <i class="bi bi-floppy"></i> <span>Save branding</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <script>
+            (function () {
+              const openBtn = document.getElementById('openBrandingBtn');
+              const modalEl = document.getElementById('brandingModal');
+              if (!openBtn || !modalEl) return;
+              let modal = null; // created on first open (after the Bootstrap bundle loads)
+              openBtn.addEventListener('click', () => { if (!modal) modal = new bootstrap.Modal(modalEl); modal.show(); });
+
+              // Logo upload (reuses save_logo.php).
+              document.getElementById('companyLogoInput').addEventListener('change', function () {
+                if (!this.files.length) return;
+                const fd = new FormData(); fd.append('logo', this.files[0]); this.value = '';
+                fetch('save_logo.php', { method: 'POST', body: fd })
+                  .then(async r => { const d = await r.json().catch(() => ({ ok:false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Upload failed'); return d; })
+                  .then(d => { document.getElementById('companyLogoPreview').src = d.logo + '?t=' + Date.now(); vsToast('Logo updated.'); })
+                  .catch(e => alert(e.message));
+              });
+
+              // Save name + tagline.
+              document.getElementById('saveBrandingBtn').addEventListener('click', function () {
+                const btn = this, span = btn.querySelector('span');
+                const body = new URLSearchParams({
+                  company_name: document.getElementById('setBrandName').value,
+                  tagline: document.getElementById('setBrandTagline').value,
+                });
+                span.textContent = 'Saving…'; btn.disabled = true;
+                fetch('save_branding.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                  .then(async r => { const d = await r.json().catch(() => ({ ok:false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Save failed'); return d; })
+                  .then(() => { span.textContent = 'Save branding'; btn.disabled = false; vsToastFlash('Branding updated.'); location.reload(); })
+                  .catch(e => { span.textContent = 'Save branding'; btn.disabled = false; const s = document.getElementById('brandingStatus'); s.className = 'small mt-2 text-danger'; s.textContent = e.message; });
+              });
+            })();
+            </script>
+            <?php endif; ?>
+
             <div class="settings-save-bar">
                 <a href="#" class="settings-save-btn" id="saveSettingsBtn">
                     <i class="bi bi-floppy"></i>
@@ -508,7 +579,6 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 // Only send fields that exist on the page — Staff sees profile fields only.
                 const body = new URLSearchParams();
                 const put = (key, id) => { const el = document.getElementById(id); if (el) body.append(key, el.value); };
-                put('company_name', 'setCompanyName');
                 put('email', 'setEmail');
                 put('address', 'setAddress');
                 put('contact_number', 'setContact');
@@ -602,11 +672,13 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             let gallerySelecting = false;
 
             function galleryUpdateCount() {
+                const total = galleryGrid.querySelectorAll('.gallery-manage-item').length;
                 const n = galleryGrid.querySelectorAll('.gallery-manage-item.selected').length;
                 gSelectCount.textContent = n + ' selected';
                 gDeleteSelBtn.disabled = n === 0;
-                const span = gDeleteSelBtn.querySelector('span');
-                span.textContent = n > 0 ? ('Delete selected (' + n + ')') : 'Delete selected';
+                gDeleteSelBtn.querySelector('span').textContent = n > 0 ? ('Delete selected (' + n + ')') : 'Delete selected';
+                const allBtn = document.getElementById('gallerySelectAllBtn');
+                if (allBtn) allBtn.querySelector('span').textContent = (total > 0 && n === total) ? 'Deselect all' : 'Select all';
             }
             function galleryEnterSelect() {
                 gallerySelecting = true;
@@ -624,6 +696,17 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             }
             if (gSelectBtn) gSelectBtn.addEventListener('click', galleryEnterSelect);
             if (gCancelBtn) gCancelBtn.addEventListener('click', galleryExitSelect);
+
+            const gSelectAllBtn = document.getElementById('gallerySelectAllBtn');
+            if (gSelectAllBtn) gSelectAllBtn.addEventListener('click', function () {
+                const items = galleryGrid.querySelectorAll('.gallery-manage-item');
+                const allSelected = items.length > 0 &&
+                    galleryGrid.querySelectorAll('.gallery-manage-item.selected').length === items.length;
+                // Toggle: if everything is already selected, clear; otherwise select all.
+                items.forEach(el => el.classList.toggle('selected', !allSelected));
+                gSelectAllBtn.querySelector('span').textContent = allSelected ? 'Select all' : 'Deselect all';
+                galleryUpdateCount();
+            });
 
             galleryGrid.addEventListener('click', function (e) {
                 // Selecting mode: toggle the clicked card's selection.
@@ -673,25 +756,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
 
             } // end if (galleryGrid)
 
-            // ── Company logo upload ──
-            const companyLogoInput = document.getElementById('companyLogoInput');
-            if (companyLogoInput) {
-                companyLogoInput.addEventListener('change', function () {
-                    if (!this.files.length) return;
-                    const fd = new FormData();
-                    fd.append('logo', this.files[0]);
-                    this.value = '';
-                    fetch('save_logo.php', { method: 'POST', body: fd })
-                        .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Upload failed'); return d; })
-                        .then(d => {
-                            const img = document.getElementById('companyLogoPreview');
-                            img.src = d.logo + '?t=' + Date.now();
-                            img.style.display = '';
-                            vsToast('Company logo updated.');
-                        })
-                        .catch(e => alert(e.message));
-                });
-            }
+            // (Company logo upload now lives in the Branding & Identity modal.)
             </script>
 
         </div>

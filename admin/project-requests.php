@@ -131,6 +131,8 @@ $reqBadge = [
                                     'data-target-completion="' . htmlspecialchars($r['target_completion'] ?? '') . '"',
                                     'data-address="' . htmlspecialchars($r['customer_address'] ?? '') . '"',
                                     'data-notes="' . htmlspecialchars($r['notes'] ?? '') . '"',
+                                    'data-can-quote="' . ($r['status'] === 'Requesting Quotation' ? '1' : '0') . '"',
+                                    'data-quotation-id="' . (int) ($r['quotation_id'] ?? 0) . '"',
                                     "data-files='" . $filesJson . "'",
                                 ];
                                 $attrStr = implode(' ', $attrs);
@@ -228,6 +230,9 @@ $reqBadge = [
 
                 <div class="modal-footer request-details-footer">
                     <button type="button" class="btn request-close-btn" data-bs-dismiss="modal">Close</button>
+                    <a target="_blank" class="btn request-quotation-btn" id="viewQuotationFromView" style="display:none;">
+                        View Quotation
+                    </a>
                     <button type="button" class="btn request-quotation-btn" id="openCreateQuotationFromView">
                         Create Cost Quotation
                     </button>
@@ -686,8 +691,27 @@ $reqBadge = [
                         dateSubmitted: this.dataset.dateSubmitted,
                         targetCompletion: this.dataset.targetCompletion,
                         address: this.dataset.address,
-                        notes: this.dataset.notes
+                        notes: this.dataset.notes,
+                        canQuote: this.dataset.canQuote,
+                        quotationId: this.dataset.quotationId
                     };
+
+                    // A quotation already exists for this request → don't offer to
+                    // create another; show a "View Quotation" link instead.
+                    const createBtn = document.getElementById("openCreateQuotationFromView");
+                    const viewBtn   = document.getElementById("viewQuotationFromView");
+                    if (currentRequestData.canQuote === '1') {
+                        createBtn.style.display = '';
+                        viewBtn.style.display = 'none';
+                    } else {
+                        createBtn.style.display = 'none';
+                        if (currentRequestData.quotationId && currentRequestData.quotationId !== '0') {
+                            viewBtn.style.display = '';
+                            viewBtn.href = '<?= BASE_URL ?>/download_quote.php?id=' + currentRequestData.quotationId;
+                        } else {
+                            viewBtn.style.display = 'none';
+                        }
+                    }
 
                     document.getElementById("viewRequestId").textContent = currentRequestData.requestId;
                     document.getElementById("viewCustomer").textContent = currentRequestData.customer;

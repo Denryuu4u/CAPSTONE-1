@@ -22,16 +22,22 @@ function resolve_customer(PDO $pdo, array $user): int
     $id = $stmt->fetchColumn();
     if ($id) return (int) $id;
 
-    // No customer yet — create one from the user account.
+    // No customer yet — create one from the user account, copying their contact
+    // details so the admin customer profile isn't blank.
+    $u = $pdo->prepare("SELECT email, phone, location FROM users WHERE id = ?");
+    $u->execute([$user['id']]);
+    $ur = $u->fetch() ?: [];
     $stmt = $pdo->prepare(
-        "INSERT INTO customers (user_id, name, contact_person, email)
-         VALUES (?,?,?,?)"
+        "INSERT INTO customers (user_id, name, contact_person, email, phone, address)
+         VALUES (?,?,?,?,?,?)"
     );
     $stmt->execute([
         $user['id'],
         $user['full_name'] ?: 'Client',
         $user['full_name'] ?: null,
-        null,
+        ($ur['email'] ?? null) ?: null,
+        ($ur['phone'] ?? null) ?: null,
+        ($ur['location'] ?? null) ?: null,
     ]);
     return (int) $pdo->lastInsertId();
 }

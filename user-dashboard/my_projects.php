@@ -525,7 +525,11 @@ function awaitingClientDecision(array $p): bool {
     <div class="section-card" style="padding:1.4rem 1.6rem;">
       <div class="table-header-row">
         <div class="section-card-title mb-0">All Projects</div>
-        <a href="request_quote.php" class="btn-new">+ New Quote Request</a>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+          <input type="text" class="projects-search form-control" placeholder="Search projects..."
+                 style="max-width:220px;font-size:.85rem;">
+          <a href="request_quote.php" class="btn-new">+ New Quote Request</a>
+        </div>
       </div>
 
       <div class="mp-scroll">

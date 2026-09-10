@@ -453,6 +453,7 @@ CREATE TABLE `notifications` (
 CREATE TABLE `company_settings` (
   `id`               TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `company_name`     VARCHAR(150) DEFAULT 'Vast Solutions',
+  `tagline`          VARCHAR(255) DEFAULT NULL,
   `email`            VARCHAR(150) DEFAULT NULL,
   `contact_number`   VARCHAR(40)  DEFAULT NULL,
   `address`          VARCHAR(255) DEFAULT NULL,

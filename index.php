@@ -3,7 +3,8 @@
 $contact = ['web_email' => 'support@vastsolutions.com', 'web_phone' => '+63 900 000 0000', 'web_location' => 'Calamba, Laguna, Philippines'];
 $contactToken = '';
 try {
-    require_once __DIR__ . '/includes/db.php';
+    require_once __DIR__ . '/includes/auth.php';    // defines BASE_URL (used by logo url)
+    require_once __DIR__ . '/includes/helpers.php'; // company_name/tagline/logo helpers
     require_once __DIR__ . '/includes/contact.php';
     $contactToken = contact_form_token(); // spam time-trap for the contact form
     $row = db()->query("SELECT web_email, web_phone, web_location FROM company_settings WHERE id = 1")->fetch();
@@ -14,6 +15,16 @@ try {
     }
 } catch (Throwable $e) { /* fall back to defaults */ }
 $ce = fn($k) => htmlspecialchars($contact[$k], ENT_QUOTES);
+
+// Editable branding (Settings → Branding & Identity), with safe fallbacks.
+$brandName = function_exists('company_name') ? company_name() : 'Vast Solutions';
+$brandTag  = function_exists('company_tagline') ? company_tagline() : 'Every Inch, Endless Possibilities';
+$brandLogo = function_exists('company_logo_url') ? company_logo_url() : 'style/assets/logo.jpg';
+// Split the tagline at the first comma for the two-line hero styling.
+$__tagParts = explode(',', $brandTag, 2);
+$brandTagLine1 = trim($__tagParts[0]) . (isset($__tagParts[1]) ? ',' : '');
+$brandTagLine2 = isset($__tagParts[1]) ? trim($__tagParts[1]) : '';
+$be = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 
 // Design gallery (managed in admin Settings → Design Gallery).
 $galleryImages = [];
@@ -29,7 +40,7 @@ try {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vast Solutions – Every Inch, Endless Possibilities</title>
+  <title><?= $be($brandName) ?> – <?= $be($brandTag) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -42,8 +53,8 @@ try {
   <nav class="navbar">
     <div class="container-fluid d-flex align-items-center gap-3">
       <a class="navbar-brand" href="index.php">
-        <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
-        Vast Solutions
+        <img src="<?= $be($brandLogo) ?>" alt="Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+        <?= $be($brandName) ?>
       </a>
       <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle menu"
               onclick="document.getElementById('navMenu').classList.toggle('open')">
@@ -62,8 +73,8 @@ try {
   <section class="hero">
     <div>
       <h1 class="hero-title">
-        Every Inch,<br>
-        <span>Endless Possibilities</span>
+        <?= $be($brandTagLine1) ?><?php if ($brandTagLine2 !== ''): ?><br>
+        <span><?= $be($brandTagLine2) ?></span><?php endif; ?>
       </h1>
       <p class="hero-sub">
         Wardrobe <span>|</span> Kitchen <span>|</span> Bathroom <span>|</span> Entertainment <span>|</span> Office
@@ -159,7 +170,7 @@ try {
   </section>
 
   <footer>
-    &copy; 2025 Vast Solutions. All rights reserved. &nbsp;|&nbsp; <a href="legal.php?doc=terms">Terms &amp; Conditions</a> &nbsp;|&nbsp; <a href="legal.php?doc=privacy">Privacy Policy</a>
+    &copy; 2025 <?= $be($brandName) ?>. All rights reserved. &nbsp;|&nbsp; <a href="legal.php?doc=terms">Terms &amp; Conditions</a> &nbsp;|&nbsp; <a href="legal.php?doc=privacy">Privacy Policy</a>
   </footer>
 
   <!-- DESIGN LIGHTBOX (view only) -->
