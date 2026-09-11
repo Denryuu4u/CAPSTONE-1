@@ -3,6 +3,17 @@ $signupError = trim((string) ($_GET['error'] ?? ''));
 $signupEmail = trim((string) ($_GET['email'] ?? ''));
 $signupName  = trim((string) ($_GET['name'] ?? ''));
 
+// Editable branding (Settings → Branding & Identity), with safe fallbacks.
+$brandName = 'Vast Solutions';
+$brandLogo = 'style/assets/logo.jpg';
+try {
+    require_once __DIR__ . '/includes/auth.php';
+    require_once __DIR__ . '/includes/helpers.php';
+    if (function_exists('company_name'))     $brandName = company_name();
+    if (function_exists('company_logo_url')) $brandLogo = company_logo_url();
+} catch (Throwable $e) { /* fall back to defaults */ }
+$be = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
+
 // Load the Terms & Privacy documents so we can show them in modals (no page nav).
 // Wrapped so the sign-up form still renders even if the DB/legal table is missing.
 $terms = $privacy = null;
@@ -19,7 +30,7 @@ try {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sign Up – Vast Solutions</title>
+  <title>Sign Up – <?= $be($brandName) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style/signup.css" />
@@ -41,8 +52,8 @@ try {
   <!-- LEFT -->
   <div class="left-panel">
     <a class="brand" href="index.php">
-      <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
-      Vast Solutions
+      <img src="<?= $be($brandLogo) ?>" alt="<?= $be($brandName) ?> Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+      <?= $be($brandName) ?>
     </a>
     <h2 class="panel-title">Access Your Account</h2>
     <p class="panel-desc">Sign in to manage your cabinet projects, review quotations, and monitor project progress in one place.</p>
@@ -53,7 +64,7 @@ try {
     <div class="form-box">
       <a href="index.php" class="back-link">&#8592; Back to home</a>
       <h1 class="form-title">Create your account</h1>
-      <p class="form-subtitle">Join Vast Solutions to manage your projects</p>
+      <p class="form-subtitle">Join <?= $be($brandName) ?> to manage your projects</p>
 
       <?php if ($signupError): ?>
         <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.82rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;"><?= htmlspecialchars($signupError) ?></div>

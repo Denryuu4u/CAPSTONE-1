@@ -65,13 +65,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Editable branding (Settings → Branding & Identity), with safe fallbacks.
+$brandName = function_exists('company_name') ? company_name() : 'Vast Solutions';
+$brandLogo = function_exists('company_logo_url') ? company_logo_url() : 'style/assets/logo.jpg';
+$be = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Verify Email – Vast Solutions</title>
+  <title>Verify Email – <?= $be($brandName) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style/signup.css" />
@@ -87,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
   <div class="left-panel">
     <a class="brand" href="index.php">
-      <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
-      Vast Solutions
+      <img src="<?= $be($brandLogo) ?>" alt="<?= $be($brandName) ?> Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+      <?= $be($brandName) ?>
     </a>
     <h2 class="panel-title">Verify your email</h2>
     <p class="panel-desc">We sent a 6-digit code to your email address. Enter it below to activate your account.</p>

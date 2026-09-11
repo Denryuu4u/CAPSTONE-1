@@ -3,6 +3,17 @@ $loginError = trim((string) ($_GET['error'] ?? ''));
 $loginEmail = trim((string) ($_GET['email'] ?? ''));
 $verified   = isset($_GET['verified']);
 $reset      = isset($_GET['reset']);
+
+// Editable branding (Settings → Branding & Identity), with safe fallbacks.
+$brandName = 'Vast Solutions';
+$brandLogo = 'style/assets/logo.jpg';
+try {
+    require_once __DIR__ . '/includes/auth.php';
+    require_once __DIR__ . '/includes/helpers.php';
+    if (function_exists('company_name'))     $brandName = company_name();
+    if (function_exists('company_logo_url')) $brandLogo = company_logo_url();
+} catch (Throwable $e) { /* fall back to defaults */ }
+$be = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -10,7 +21,7 @@ $reset      = isset($_GET['reset']);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login – Vast Solutions</title>
+  <title>Login – <?= $be($brandName) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style/login.css" />
@@ -21,8 +32,8 @@ $reset      = isset($_GET['reset']);
   <!-- LEFT -->
   <div class="left-panel">
     <a class="brand" href="index.php">
-      <img src="style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
-      Vast Solutions
+      <img src="<?= $be($brandLogo) ?>" alt="<?= $be($brandName) ?> Logo" style="width:28px; height:28px; object-fit:contain; margin-right:10px;">
+      <?= $be($brandName) ?>
     </a>
     <h2 class="panel-title">Access Your Account</h2>
     <p class="panel-desc">Sign in to manage your cabinet projects, review quotations, and monitor project progress in one place.</p>

@@ -28,6 +28,38 @@ foreach (db()->query("SELECT request_id, file_name, file_path FROM request_files
 // Customers for the "Create New Project" (walk-in) modal dropdown.
 $allCustomers = db()->query("SELECT id, name FROM customers ORDER BY name")->fetchAll();
 
+// Default costing percentages (Settings → Default Costing Settings), with fallbacks.
+// These seed the costing preview so admins don't have to retype them each quote.
+$costDefaults = ['markup' => 15, 'contingency' => 5, 'service' => 10, 'protection' => 3];
+try {
+    $cs = db()->query(
+        "SELECT default_markup_pct, default_contingency_pct, default_service_pct, default_protection_pct
+           FROM company_settings WHERE id = 1"
+    )->fetch();
+    if ($cs) {
+        foreach (['markup' => 'default_markup_pct', 'contingency' => 'default_contingency_pct',
+                  'service' => 'default_service_pct', 'protection' => 'default_protection_pct'] as $k => $col) {
+            if (isset($cs[$col]) && $cs[$col] !== null && $cs[$col] !== '') $costDefaults[$k] = (float) $cs[$col];
+        }
+    }
+} catch (Throwable $e) { /* fall back to the hard defaults above */ }
+
+// Render a percentage <select>: mark the option matching the saved default as
+// selected; if the default isn't one of the presets, add it as the selected option.
+$cpSelect = function (array $opts, float $default): string {
+    $html = ''; $matched = false;
+    foreach ($opts as $o) {
+        $sel = abs((float) $o - $default) < 0.0001;
+        if ($sel) $matched = true;
+        $html .= '<option' . ($sel ? ' selected' : '') . '>' . htmlspecialchars($o) . '</option>';
+    }
+    if (!$matched) {
+        $d = rtrim(rtrim(number_format($default, 2, '.', ''), '0'), '.');
+        $html = '<option selected>' . htmlspecialchars($d . '%') . '</option>' . $html;
+    }
+    return $html;
+};
+
 $reqBadge = [
     'Requesting Quotation' => 'badge-requesting',
     'Quotation Sent'       => 'badge-sent',
@@ -130,6 +162,9 @@ $reqBadge = [
                                     'data-date-submitted="' . date('M d, Y', strtotime($r['date_submitted'])) . '"',
                                     'data-target-completion="' . htmlspecialchars($r['target_completion'] ?? '') . '"',
                                     'data-address="' . htmlspecialchars($r['customer_address'] ?? '') . '"',
+                                    'data-material="' . htmlspecialchars($r['material_type'] ?? '') . '"',
+                                    'data-dimensions="' . htmlspecialchars($r['dimensions'] ?? '') . '"',
+                                    'data-budget="' . (($r['budget'] !== null && $r['budget'] !== '') ? htmlspecialchars(peso($r['budget'])) : '') . '"',
                                     'data-notes="' . htmlspecialchars($r['notes'] ?? '') . '"',
                                     'data-can-quote="' . ($r['status'] === 'Requesting Quotation' ? '1' : '0') . '"',
                                     'data-quotation-id="' . (int) ($r['quotation_id'] ?? 0) . '"',
@@ -209,6 +244,20 @@ $reqBadge = [
                         <div class="col-md-6">
                             <div class="request-detail-label">Target Completion</div>
                             <div class="request-detail-value" id="viewTargetCompletion">Apr 30, 2026</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="request-detail-label">Material Type</div>
+                            <div class="request-detail-value" id="viewMaterial">—</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="request-detail-label">Dimensions</div>
+                            <div class="request-detail-value" id="viewDimensions">—</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="request-detail-label">Estimated Budget</div>
+                            <div class="request-detail-value" id="viewBudget">—</div>
                         </div>
 
                         <div class="col-12">
@@ -355,19 +404,19 @@ $reqBadge = [
                         <div class="row g-3 mt-1">
                             <div class="col-md-3">
                                 <label class="form-label project-label">Markup %</label>
-                                <input type="number" class="form-control project-input qc-recalc" id="qMarkup" value="15">
+                                <input type="number" class="form-control project-input qc-recalc" id="qMarkup" value="<?= $costDefaults['markup'] ?>">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label project-label">Contingency %</label>
-                                <input type="number" class="form-control project-input qc-recalc" id="qContingency" value="5">
+                                <input type="number" class="form-control project-input qc-recalc" id="qContingency" value="<?= $costDefaults['contingency'] ?>">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label project-label">Service %</label>
-                                <input type="number" class="form-control project-input qc-recalc" id="qService" value="10">
+                                <input type="number" class="form-control project-input qc-recalc" id="qService" value="<?= $costDefaults['service'] ?>">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label project-label">Protection %</label>
-                                <input type="number" class="form-control project-input qc-recalc" id="qProtection" value="3">
+                                <input type="number" class="form-control project-input qc-recalc" id="qProtection" value="<?= $costDefaults['protection'] ?>">
                             </div>
                         </div>
 
@@ -545,34 +594,25 @@ $reqBadge = [
                             <div class="col-md-3">
                                 <label class="form-label project-label">Markup</label>
                                 <select class="form-select project-input cp-recalc" id="cpMarkup">
-                                    <option selected>15%</option>
-                                    <option>10%</option>
-                                    <option>20%</option>
-                                    <option>25%</option>
+                                    <?= $cpSelect(['15%', '10%', '20%', '25%'], $costDefaults['markup']) ?>
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label project-label">Contingency</label>
                                 <select class="form-select project-input cp-recalc" id="cpContingency">
-                                    <option selected>5%</option>
-                                    <option>3%</option>
-                                    <option>10%</option>
+                                    <?= $cpSelect(['5%', '3%', '10%'], $costDefaults['contingency']) ?>
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label project-label">Service</label>
                                 <select class="form-select project-input cp-recalc" id="cpService">
-                                    <option selected>10%</option>
-                                    <option>5%</option>
-                                    <option>15%</option>
+                                    <?= $cpSelect(['10%', '5%', '15%'], $costDefaults['service']) ?>
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label project-label">Protection</label>
                                 <select class="form-select project-input cp-recalc" id="cpProtection">
-                                    <option selected>3%</option>
-                                    <option>2%</option>
-                                    <option>5%</option>
+                                    <?= $cpSelect(['3%', '2%', '5%'], $costDefaults['protection']) ?>
                                 </select>
                             </div>
                         </div>
@@ -691,6 +731,9 @@ $reqBadge = [
                         dateSubmitted: this.dataset.dateSubmitted,
                         targetCompletion: this.dataset.targetCompletion,
                         address: this.dataset.address,
+                        material: this.dataset.material,
+                        dimensions: this.dataset.dimensions,
+                        budget: this.dataset.budget,
                         notes: this.dataset.notes,
                         canQuote: this.dataset.canQuote,
                         quotationId: this.dataset.quotationId
@@ -718,7 +761,10 @@ $reqBadge = [
                     document.getElementById("viewProject").textContent = currentRequestData.project;
                     document.getElementById("viewCategory").textContent = currentRequestData.category;
                     document.getElementById("viewDateSubmitted").textContent = currentRequestData.dateSubmitted;
-                    document.getElementById("viewTargetCompletion").textContent = currentRequestData.targetCompletion;
+                    document.getElementById("viewTargetCompletion").textContent = currentRequestData.targetCompletion || '—';
+                    document.getElementById("viewMaterial").textContent = currentRequestData.material || '—';
+                    document.getElementById("viewDimensions").textContent = currentRequestData.dimensions || '—';
+                    document.getElementById("viewBudget").textContent = currentRequestData.budget || '—';
                     document.getElementById("viewAddress").textContent = currentRequestData.address;
                     document.getElementById("viewNotes").textContent = currentRequestData.notes;
 

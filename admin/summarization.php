@@ -6,15 +6,16 @@ $active_page = 'summarization';
 require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
-// Approved (and later-phase) projects available for material summarization.
+// Only projects still awaiting production ('approved') are listed — once a
+// project is marked ready it moves to 'production' and drops off this list, so
+// it isn't summarized twice. Files not tied to a project use "Standalone" below.
 $approvedProjects = [];
 try {
     require_once __DIR__ . '/../includes/db.php';
     $approvedProjects = db()->query(
         "SELECT id, project_code, project_name
            FROM projects
-          WHERE status IN ('approved','production','mockup','delivery','installation',
-                           'quality_check','punchlist','final_approval')
+          WHERE status = 'approved'
           ORDER BY created_at DESC"
     )->fetchAll();
 } catch (Throwable $e) {
@@ -84,6 +85,9 @@ try {
                 <label for="approvedProject" class="summ-label d-block">Select Approved Project</label>
                 <select id="approvedProject" class="form-select summ-select">
                     <option selected disabled>-- Select Project --</option>
+                    <option value="standalone" data-standalone="1" data-name="Standalone summarization">
+                        — Standalone (no project) —
+                    </option>
                     <?php if (!empty($approvedProjects)): ?>
                         <?php foreach ($approvedProjects as $proj): ?>
                             <option value="<?= (int) $proj['id'] ?>"
@@ -92,14 +96,12 @@ try {
                                 <?= htmlspecialchars($proj['project_code'] . ' — ' . $proj['project_name']) ?>
                             </option>
                         <?php endforeach; ?>
-                    <?php else: ?>
-                        <!-- Fallback demo options (no approved projects in the database yet) -->
-                        <option data-name="Kitchen Reno Phase 1">Kitchen Reno Phase 1</option>
-                        <option data-name="Office Cabinets">Office Cabinets</option>
-                        <option data-name="Bathroom Vanity Set">Bathroom Vanity Set</option>
-                        <option data-name="Lobby Display Unit">Lobby Display Unit</option>
                     <?php endif; ?>
                 </select>
+                <div class="summ-select-hint text-muted mt-2" style="font-size:.78rem;">
+                    Only approved projects awaiting production are listed. Choose
+                    <strong>Standalone</strong> to summarize a cutting list that isn't tied to a project.
+                </div>
             </div>
 
             <!-- Empty State (shown when no project selected) -->
@@ -310,6 +312,9 @@ try {
             const opt = this.selectedOptions[0];
             if (opt && !opt.disabled) {
                 currentProjectNm = opt.dataset.name || opt.textContent.trim();
+                // Standalone mode has no project to mark ready — hide that action.
+                const standalone = opt.dataset.standalone === '1';
+                fabricationBtn.style.display = standalone ? 'none' : '';
                 emptyState.style.display = 'none';
                 workspace.style.display  = 'block';
                 results.style.display    = 'none';
