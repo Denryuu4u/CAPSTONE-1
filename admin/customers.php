@@ -40,7 +40,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Customer Profiles – Vast Solutions</title>
+    <title>Customer Profiles – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -490,7 +490,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
             const a = document.getElementById('mmEmail');
             a.textContent = this.dataset.email;
             a.href = 'mailto:' + this.dataset.email + '?subject=' +
-                     encodeURIComponent('Re: ' + (subj || 'Your inquiry to Vast Solutions'));
+                     encodeURIComponent('Re: ' + (subj || 'Your inquiry to <?= htmlspecialchars(addslashes(company_name()), ENT_QUOTES) ?>'));
             document.getElementById('mmDate').textContent    = this.dataset.date;
             document.getElementById('mmMessage').textContent = this.dataset.message;
             document.getElementById('mmReadBtn').textContent = curMsgRead ? 'Mark unread' : 'Mark read';

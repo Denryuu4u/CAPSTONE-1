@@ -4,6 +4,7 @@ require_login(); // enforced only when DEV_MODE is false
 
 $active_page = 'summarization';
 require_page($active_page); // role gate
+require_once __DIR__ . '/../includes/helpers.php'; // company_name() for branding
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 // Only projects still awaiting production ('approved') are listed — once a
@@ -28,7 +29,7 @@ try {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Summarization – Vast Solutions</title>
+    <title>Summarization – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/legal.php';
 require_agreements(); // clients must accept the latest Terms & Privacy first
 
 require_once __DIR__ . '/../includes/project_status.php';
+require_once __DIR__ . '/../includes/helpers.php'; // company_name()/company_logo_url()
 
 $active_page = 'my_projects';
 
@@ -221,7 +222,7 @@ function awaitingClientDecision(array $p): bool {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>My Projects – Vast Solutions</title>
+  <title>My Projects – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="dashboard.css"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -697,10 +698,10 @@ function awaitingClientDecision(array $p): bool {
           <div class="vmp-header" style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 26px 12px;">
             <div style="display:flex;align-items:flex-start;gap:12px;">
               <div style="width:58px;height:58px;background:#1a2e2a;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:40px; height:40px; object-fit:contain;">
+                <img src="<?= htmlspecialchars(company_logo_url(), ENT_QUOTES) ?>" alt="<?= htmlspecialchars(company_name(), ENT_QUOTES) ?> Logo" style="width:40px; height:40px; object-fit:contain;">
               </div>
               <div style="margin-top:3px;">
-                <div style="font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;color:#1a2e2a;line-height:1;">VAST</div>
+                <div style="font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;color:#1a2e2a;line-height:1;"><?= htmlspecialchars(strtoupper(company_name()), ENT_QUOTES) ?></div>
                 <div style="font-size:.63rem;color:#6b7280;margin-top:3px;">B34 L1, Hibiscus St. Ceris 1, Calamba, Laguna</div>
                 <div style="font-size:.63rem;color:#6b7280;">+639178850408</div>
                 <div style="font-size:.63rem;color:#6b7280;">inquiries@vastsolutionsmanila.com</div>
@@ -896,7 +897,7 @@ function awaitingClientDecision(array $p): bool {
           <div class="pvm-section-title"><i class="bi bi-activity"></i> Project Updates</div>
           <div class="pvm-readonly-notice">
             <i class="bi bi-lock-fill"></i>
-            Updates are posted by the Vast Solutions team. You will be notified of new activity.
+            Updates are posted by the <?= htmlspecialchars(company_name()) ?> team. You will be notified of new activity.
           </div>
           <div id="viewUpdatesFeed"></div>
         </div>
@@ -1194,7 +1195,7 @@ document.getElementById('btnConfirmCompletion').addEventListener('click', functi
 // Toast feedback after a quote decision redirect (?accepted / ?rejected).
 (function(){
   const params = new URLSearchParams(location.search);
-  if(params.get('accepted')==='1'){ vsToast('Quote accepted. Awaiting final approval from Vast Solutions.'); }
+  if(params.get('accepted')==='1'){ vsToast('Quote accepted. Awaiting final approval from <?= htmlspecialchars(addslashes(company_name())) ?>.'); }
   else if(params.get('rejected')==='1'){ vsToast('Quote rejected.', {type:'info'}); }
   else if(params.get('submitted')==='1'){ vsToast('Quote request submitted successfully.'); }
   if(params.get('accepted')||params.get('rejected')||params.get('submitted')){

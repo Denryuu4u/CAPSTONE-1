@@ -74,7 +74,7 @@ foreach (db()->query(
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reports – Vast Solutions</title>
+    <title>Reports – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -928,9 +928,9 @@ document.addEventListener('click',function(e){
 // ════════════════════════════════════════════════════
 function rpHeader(title){
     return `<div class="rp-header">
-        <div class="rp-logo-box"><img src="../style/assets/logo.jpg" alt="Vast Solutions Logo" style="width:40px; height:40px; object-fit:contain;"></div>
+        <div class="rp-logo-box"><img src="<?= htmlspecialchars(company_logo_url(), ENT_QUOTES) ?>" alt="<?= htmlspecialchars(company_name(), ENT_QUOTES) ?> Logo" style="width:40px; height:40px; object-fit:contain;"></div>
         <div>
-            <div class="rp-company-name">Vast Solutions</div>
+            <div class="rp-company-name"><?= htmlspecialchars(company_name(), ENT_QUOTES) ?></div>
             <div class="rp-company-sub">Aluminum &amp; Glass Fabrication Specialists</div>
             <div class="rp-company-sub">Majayjay, Laguna &nbsp;·&nbsp; vastsolutions@email.com</div>
         </div>

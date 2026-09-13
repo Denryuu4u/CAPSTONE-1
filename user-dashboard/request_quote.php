@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_login(); // enforced only when DEV_MODE is false
 require_once __DIR__ . '/../includes/legal.php';
 require_agreements(); // clients must accept the latest Terms & Privacy first
+require_once __DIR__ . '/../includes/helpers.php'; // company_name() for branding
 
 $active_page = 'request_quote';
 
@@ -41,7 +42,7 @@ if ($profileAddress === '') $missingFields[] = 'address';
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Request a Quote – Vast Solutions</title>
+  <title>Request a Quote – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="dashboard.css"/>
 
