@@ -227,8 +227,12 @@ CREATE TABLE `quotations` (
   `date_created`   DATE NOT NULL,
   `valid_until`    DATE DEFAULT NULL,                  -- typically date_created + 30 days
   -- Lifecycle: Sent (to client) -> Accepted (by client) -> Approved (by admin) / Rejected
-  `status`         ENUM('Sent','Accepted','Approved','Rejected')
+  --            Countered (client proposed a different price; admin revises & resends)
+  `status`         ENUM('Sent','Accepted','Approved','Rejected','Countered')
                      NOT NULL DEFAULT 'Sent',
+  `counter_amount`  DECIMAL(12,2) DEFAULT NULL,          -- client's proposed amount (counter-offer)
+  `counter_comment` VARCHAR(1000) DEFAULT NULL,          -- client's counter-offer comment
+  `counter_at`      DATETIME DEFAULT NULL,               -- when the client countered
   -- costing inputs (from the Costing Preview panel)
   `qty_boards`     INT DEFAULT 0,                        -- retained (legacy); no longer collected
   `qty_glass`      INT DEFAULT 0,                        -- retained (legacy); no longer collected

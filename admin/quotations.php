@@ -7,6 +7,7 @@ require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
+ensure_counter_offer_columns(); // client counter-offer support (self-migrating)
 
 $quotes = db()->query(
     "SELECT q.*, c.name AS customer_name, c.address AS customer_address
@@ -23,10 +24,11 @@ foreach (db()->query("SELECT quotation_id, description, qty, unit_cost, line_tot
 
 // quotations.status -> [badge class, label, admin-can-act]
 $quoteBadge = [
-    'Sent'     => ['badge-waiting-approval', 'Sent to Client', false],
-    'Accepted' => ['badge-waiting-approval', 'Awaiting Approval', true],
-    'Approved' => ['badge-approved-soft',    'Approved', false],
-    'Rejected' => ['badge-rejected-soft',    'Rejected', false],
+    'Sent'      => ['badge-waiting-approval', 'Sent to Client', false],
+    'Accepted'  => ['badge-waiting-approval', 'Awaiting Approval', true],
+    'Approved'  => ['badge-approved-soft',    'Approved', false],
+    'Rejected'  => ['badge-rejected-soft',    'Rejected', false],
+    'Countered' => ['badge-countered',        'Counter-offer', false],
 ];
 ?>
 <!DOCTYPE html>
@@ -46,6 +48,15 @@ $quoteBadge = [
 
     <link rel="stylesheet" href="admin.css">
     <style>
+        /* Counter-offer status badge + highlight */
+        .badge-status.badge-countered { background:rgba(245,158,11,.15); color:#b45309; }
+        .quotation-action.revise { color:#b45309; }
+        .counter-callout {
+            background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
+            padding:12px 14px; margin:14px 0; font-size:.85rem; color:#92400e;
+        }
+        .counter-callout .cc-amt { font-weight:800; color:#78350f; }
+        .counter-callout .cc-comment { margin-top:6px; font-style:italic; color:#78350f; }
         /* Quotation preview — responsive overrides for the inline-styled document */
         .qd-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .qd-table-wrap table { min-width: 480px; }
@@ -138,6 +149,10 @@ $quoteBadge = [
                                 ], $items)), ENT_QUOTES);
                                 $dateStr  = $q['date_created'] ? date('M d, Y', strtotime($q['date_created'])) : '';
                                 $validStr = $q['valid_until']  ? date('M d, Y', strtotime($q['valid_until']))  : '';
+                                $isCountered   = ($q['status'] === 'Countered');
+                                $counterAmt    = ($q['counter_amount'] !== null && $q['counter_amount'] !== '') ? peso($q['counter_amount']) : '';
+                                $counterAmtRaw = ($q['counter_amount'] !== null) ? (float) $q['counter_amount'] : 0;
+                                $counterCmt    = (string) ($q['counter_comment'] ?? '');
                             ?>
                             <tr data-status="<?= htmlspecialchars($q['status']) ?>">
                                 <td><?= htmlspecialchars($q['quote_code']) ?></td>
@@ -149,7 +164,19 @@ $quoteBadge = [
                                 <td class="text-center">
                                     <div class="quotation-actions">
                                         <div class="action-left">
-                                            <?php if ($canAct): ?>
+                                            <?php if ($isCountered): ?>
+                                            <a href="#" class="quotation-action revise revise-quote-btn"
+                                               data-bs-toggle="modal" data-bs-target="#reviseQuotationModal"
+                                               data-id="<?= (int) $q['id'] ?>"
+                                               data-code="<?= htmlspecialchars($q['quote_code']) ?>"
+                                               data-project="<?= htmlspecialchars($q['project_name']) ?>"
+                                               data-current="<?= peso($q['total_amount']) ?>"
+                                               data-counter-amount="<?= htmlspecialchars($counterAmt) ?>"
+                                               data-counter-raw="<?= htmlspecialchars((string) $counterAmtRaw) ?>"
+                                               data-counter-comment="<?= htmlspecialchars($counterCmt) ?>"
+                                               title="Revise &amp; resend"><i class="bi bi-arrow-repeat"></i></a>
+                                            <a href="#" class="quotation-action reject quote-act" data-id="<?= (int) $q['id'] ?>" data-do="reject" title="Reject"><i class="bi bi-x-lg"></i></a>
+                                            <?php elseif ($canAct): ?>
                                             <a href="#" class="quotation-action approve quote-act" data-id="<?= (int) $q['id'] ?>" data-do="approve" title="Approve"><i class="bi bi-check-lg"></i></a>
                                             <a href="#" class="quotation-action reject quote-act" data-id="<?= (int) $q['id'] ?>" data-do="reject" title="Reject"><i class="bi bi-x-lg"></i></a>
                                             <?php endif; ?>
@@ -164,6 +191,9 @@ $quoteBadge = [
                                                data-project="<?= htmlspecialchars($q['project_name']) ?>"
                                                data-date="<?= $dateStr ?>" data-valid="<?= $validStr ?>"
                                                data-total="<?= peso($q['total_amount']) ?>"
+                                               data-status="<?= htmlspecialchars($q['status']) ?>"
+                                               data-counter-amount="<?= htmlspecialchars($counterAmt) ?>"
+                                               data-counter-comment="<?= htmlspecialchars($counterCmt) ?>"
                                                data-items='<?= $itemsJson ?>'>
                                                 <i class="bi bi-eye"></i>
                                             </a>
@@ -221,6 +251,9 @@ $quoteBadge = [
                         </div>
 
                     </div>
+
+                    <!-- Counter-offer callout (shown when the client has countered) -->
+                    <div id="vqCounterCallout" class="counter-callout" style="display:none;margin:16px 20px 0;"></div>
 
                     <!-- BILL / SHIP -->
                     <div class="qd-billship" style="display:flex;gap:40px;padding:20px;border-bottom:1px solid #ccc;font-family:'Syne', sans-serif;">
@@ -332,6 +365,48 @@ $quoteBadge = [
     </div>
 </div>
 
+    <!-- REVISE & RESEND MODAL (respond to a client counter-offer) -->
+    <div class="modal fade" id="reviseQuotationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:14px;border:none;">
+                <div class="modal-header">
+                    <h5 class="modal-title" style="font-family:'Syne',sans-serif;">
+                        <i class="bi bi-arrow-repeat me-1"></i> Revise &amp; Resend Quotation
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3" style="font-size:.85rem;">
+                        Reviewing <b id="rvCode">—</b> · <span id="rvProject">—</span>
+                    </p>
+
+                    <div class="counter-callout">
+                        <div>Current quote total: <b id="rvCurrent">—</b></div>
+                        <div>Client's counter-offer: <span class="cc-amt" id="rvCounterAmt">—</span></div>
+                        <div class="cc-comment" id="rvCounterComment" style="display:none;"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:.8rem;font-weight:600;">Revised total (₱) <span class="text-danger">*</span></label>
+                        <input type="number" min="1" step="0.01" class="form-control" id="rvNewTotal" placeholder="0.00">
+                        <div class="form-text">Sent back to the client to accept, reject, or counter again.</div>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label" style="font-size:.8rem;font-weight:600;">Note to client <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+                        <textarea class="form-control" id="rvNote" rows="3" maxlength="1000" placeholder="e.g. We've adjusted the scope to meet your budget…"></textarea>
+                    </div>
+                    <div id="rvError" class="text-danger small mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-sm" id="rvSendBtn">
+                        <i class="bi bi-send me-1"></i> Revise &amp; Resend
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -353,6 +428,18 @@ $quoteBadge = [
                     document.getElementById("vqDate").textContent = this.dataset.date;
                     document.getElementById("vqValid").textContent = this.dataset.valid || '';
                     document.getElementById("vqTotal").textContent = this.dataset.total;
+
+                    // Counter-offer callout (only for countered quotes).
+                    const cc = document.getElementById("vqCounterCallout");
+                    if (cc) {
+                        if (this.dataset.status === 'Countered') {
+                            cc.style.display = '';
+                            cc.innerHTML = 'Client counter-offer: <span class="cc-amt">' + esc(this.dataset.counterAmount || '—') + '</span>'
+                                + (this.dataset.counterComment ? '<div class="cc-comment">“' + esc(this.dataset.counterComment) + '”</div>' : '');
+                        } else {
+                            cc.style.display = 'none';
+                        }
+                    }
 
                     // Render the internal itemised breakdown (admin view).
                     let items = [];
@@ -395,6 +482,41 @@ $quoteBadge = [
                 });
             });
 
+            // ── Revise & Resend (respond to a counter-offer) ──
+            let reviseId = 0;
+            document.querySelectorAll('.revise-quote-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    reviseId = parseInt(this.dataset.id || 0);
+                    document.getElementById('rvCode').textContent    = this.dataset.code || '—';
+                    document.getElementById('rvProject').textContent = this.dataset.project || '';
+                    document.getElementById('rvCurrent').textContent = this.dataset.current || '—';
+                    document.getElementById('rvCounterAmt').textContent = this.dataset.counterAmount || '—';
+                    const cmt = this.dataset.counterComment || '';
+                    const cmtEl = document.getElementById('rvCounterComment');
+                    if (cmt) { cmtEl.style.display = ''; cmtEl.textContent = '“' + cmt + '”'; }
+                    else { cmtEl.style.display = 'none'; }
+                    // Prefill the revised total with the client's counter amount.
+                    document.getElementById('rvNewTotal').value = this.dataset.counterRaw && parseFloat(this.dataset.counterRaw) > 0
+                        ? parseFloat(this.dataset.counterRaw) : '';
+                    document.getElementById('rvNote').value = '';
+                    document.getElementById('rvError').style.display = 'none';
+                });
+            });
+
+            document.getElementById('rvSendBtn').addEventListener('click', function () {
+                const err = document.getElementById('rvError');
+                err.style.display = 'none';
+                const newTotal = parseFloat(document.getElementById('rvNewTotal').value) || 0;
+                if (!reviseId) { err.textContent = 'No quotation selected.'; err.style.display = 'block'; return; }
+                if (newTotal <= 0) { err.textContent = 'Enter a valid revised total.'; err.style.display = 'block'; return; }
+                const btn = this; btn.disabled = true;
+                const body = new URLSearchParams({ id: reviseId, new_total: newTotal, note: document.getElementById('rvNote').value.trim() });
+                fetch('revise_quotation.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                    .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                    .then(d => { vsToastFlash('Revised quotation sent — ' + d.total); location.reload(); })
+                    .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; });
+            });
+
             // Status filter pills.
             document.querySelectorAll('.quotation-pill').forEach(pill => {
                 pill.addEventListener('click', function (e) {
@@ -405,7 +527,7 @@ $quoteBadge = [
                     document.querySelectorAll('.quotation-table tbody tr').forEach(row => {
                         const st = (row.dataset.status || '').toLowerCase();
                         let show = want === 'all'
-                            || (want === 'waiting'  && (st === 'sent' || st === 'accepted'))
+                            || (want === 'waiting'  && (st === 'sent' || st === 'accepted' || st === 'countered'))
                             || (want === 'approved' && st === 'approved')
                             || (want === 'rejected' && st === 'rejected');
                         row.style.display = show ? '' : 'none';

@@ -55,6 +55,10 @@ $dashRecent = $__rp->fetchAll();
     <span class="sep">›</span>
     <span>Dashboard</span>
     <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+    <div class="topbar-user">
+      <span class="topbar-user-avatar"><?= strtoupper(mb_substr($_SESSION['full_name'] ?? 'C', 0, 1)) ?></span>
+      <span class="topbar-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? 'Client') ?></span>
+    </div>
   </div>
 
   <div class="page-content">

@@ -494,7 +494,7 @@ $reqBadge = [
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-light border w-100 add-new-btn" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                    <button type="button" class="btn btn-light border w-100 add-new-btn" id="cpAddNewBtn">
                                         + Add New
                                     </button>
                                 </div>
@@ -508,17 +508,39 @@ $reqBadge = [
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label project-label">Project Name</label>
+                                <label class="form-label project-label">Project Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control project-input" id="cpProjectName" placeholder="e.g. Kitchen Renovation - Phase 1">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label project-label">Category</label>
-                                <input type="text" class="form-control project-input" id="cpCategory" placeholder="e.g. Kitchen Cabinets">
+                                <label class="form-label project-label">Category <span class="text-danger">*</span></label>
+                                <select class="form-select project-input" id="cpCategory">
+                                    <option value="" disabled selected>Select category</option>
+                                    <option>Wardrobe</option>
+                                    <option>Kitchen Cabinets</option>
+                                    <option>Bathroom Vanity</option>
+                                    <option>Entertainment Unit</option>
+                                    <option>Office Built-ins</option>
+                                    <option>Custom Furniture</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label project-label">Material Type <span class="text-danger">*</span></label>
+                                <select class="form-select project-input" id="cpMaterial">
+                                    <option value="" disabled selected>Select material</option>
+                                    <option value="Plywood">Plywood</option>
+                                    <option value="MDF">MDF</option>
+                                    <option value="Particle Board">Particle Board</option>
+                                    <option value="Aluminum">Aluminum</option>
+                                    <option value="Steel">Steel</option>
+                                </select>
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label project-label">Installation Address</label>
+                            <label class="form-label project-label">Installation Address <span class="text-danger">*</span></label>
                             <textarea class="form-control project-input" id="cpAddress" rows="3" placeholder="Full installation address"></textarea>
                         </div>
 
@@ -681,13 +703,19 @@ $reqBadge = [
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label add-customer-label">Email</label>
+                        <label class="form-label add-customer-label">Email <span class="text-danger">*</span></label>
                         <input type="email" class="form-control add-customer-input" id="newCustomerEmail" placeholder="Enter email">
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label add-customer-label">Phone Number</label>
                         <input type="text" class="form-control add-customer-input" id="newCustomerPhone" placeholder="Enter phone number">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label add-customer-label">Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control add-customer-input" id="newCustomerPassword" placeholder="Min. 8 characters" minlength="8">
+                        <div class="form-text">Creates a login for this customer (email + password).</div>
                     </div>
 
                     <div class="col-12">
@@ -1068,39 +1096,53 @@ $reqBadge = [
             // Save the walk-in project + quotation.
             document.getElementById('cpSaveBtn').addEventListener('click', function () {
                 const err = document.getElementById('cpSaveError'); err.style.display = 'none';
-                const customerId = document.getElementById('cpCustomer').value;
+                const customerId  = document.getElementById('cpCustomer').value;
                 const projectName = document.getElementById('cpProjectName').value.trim();
-                if (!customerId) { err.textContent = 'Select a customer.'; err.style.display = 'block'; return; }
-                if (!projectName) { err.textContent = 'Enter a project name.'; err.style.display = 'block'; return; }
+                const category    = document.getElementById('cpCategory').value;
+                const material    = document.getElementById('cpMaterial').value;
+                const address     = document.getElementById('cpAddress').value.trim();
+                const showErr = m => { err.textContent = m; err.style.display = 'block'; };
+                if (!customerId)  return showErr('Select a customer.');
+                if (!projectName) return showErr('Enter a project name.');
+                if (!category)    return showErr('Select a category.');
+                if (!material)    return showErr('Select a material type.');
+                if (!address)     return showErr('Enter the installation address.');
                 const items = cpRows().map(row => ({
                     description: (row.querySelector('.qc-item').value.trim() +
                         (row.querySelector('.qc-unit').value.trim() ? ' (' + row.querySelector('.qc-unit').value.trim() + ')' : '')),
                     qty: parseFloat(row.querySelector('.qc-qty').value) || 0,
                     unit_cost: parseFloat(row.querySelector('.qc-cost').value) || 0,
                 })).filter(i => i.description);
-                if (!items.length) { err.textContent = 'Add at least one costing line item.'; err.style.display = 'block'; return; }
-                if (!document.getElementById('cpTarget').value) { err.textContent = 'Set a target completion date.'; err.style.display = 'block'; return; }
+                if (!items.length) return showErr('Add at least one costing line item (Add Row, then fill it in).');
+                if (!document.getElementById('cpTarget').value) return showErr('Set a target completion date.');
 
-                const btn = this; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Saving…';
-                const body = new URLSearchParams();
-                body.append('customer_id', customerId);
-                body.append('project_name', projectName);
-                body.append('category', document.getElementById('cpCategory').value.trim());
-                body.append('address', document.getElementById('cpAddress').value.trim());
-                body.append('target_completion', document.getElementById('cpTarget').value || '');
-                body.append('items', JSON.stringify(items));
-                body.append('markup_pct', cpPct('cpMarkup'));
-                body.append('contingency_pct', cpPct('cpContingency'));
-                body.append('service_pct', cpPct('cpService'));
-                body.append('protection_pct', cpPct('cpProtection'));
-                body.append('out_of_town_pct', cpPct('cpOutOfTown'));
-                body.append('substrate', parseFloat(document.getElementById('cpSubstrate').value) || 0);
-                body.append('special_works', parseFloat(document.getElementById('cpSpecial').value) || 0);
-                body.append('accessories', parseFloat(document.getElementById('cpAccess').value) || 0);
-                fetch('save_project.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-                    .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(d => { vsToastFlash('Project ' + d.project_code + ' created with quotation ' + d.quote_code + ' — ' + pesoFmt(d.total)); location.reload(); })
-                    .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy me-2"></i>Save Project'; });
+                const btn = this;
+                const total = document.getElementById('cpSumTotal').textContent;
+                vsConfirm('Create this walk-in project and auto-approve the quotation (' + total + ')? The customer is billed at this total — no client approval step.',
+                    { title: 'Save & approve project', okText: 'Save Project' }).then(function (ok) {
+                    if (!ok) return;
+                    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Saving…';
+                    const body = new URLSearchParams();
+                    body.append('customer_id', customerId);
+                    body.append('project_name', projectName);
+                    body.append('category', category);
+                    body.append('material_type', material);
+                    body.append('address', address);
+                    body.append('target_completion', document.getElementById('cpTarget').value || '');
+                    body.append('items', JSON.stringify(items));
+                    body.append('markup_pct', cpPct('cpMarkup'));
+                    body.append('contingency_pct', cpPct('cpContingency'));
+                    body.append('service_pct', cpPct('cpService'));
+                    body.append('protection_pct', cpPct('cpProtection'));
+                    body.append('out_of_town_pct', cpPct('cpOutOfTown'));
+                    body.append('substrate', parseFloat(document.getElementById('cpSubstrate').value) || 0);
+                    body.append('special_works', parseFloat(document.getElementById('cpSpecial').value) || 0);
+                    body.append('accessories', parseFloat(document.getElementById('cpAccess').value) || 0);
+                    fetch('save_project.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                        .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
+                        .then(d => { vsToastFlash('Project ' + d.project_code + ' created & approved — quotation ' + d.quote_code + ' — ' + pesoFmt(d.total)); location.reload(); })
+                        .catch(e => { showErr(e.message); btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy me-2"></i>Save Project'; });
+                });
             });
 
             // Download the walk-in costing preview as CSV.
@@ -1133,15 +1175,44 @@ $reqBadge = [
                 document.body.appendChild(a); a.click(); a.remove();
             });
 
-            // Add New Customer (from the walk-in modal) → save + append to dropdown.
+            // Add-Customer and Create-New-Project are swapped one at a time (rather
+            // than stacked) so Cancel / X / Save on Add-Customer always returns to
+            // the Create New Project modal instead of closing everything.
+            const cpModalEl = document.getElementById('createProjectModal');
+            const acModalEl = document.getElementById('addCustomerModal');
+            let reopenProjectAfterAddCustomer = false;
+
+            document.getElementById('cpAddNewBtn').addEventListener('click', function () {
+                reopenProjectAfterAddCustomer = true;
+                bootstrap.Modal.getOrCreateInstance(cpModalEl).hide();
+            });
+            // Once the project modal has fully closed for the swap, open Add-Customer.
+            cpModalEl.addEventListener('hidden.bs.modal', function () {
+                if (reopenProjectAfterAddCustomer) {
+                    reopenProjectAfterAddCustomer = false;
+                    bootstrap.Modal.getOrCreateInstance(acModalEl).show();
+                }
+            });
+            // Closing Add-Customer (Cancel, X, or after a successful Save) returns
+            // to the Create New Project modal with the form intact.
+            acModalEl.addEventListener('hidden.bs.modal', function () {
+                bootstrap.Modal.getOrCreateInstance(cpModalEl).show();
+            });
+
+            // Add New Customer (from the walk-in modal) → creates a login account,
+            // appends to the dropdown, and leaves the project modal open.
             document.getElementById('saveNewCustomerBtn').addEventListener('click', function () {
-                const name = document.getElementById('newCustomerName').value.trim();
-                if (!name) { alert('Customer name is required.'); return; }
+                const name     = document.getElementById('newCustomerName').value.trim();
+                const email    = document.getElementById('newCustomerEmail').value.trim();
+                const password = document.getElementById('newCustomerPassword').value;
+                if (!name)  { vsAlert('Customer name is required.'); return; }
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { vsAlert('A valid email is required (used as the login).'); return; }
+                if (password.length < 8) { vsAlert('Set a password of at least 8 characters for the customer login.'); return; }
                 const body = new URLSearchParams({
-                    name,
-                    email: document.getElementById('newCustomerEmail').value.trim(),
+                    name, email,
                     phone: document.getElementById('newCustomerPhone').value.trim(),
                     address: document.getElementById('newCustomerAddress').value.trim(),
+                    password,
                 });
                 const btn = this; btn.disabled = true;
                 fetch('save_customer.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
@@ -1151,11 +1222,12 @@ $reqBadge = [
                         const opt = document.createElement('option');
                         opt.value = d.id; opt.textContent = name; opt.selected = true;
                         sel.appendChild(opt);
+                        // Close ONLY the add-customer modal; the project modal stays open.
                         bootstrap.Modal.getInstance(document.getElementById('addCustomerModal')).hide();
-                        ['newCustomerName', 'newCustomerEmail', 'newCustomerPhone', 'newCustomerAddress'].forEach(id => document.getElementById(id).value = '');
-                        vsToast('Customer added.');
+                        ['newCustomerName', 'newCustomerEmail', 'newCustomerPhone', 'newCustomerAddress', 'newCustomerPassword'].forEach(id => document.getElementById(id).value = '');
+                        vsToast('Customer added with a login account.');
                     })
-                    .catch(e => alert(e.message))
+                    .catch(e => vsAlert(e.message))
                     .finally(() => btn.disabled = false);
             });
 

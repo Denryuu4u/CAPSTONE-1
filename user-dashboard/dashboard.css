@@ -217,6 +217,12 @@
    .topbar a { color: var(--text-muted); text-decoration: none; }
    .topbar a:hover { color: var(--teal); }
    .topbar .sep { color: #d1d5db; }
+   /* Signed-in client, shown at the top right */
+   .topbar-user { display:flex; align-items:center; gap:8px; margin-left:12px; }
+   .topbar-user-avatar { width:30px; height:30px; border-radius:50%; background:#d1fae5; color:#0f766e;
+     display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; flex-shrink:0; }
+   .topbar-user-name { font-size:.8rem; font-weight:600; color:var(--text); white-space:nowrap; }
+   @media (max-width:600px){ .topbar-user-name{ display:none; } }
    /* Whole topbar stays pinned on scroll (not just the hamburger) */
    .topbar { position: sticky; top: 0; z-index: 30; }
    

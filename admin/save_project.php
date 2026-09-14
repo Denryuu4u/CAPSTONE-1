@@ -26,15 +26,20 @@ function sp_fail(string $msg, int $code = 400): void
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') sp_fail('POST required.', 405);
 
-$pdo         = db();
-$customerId  = (int) ($_POST['customer_id'] ?? 0);
-$projectName = trim((string) ($_POST['project_name'] ?? ''));
-$category    = trim((string) ($_POST['category'] ?? ''));
-$address     = trim((string) ($_POST['address'] ?? ''));
-$targetDate  = trim((string) ($_POST['target_completion'] ?? ''));
+$pdo          = db();
+$customerId   = (int) ($_POST['customer_id'] ?? 0);
+$projectName  = trim((string) ($_POST['project_name'] ?? ''));
+$category     = trim((string) ($_POST['category'] ?? ''));
+$materialType = trim((string) ($_POST['material_type'] ?? ''));
+$address      = trim((string) ($_POST['address'] ?? ''));
+$targetDate   = trim((string) ($_POST['target_completion'] ?? ''));
 
 if ($customerId <= 0) sp_fail('Select a customer.');
 if ($projectName === '') sp_fail('Enter a project name.');
+if ($category === '') sp_fail('Category is required.');
+$allowedMaterials = ['Plywood', 'MDF', 'Particle Board', 'Aluminum', 'Steel'];
+if ($materialType === '' || !in_array($materialType, $allowedMaterials, true)) sp_fail('Select a material type.');
+if ($address === '') sp_fail('Installation address is required.');
 if ($targetDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) sp_fail('A valid target completion date is required.');
 
 // Confirm the customer exists.
@@ -78,23 +83,32 @@ $outOfTownAmt = $materialTotal * $outOfTownPct / 100;
 $total = round($materialTotal + $labor + $markupAmt + $contAmt + $serviceAmt + $protectAmt
               + $substrate + $outOfTownAmt + $special + $access, 2);
 
+// Self-migrate: projects.material_type (captured for walk-in projects).
+$pcols = $pdo->query("SHOW COLUMNS FROM projects")->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array('material_type', $pcols, true)) {
+    $pdo->exec("ALTER TABLE projects ADD COLUMN material_type VARCHAR(50) NULL AFTER category");
+}
+
+$adminName = current_user()['full_name'] ?? (function_exists('company_name') ? company_name() : 'Vast Solutions');
+
 try {
     $pdo->beginTransaction();
 
-    // 1) Project shell (walk-in: no client request). Enters at quote_submitted.
+    // 1) Project shell. Walk-in orders are handled in person, so the quote is
+    //    auto-approved (no "sent to client" step) and the project is greenlit.
     $prjCode = next_code('PRJ');
     $pdo->prepare(
         "INSERT INTO projects
-            (project_code, customer_id, project_name, category, description,
-             installation_address, target_completion, status, progress)
-         VALUES (?,?,?,?,?,?,?, 'quote_submitted', 0)"
+            (project_code, customer_id, project_name, category, material_type, description,
+             installation_address, target_completion, status, progress, start_date, approver)
+         VALUES (?,?,?,?,?,?,?,?, 'approved', 0, CURDATE(), ?)"
     )->execute([
-        $prjCode, $customerId, $projectName, ($category ?: null), ($address ?: null),
-        ($address ?: null), ($targetDate ?: null),
+        $prjCode, $customerId, $projectName, ($category ?: null), ($materialType ?: null), null,
+        ($address ?: null), ($targetDate ?: null), $adminName,
     ]);
     $projectId = (int) $pdo->lastInsertId();
 
-    // 2) Cost quotation (Sent).
+    // 2) Cost quotation — auto-approved for walk-in customers.
     $quoteCode  = next_code('QT');
     $validUntil = date('Y-m-d', strtotime('+30 days'));
     $stmt = $pdo->prepare(
@@ -106,7 +120,7 @@ try {
             material_total, total_amount, created_by)
          VALUES
            (:code,:cust,NULL,:proj,:pname,:cat,
-            :addr,CURDATE(),:valid,'Sent',
+            :addr,CURDATE(),:valid,'Approved',
             :markup,:cont,:service,:protect,
             :labor,:substrate,:outoftown,:special,:access,
             :mattot,:total,:by)"
@@ -133,21 +147,14 @@ try {
 
     $pdo->commit();
 
-    // Notify the client if this customer is linked to a user account.
-    $clientId = project_client_user_id($projectId);
-    if ($clientId) {
-        notify([
-            'user_id'      => $clientId,
-            'type'         => 'quote_decision',
-            'title'        => 'Quotation ready for your review',
-            'message'      => "{$projectName} — " . peso($total),
-            'link'         => "my_projects.php",
-            'severity'     => 'warning',
-            'project_id'   => $projectId,
-            'quotation_id' => $quoteId,
-        ]);
-    }
-    log_audit('Project Requests', "Created walk-in project {$prjCode} + quotation {$quoteCode}", "{$projectName} — " . peso($total));
+    // Walk-in quotes are auto-approved — let the client (if linked) know the
+    // project is greenlit, and record it on the timeline.
+    add_project_update(
+        $projectId,
+        'Project approved — greenlit for production. Quotation ' . $quoteCode . ' — ' . peso($total) . '.',
+        true // notifies the client if the customer is linked to an account
+    );
+    log_audit('Project Requests', "Created + auto-approved walk-in project {$prjCode} + quotation {$quoteCode}", "{$projectName} — " . peso($total));
 
     echo json_encode(['ok' => true, 'project_code' => $prjCode, 'quote_code' => $quoteCode, 'total' => $total]);
 } catch (Throwable $e) {

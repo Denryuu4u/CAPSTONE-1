@@ -313,6 +313,38 @@ function ensure_company_branding(): array
     return $row;
 }
 
+/**
+ * Self-migrate the columns behind the client counter-offer flow: widen
+ * quotations.status to include 'Countered' and add the counter fields.
+ * Safe to call repeatedly (checks before altering), so features work on
+ * Railway without a manual migration.
+ */
+function ensure_counter_offer_columns(): void
+{
+    static $done = false;
+    if ($done) return;
+    try {
+        $cols = db()->query("SHOW COLUMNS FROM quotations")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('counter_amount', $cols, true)) {
+            db()->exec("ALTER TABLE quotations ADD COLUMN counter_amount DECIMAL(12,2) NULL AFTER status");
+        }
+        if (!in_array('counter_comment', $cols, true)) {
+            db()->exec("ALTER TABLE quotations ADD COLUMN counter_comment VARCHAR(1000) NULL AFTER counter_amount");
+        }
+        if (!in_array('counter_at', $cols, true)) {
+            db()->exec("ALTER TABLE quotations ADD COLUMN counter_at DATETIME NULL AFTER counter_comment");
+        }
+        $status = db()->query("SHOW COLUMNS FROM quotations LIKE 'status'")->fetch();
+        if ($status && stripos((string) ($status['Type'] ?? ''), "'Countered'") === false) {
+            db()->exec("ALTER TABLE quotations MODIFY COLUMN status
+                        ENUM('Sent','Accepted','Approved','Rejected','Countered') NOT NULL DEFAULT 'Sent'");
+        }
+        $done = true;
+    } catch (Throwable $e) {
+        // leave $done false so a later call can retry
+    }
+}
+
 /** The configured company name, falling back to the default. */
 function company_name(): string
 {

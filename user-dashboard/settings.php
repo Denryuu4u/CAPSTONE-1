@@ -67,6 +67,10 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     <span class="sep">›</span>
     <span>Settings</span>
     <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+    <div class="topbar-user">
+      <span class="topbar-user-avatar"><?= strtoupper(mb_substr($_SESSION['full_name'] ?? 'C', 0, 1)) ?></span>
+      <span class="topbar-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? 'Client') ?></span>
+    </div>
   </div>
 
   <div class="page-content">
@@ -80,10 +84,8 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
 
         <div class="avatar-wrap">
           <div class="avatar" id="avatarBox">
-            <?php if ($avatarUrl): ?><img id="avatarImg" src="<?= $e($avatarUrl) ?>" alt="Profile photo"><?php else: ?><span id="avatarInitials"><?= $e($initials) ?></span><?php endif; ?>
+            <span id="avatarInitials"><?= $e($initials) ?></span>
           </div>
-          <button class="btn-change-photo" type="button" id="changePhotoBtn">Change Photo</button>
-          <input type="file" id="avatarInput" accept=".jpg,.jpeg,.png,.gif,.webp" hidden>
         </div>
 
         <form id="profileForm">
@@ -184,24 +186,6 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
         .catch(err => vsToast(err.message, { type: 'error' }))
         .finally(() => { btn.disabled = false; });
     });
-  });
-
-  // ── Change photo ──
-  const avatarInput = document.getElementById('avatarInput');
-  document.getElementById('changePhotoBtn').addEventListener('click', () => avatarInput.click());
-  avatarInput.addEventListener('change', function () {
-    if (!this.files.length) return;
-    const fd = new FormData();
-    fd.append('avatar', this.files[0]);
-    this.value = '';
-    fetch('save_profile.php', { method: 'POST', body: fd })
-      .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Upload failed'); return d; })
-      .then(d => {
-        const box = document.getElementById('avatarBox');
-        box.innerHTML = '<img id="avatarImg" src="' + d.avatar + '?t=' + Date.now() + '" alt="Profile photo">';
-        vsToast('Profile photo updated.');
-      })
-      .catch(err => vsToast(err.message, { type: 'error' }));
   });
 
   // ── Password change ──

@@ -6,6 +6,7 @@ require_agreements(); // clients must accept the latest Terms & Privacy first
 
 require_once __DIR__ . '/../includes/project_status.php';
 require_once __DIR__ . '/../includes/helpers.php'; // company_name()/company_logo_url()
+ensure_counter_offer_columns(); // client counter-offer support (self-migrating)
 
 $active_page = 'my_projects';
 
@@ -22,7 +23,7 @@ auto_confirm_completions();
 
 // Build the current client's projects from the database, in the shape the page expects.
 $clientId  = current_user()['id'] ?? 0;
-$statusMap = ['Sent' => 'Pending', 'Accepted' => 'Accepted', 'Approved' => 'Approved', 'Rejected' => 'Rejected'];
+$statusMap = ['Sent' => 'Pending', 'Accepted' => 'Accepted', 'Approved' => 'Approved', 'Rejected' => 'Rejected', 'Countered' => 'Countered'];
 $projects = [];
 $updatesByProject = [];
 $materialsByProject = [];
@@ -31,7 +32,8 @@ $__rows = db()->prepare(
     "SELECT p.*, c.name AS customer_name,
             q.id AS quotation_id, q.quote_code, q.status AS quote_status_raw,
             q.date_created AS quote_issued, q.valid_until AS quote_valid,
-            q.total_amount AS quote_total, q.notes AS quote_notes, r.id AS req_id
+            q.total_amount AS quote_total, q.notes AS quote_notes,
+            q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id
        FROM projects p
        JOIN customers c ON c.id = p.customer_id
        LEFT JOIN quotations q ON q.id = (SELECT id FROM quotations WHERE project_id = p.id ORDER BY id DESC LIMIT 1)
@@ -81,6 +83,9 @@ foreach ($__rows->fetchAll() as $r) {
         'quote_issued' => $r['quote_issued'] ? date('Y-m-d', strtotime($r['quote_issued'])) : '',
         'quote_valid' => $r['quote_valid'] ? date('Y-m-d', strtotime($r['quote_valid'])) : '',
         'quote_items' => $quoteItems, 'quote_notes' => $r['quote_notes'] ?? '',
+        'quote_total_raw' => $qtot,
+        'counter_amount' => ($r['counter_amount'] !== null && $r['counter_amount'] !== '') ? peso($r['counter_amount']) : '',
+        'counter_comment' => $r['counter_comment'] ?? '',
         'code' => $r['project_code'], 'customer' => $r['customer_name'],
         'target' => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
         'start' => $r['start_date'] ?? '', 'progress' => (int) $r['progress'], 'approver' => $r['approver'] ?? '',
@@ -392,6 +397,50 @@ function awaitingClientDecision(array $p): bool {
     }
     .vm-reject-btn:hover { background:rgba(239,68,68,.15); }
 
+    .vm-action-bar { flex-wrap: wrap; }
+    .vm-counter-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(245,158,11,.10); color:#b45309;
+      border:1.5px solid rgba(245,158,11,.30); border-radius:8px;
+      padding:8px 20px; font-size:0.82rem; font-weight:700; cursor:pointer;
+      font-family:'Inter',sans-serif; transition:background .18s;
+    }
+    .vm-counter-btn:hover { background:rgba(245,158,11,.2); }
+    .vm-counter-btn svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
+    /* Counter-offer form panel */
+    .vm-counter-panel {
+      width:100%; margin-top:12px; border-top:1px dashed #e5e7eb; padding-top:12px;
+    }
+    .vm-counter-title { font-size:.8rem; font-weight:700; color:#0d1b2a; margin-bottom:10px; font-family:'Syne',sans-serif; }
+    .vm-counter-field { margin-bottom:10px; }
+    .vm-counter-field label { display:block; font-size:.68rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+    .vm-counter-field input, .vm-counter-field textarea {
+      width:100%; border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px;
+      font-size:.82rem; color:#374151; font-family:'Inter',sans-serif; resize:vertical;
+    }
+    .vm-counter-field input:focus, .vm-counter-field textarea:focus { outline:none; border-color:#0D9676; box-shadow:0 0 0 3px rgba(13,150,118,.08); }
+    .vm-counter-actions { display:flex; justify-content:flex-end; gap:10px; }
+    .vm-counter-cancel {
+      background:#fff; color:#6b7280; border:1.5px solid #e5e7eb; border-radius:8px;
+      padding:8px 18px; font-size:.82rem; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif;
+    }
+    .vm-counter-send {
+      background:#b45309; color:#fff; border:none; border-radius:8px;
+      padding:8px 18px; font-size:.82rem; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif;
+    }
+    .vm-counter-send:hover { background:#92400e; }
+
+    /* Countered-status note */
+    .vm-counter-status {
+      background:#fffbeb; border-top:1px solid #fde68a; color:#92400e;
+      padding:12px 22px; font-size:.76rem; line-height:1.5;
+    }
+    .vm-counter-status b { color:#78350f; }
+
+    /* Quotation badge — countered */
+    .vm-q-badge.countered { background:rgba(245,158,11,.15); color:#b45309; }
+
     /* ══ VIEW MODAL (read-only monitoring) ════════ */
     .pvm-hero { background:#fff; padding:18px 22px 13px; border-bottom:1px solid #e5e7eb; }
     .pvm-hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
@@ -518,6 +567,10 @@ function awaitingClientDecision(array $p): bool {
     <span class="sep">›</span>
     <span>Projects</span>
     <?php include __DIR__ . '/../includes/notif_bell.php'; ?>
+    <div class="topbar-user">
+      <span class="topbar-user-avatar"><?= strtoupper(mb_substr($_SESSION['full_name'] ?? 'C', 0, 1)) ?></span>
+      <span class="topbar-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? 'Client') ?></span>
+    </div>
   </div>
 
   <div class="page-content">
@@ -576,7 +629,10 @@ function awaitingClientDecision(array $p): bool {
                   data-quote-valid="<?= htmlspecialchars($p['quote_valid']) ?>"
                   data-quote-items="<?= htmlspecialchars(json_encode($p['quote_items'])) ?>"
                   data-quote-notes="<?= htmlspecialchars($p['quote_notes']) ?>"
-                  data-quote-total="<?= htmlspecialchars(peso(array_sum(array_column($p['quote_items'],'amount')))) ?>">
+                  data-quote-total="<?= htmlspecialchars(peso(array_sum(array_column($p['quote_items'],'amount')))) ?>"
+                  data-quote-total-raw="<?= htmlspecialchars((string) $p['quote_total_raw']) ?>"
+                  data-counter-amount="<?= htmlspecialchars($p['counter_amount']) ?>"
+                  data-counter-comment="<?= htmlspecialchars($p['counter_comment']) ?>">
                   <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
                   <?= $awaiting ? 'Verify' : 'View Quote' ?>
                 </button>
@@ -801,7 +857,10 @@ function awaitingClientDecision(array $p): bool {
 
       </div><!-- /modal-body -->
 
-      <!-- ── Sticky Accept / Reject bar ── -->
+      <!-- Countered status note (shown when a counter-offer is awaiting the admin) -->
+      <div class="vm-counter-status" id="vmCounterStatus" style="display:none;"></div>
+
+      <!-- ── Sticky Accept / Reject / Counter bar ── -->
       <div class="vm-action-bar">
         <span class="vm-action-hint">Review the quotation above before responding.</span>
         <div class="vm-action-btns">
@@ -809,10 +868,32 @@ function awaitingClientDecision(array $p): bool {
             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Reject Quote
           </button>
+          <button class="vm-counter-btn" id="btnCounterQuote">
+            <svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            Counter-offer
+          </button>
           <button class="vm-accept-btn" id="btnAcceptQuote">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             Accept Quote
           </button>
+        </div>
+
+        <!-- Counter-offer form (revealed by "Counter-offer") -->
+        <div class="vm-counter-panel" id="vmCounterPanel" style="display:none;">
+          <div class="vm-counter-title">Make a counter-offer</div>
+          <div class="vm-counter-field">
+            <label for="vmCounterAmount">Your proposed amount (₱)</label>
+            <input type="number" min="1" step="0.01" id="vmCounterAmount" placeholder="0.00">
+          </div>
+          <div class="vm-counter-field">
+            <label for="vmCounterComment">Comment <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+            <textarea id="vmCounterComment" rows="3" maxlength="1000"
+              placeholder="Explain your counter-offer — e.g. budget range, scope changes you'd accept…"></textarea>
+          </div>
+          <div class="vm-counter-actions">
+            <button class="vm-counter-cancel" id="btnCounterCancel" type="button">Cancel</button>
+            <button class="vm-counter-send" id="btnCounterSend" type="button">Send counter-offer</button>
+          </div>
         </div>
       </div>
 
@@ -1027,10 +1108,36 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     // Hide paper notes wrap if empty
     document.getElementById('vmPaperNotesWrap').style.display = d.quoteNotes ? '' : 'none';
 
-    // Accept/Reject bar only while the client still needs to decide.
+    // Reset the counter-offer form each time the modal opens.
+    const counterPanel = document.getElementById('vmCounterPanel');
+    const actionBtns   = document.querySelector('#verifyModal .vm-action-btns');
+    const actionHint   = document.querySelector('#verifyModal .vm-action-hint');
+    if (counterPanel) counterPanel.style.display = 'none';
+    if (actionBtns)   actionBtns.style.display = '';
+    if (actionHint)   actionHint.style.display = '';
+    document.getElementById('vmCounterAmount').value  = d.quoteTotalRaw || '';
+    document.getElementById('vmCounterComment').value = '';
+
+    // Accept/Reject/Counter bar only while the client still needs to decide.
     const awaiting = d.awaiting === '1';
     const actionBar = document.querySelector('#verifyModal .vm-action-bar');
     if (actionBar) actionBar.style.display = awaiting ? '' : 'none';
+
+    // If a counter-offer is pending the admin's revision, show a note instead.
+    const escC = s => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const counterStatus = document.getElementById('vmCounterStatus');
+    if (counterStatus) {
+      if (d.quoteStatus === 'countered') {
+        counterStatus.style.display = '';
+        counterStatus.innerHTML = '<b>Counter-offer sent'
+          + (d.counterAmount ? ' — ' + escC(d.counterAmount) : '') + '.</b> '
+          + (d.counterComment ? '“' + escC(d.counterComment) + '” ' : '')
+          + 'Waiting for ' + <?= json_encode(function_exists('company_name') ? company_name() : 'Vast Solutions') ?>
+          + ' to review it and send a revised quotation.';
+      } else {
+        counterStatus.style.display = 'none';
+      }
+    }
 
     new bootstrap.Modal(document.getElementById('verifyModal')).show();
   });
@@ -1050,6 +1157,31 @@ document.getElementById('btnRejectQuote').addEventListener('click', function(){
   vsConfirm('Are you sure you want to reject this quote?', {title:'Reject quote', okText:'Reject', tone:'danger'}).then(function(ok){
     if(ok) postQuoteDecision('reject_quote.php');
   });
+});
+
+// ── Counter-offer: reveal the form, then submit amount + comment ──
+document.getElementById('btnCounterQuote').addEventListener('click', function(){
+  document.querySelector('#verifyModal .vm-action-btns').style.display='none';
+  document.querySelector('#verifyModal .vm-action-hint').style.display='none';
+  document.getElementById('vmCounterPanel').style.display='';
+  document.getElementById('vmCounterAmount').focus();
+});
+document.getElementById('btnCounterCancel').addEventListener('click', function(){
+  document.getElementById('vmCounterPanel').style.display='none';
+  document.querySelector('#verifyModal .vm-action-btns').style.display='';
+  document.querySelector('#verifyModal .vm-action-hint').style.display='';
+});
+document.getElementById('btnCounterSend').addEventListener('click', function(){
+  if(!currentQuotationPk){ vsAlert('No quotation to act on.'); return; }
+  const amt = parseFloat(document.getElementById('vmCounterAmount').value)||0;
+  const cmt = document.getElementById('vmCounterComment').value.trim();
+  if(amt<=0){ vsAlert('Please enter a valid counter-offer amount.'); return; }
+  const f=document.createElement('form'); f.method='POST'; f.action='counter_quote.php';
+  const add=(n,v)=>{const i=document.createElement('input');i.type='hidden';i.name=n;i.value=v;f.appendChild(i);};
+  add('quotation_id', currentQuotationPk);
+  add('counter_amount', amt);
+  add('counter_comment', cmt);
+  document.body.appendChild(f); f.submit();
 });
 
 document.getElementById('vmDownloadBtn').addEventListener('click', function(){
@@ -1197,6 +1329,9 @@ document.getElementById('btnConfirmCompletion').addEventListener('click', functi
   const params = new URLSearchParams(location.search);
   if(params.get('accepted')==='1'){ vsToast('Quote accepted. Awaiting final approval from <?= htmlspecialchars(addslashes(company_name())) ?>.'); }
   else if(params.get('rejected')==='1'){ vsToast('Quote rejected.', {type:'info'}); }
+  else if(params.get('countered')==='1'){ vsToast('Counter-offer sent. We\'ll review it and send you a revised quotation.'); }
+  else if(params.get('counter')==='amount'){ vsToast('Please enter a valid counter-offer amount.', {type:'info'}); }
+  else if(params.get('counter')==='err'){ vsToast('That quotation can no longer be countered.', {type:'info'}); }
   else if(params.get('submitted')==='1'){ vsToast('Quote request submitted successfully.'); }
   if(params.get('accepted')||params.get('rejected')||params.get('submitted')){
     history.replaceState({}, document.title, 'my_projects.php');
