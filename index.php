@@ -91,12 +91,6 @@ try {
         <a href="login.php" class="btn-get-started">Get Started &rarr;</a>
         <a href="#designs" class="btn-learn-more">Browse Designs</a>
       </div>
-      <div class="hero-stats">
-        <div class="hero-stat"><span class="hero-stat-num">10+</span><span class="hero-stat-label">Years of Craft</span></div>
-        <div class="hero-stat"><span class="hero-stat-num">500+</span><span class="hero-stat-label">Projects Delivered</span></div>
-        <div class="hero-stat"><span class="hero-stat-num">100%</span><span class="hero-stat-label">Custom Built</span></div>
-        <div class="hero-stat"><span class="hero-stat-num">5&#9733;</span><span class="hero-stat-label">Client Rated</span></div>
-      </div>
     </div>
   </section>
 

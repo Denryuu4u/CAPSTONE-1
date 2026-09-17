@@ -173,31 +173,6 @@ body {
   transition: background 0.2s, border-color 0.2s;
 }
 .hero-tag:hover { background: rgba(29,200,154,0.14); border-color: rgba(29,200,154,0.4); }
-.hero-stats {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2.8rem;
-  margin-top: 3rem;
-  padding-top: 2.2rem;
-  border-top: 1px solid rgba(255,255,255,0.1);
-}
-.hero-stat { text-align: center; }
-.hero-stat-num {
-  display: block;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 800;
-  font-size: 1.9rem;
-  color: #fff;
-  line-height: 1;
-}
-.hero-stat-label {
-  display: block;
-  margin-top: 0.4rem;
-  font-size: 0.74rem;
-  letter-spacing: 0.04em;
-  color: rgba(255,255,255,0.55);
-}
 .hero-title {
   font-family: 'Montserrat', sans-serif;
   font-weight: 800;
@@ -656,14 +631,11 @@ body {
   .steps-wrap { gap: 2rem; }
   .contact-wrap { gap: 2rem; }
   .designs-grid { grid-template-columns: repeat(2, 1fr); }
-  .hero-stats { gap: 2rem; }
 }
 
 @media (max-width: 479.98px) {
   .features-grid { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr; gap: 1.8rem; }
-  .hero-stats { gap: 1.4rem 2rem; }
-  .hero-stat-num { font-size: 1.6rem; }
 }
 
 @media (max-width: 575.98px) {
