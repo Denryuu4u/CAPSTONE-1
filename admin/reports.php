@@ -10,6 +10,17 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/tracking.php';
+
+// Report header contact line — driven by company settings (no hardcoded brand).
+$rpCompany = [];
+try { $rpCompany = db()->query("SELECT email, contact_number, address FROM company_settings WHERE id = 1")->fetch() ?: []; }
+catch (Throwable $e) { $rpCompany = []; }
+$rpContactLine = implode(' · ', array_values(array_filter([
+    trim((string) ($rpCompany['address'] ?? '')),
+    trim((string) ($rpCompany['contact_number'] ?? '')),
+    trim((string) ($rpCompany['email'] ?? '')),
+])));
+
 $reportData = ['project' => [], 'quotation' => [], 'cutting' => [], 'costing' => [], 'tracking' => []];
 
 foreach (db()->query(
@@ -78,7 +89,7 @@ foreach (db()->query(
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="admin.css">
@@ -145,10 +156,10 @@ foreach (db()->query(
         .rp-header { display:flex; align-items:center; gap:18px; padding-bottom:18px; border-bottom:3px solid #0D9676; margin-bottom:22px; }
         .rp-logo-box { width:52px; height:52px; background:#0d1b2a; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .rp-logo-box i { color:#0D9676; font-size:24px; }
-        .rp-company-name { font-family:'Syne',sans-serif; font-size:1.25rem; font-weight:700; color:#0d1b2a; line-height:1.1; }
+        .rp-company-name { font-family:'Montserrat',sans-serif; font-size:1.25rem; font-weight:700; color:#0d1b2a; line-height:1.1; }
         .rp-company-sub  { font-size:0.68rem; color:#6b7280; margin-top:2px; }
         .rp-title-block  { margin-left:auto; text-align:right; }
-        .rp-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0D9676; text-transform:uppercase; letter-spacing:.04em; }
+        .rp-title { font-family:'Montserrat',sans-serif; font-size:1rem; font-weight:700; color:#0D9676; text-transform:uppercase; letter-spacing:.04em; }
         .rp-meta  { font-size:0.7rem; color:#6b7280; margin-top:4px; line-height:1.6; }
         .rp-meta strong { color:#374151; }
         .rp-table { width:100%; border-collapse:collapse; margin-top:14px; font-size:0.72rem; }
@@ -162,10 +173,10 @@ foreach (db()->query(
         .rp-badge-approved   { background:rgba(59,130,246,.12);  color:#2563eb; }
         .rp-badge-rejected   { background:rgba(239,68,68,.12);   color:#dc2626; }
         .rp-summary       { margin-top:22px; background:#f0fdf9; border:1px solid #6ee7d0; border-radius:8px; padding:14px 18px; }
-        .rp-summary-title { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; color:#0a7a60; margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em; }
+        .rp-summary-title { font-family:'Montserrat',sans-serif; font-size:0.78rem; font-weight:700; color:#0a7a60; margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em; }
         .rp-summary-grid  { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
         .rp-sum-item  { background:#fff; border-radius:6px; padding:10px 12px; border:1px solid #d1fae5; }
-        .rp-sum-num   { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:700; color:#0D9676; }
+        .rp-sum-num   { font-family:'Montserrat',sans-serif; font-size:1.2rem; font-weight:700; color:#0D9676; }
         .rp-sum-label { font-size:0.62rem; color:#6b7280; margin-top:2px; }
         .rp-modal-actions { padding:.9rem 1.25rem; background:#f8fafc; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 12px 12px; }
 
@@ -184,7 +195,7 @@ foreach (db()->query(
         .summary-strip { display:none; gap:12px; flex-wrap:wrap; margin-top:16px; }
         .summary-strip.active { display:flex; }
         .sum-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px 18px; flex:1 1 120px; box-shadow:0 1px 3px rgba(15,23,42,.04); transition:border-color .15s, box-shadow .15s, transform .1s; }
-        .sum-card-num   { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:700; color:#0D9676; }
+        .sum-card-num   { font-family:'Montserrat',sans-serif; font-size:1.4rem; font-weight:700; color:#0D9676; }
         .sum-card-label { font-size:0.65rem; color:#6b7280; margin-top:2px; }
         /* Clickable category cards → filter + scroll to the table below */
         .sum-card[data-cat] { cursor:pointer; }
@@ -197,13 +208,13 @@ foreach (db()->query(
         .chart-panel { display:none; gap:16px; flex-wrap:wrap; margin-top:16px; }
         .chart-panel.active { display:flex; }
         .chart-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px 20px; flex:1 1 300px; min-width:0; box-shadow:0 1px 3px rgba(15,23,42,.05); }
-        .chart-card-title { font-family:'Syne',sans-serif; font-size:0.82rem; font-weight:700; color:#111827; margin-bottom:14px; }
+        .chart-card-title { font-family:'Montserrat',sans-serif; font-size:0.82rem; font-weight:700; color:#111827; margin-bottom:14px; }
         .chart-canvas-wrap { position:relative; height:220px; }
 
         /* ── inline data table ── */
         .inline-table-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; margin-top:16px; box-shadow:0 1px 3px rgba(15,23,42,.04); display:none; }
         .inline-table-wrap.active { display:block; }
-        .inline-table-title { font-family:'Syne',sans-serif; font-size:0.82rem; font-weight:700; color:#111827; padding:14px 18px 10px; border-bottom:1px solid #f0f0f0; }
+        .inline-table-title { font-family:'Montserrat',sans-serif; font-size:0.82rem; font-weight:700; color:#111827; padding:14px 18px 10px; border-bottom:1px solid #f0f0f0; }
         .inline-tbl { width:100%; border-collapse:collapse; font-size:0.72rem; }
         .inline-tbl thead th { background:#fafafa; color:#9ca3af; font-size:0.6rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:9px 16px; border-bottom:1px solid #ececec; white-space:nowrap; }
         .inline-tbl tbody td { padding:9px 16px; border-bottom:1px solid #f5f5f5; color:#374151; vertical-align:middle; }
@@ -932,7 +943,7 @@ function rpHeader(title){
         <div>
             <div class="rp-company-name"><?= htmlspecialchars(company_name(), ENT_QUOTES) ?></div>
             <div class="rp-company-sub">Aluminum &amp; Glass Fabrication Specialists</div>
-            <div class="rp-company-sub">Majayjay, Laguna &nbsp;·&nbsp; vastsolutions@email.com</div>
+            <?php if ($rpContactLine !== ''): ?><div class="rp-company-sub"><?= htmlspecialchars($rpContactLine, ENT_QUOTES) ?></div><?php endif; ?>
         </div>
         <div class="rp-title-block">
             <div class="rp-title">${title}</div>

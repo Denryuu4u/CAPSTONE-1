@@ -228,7 +228,7 @@ function awaitingClientDecision(array $p): bool {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Projects – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="dashboard.css"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -253,7 +253,7 @@ function awaitingClientDecision(array $p): bool {
       display: flex; align-items: flex-start; justify-content: space-between;
       padding: 18px 22px 14px; border-bottom: 1px solid #e5e7eb; background: #fff;
     }
-    .vm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; }
+    .vm-title { font-family:'Montserrat',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; }
     .vm-subtitle { font-size:0.7rem; color:#6b7280; margin-top:2px; }
 
     /* Scrollable body */
@@ -340,7 +340,7 @@ function awaitingClientDecision(array $p): bool {
       border-radius:10px; padding:2.2rem 2.4rem; margin-bottom:14px;
     }
     .vm-paper-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.8rem; }
-    .vm-company-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem; color:#111827; }
+    .vm-company-name { font-family:'Montserrat',sans-serif; font-weight:700; font-size:1.05rem; color:#111827; }
     .vm-company-sub  { font-size:0.7rem; color:#6b7280; margin-top:2px; }
     .vm-word         { font-weight:700; font-size:0.88rem; letter-spacing:.1em; color:#111827; text-align:right; }
     .vm-q-number     { font-size:0.75rem; color:#6b7280; text-align:right; margin-top:2px; }
@@ -412,7 +412,7 @@ function awaitingClientDecision(array $p): bool {
     .vm-counter-panel {
       width:100%; margin-top:12px; border-top:1px dashed #e5e7eb; padding-top:12px;
     }
-    .vm-counter-title { font-size:.8rem; font-weight:700; color:#0d1b2a; margin-bottom:10px; font-family:'Syne',sans-serif; }
+    .vm-counter-title { font-size:.8rem; font-weight:700; color:#0d1b2a; margin-bottom:10px; font-family:'Montserrat',sans-serif; }
     .vm-counter-field { margin-bottom:10px; }
     .vm-counter-field label { display:block; font-size:.68rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
     .vm-counter-field input, .vm-counter-field textarea {
@@ -444,7 +444,7 @@ function awaitingClientDecision(array $p): bool {
     /* ══ VIEW MODAL (read-only monitoring) ════════ */
     .pvm-hero { background:#fff; padding:18px 22px 13px; border-bottom:1px solid #e5e7eb; }
     .pvm-hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-    .pvm-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; line-height:1.2; }
+    .pvm-title { font-family:'Montserrat',sans-serif; font-size:1rem; font-weight:700; color:#0d1b2a; margin:0; line-height:1.2; }
     .pvm-code  { font-size:0.7rem; color:#6b7280; margin-top:3px; }
     /* Step tracker */
     .pvm-step-tracker { margin-top:12px; overflow-x:auto; padding-bottom:4px; }
@@ -471,7 +471,7 @@ function awaitingClientDecision(array $p): bool {
     .btn-materials-ro:hover { background:#0D9676; color:#fff; }
 
     .pvm-updates-section { padding:14px 22px 20px; }
-    .pvm-section-title { font-family:'Syne',sans-serif; font-size:.8rem; font-weight:700; color:#0d1b2a; display:flex; align-items:center; gap:6px; margin-bottom:12px; }
+    .pvm-section-title { font-family:'Montserrat',sans-serif; font-size:.8rem; font-weight:700; color:#0d1b2a; display:flex; align-items:center; gap:6px; margin-bottom:12px; }
     .pvm-section-title i { color:#0D9676; }
     .pvm-readonly-notice { display:flex; align-items:center; gap:7px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:7px; padding:7px 11px; font-size:.7rem; color:#6b7280; margin-bottom:12px; }
     .pvm-readonly-notice i { color:#9ca3af; flex-shrink:0; }
@@ -757,14 +757,14 @@ function awaitingClientDecision(array $p): bool {
                 <img src="<?= htmlspecialchars(company_logo_url(), ENT_QUOTES) ?>" alt="<?= htmlspecialchars(company_name(), ENT_QUOTES) ?> Logo" style="width:40px; height:40px; object-fit:contain;">
               </div>
               <div style="margin-top:3px;">
-                <div style="font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;color:#1a2e2a;line-height:1;"><?= htmlspecialchars(strtoupper(company_name()), ENT_QUOTES) ?></div>
+                <div style="font-family:'Montserrat',sans-serif;font-size:1.25rem;font-weight:800;color:#1a2e2a;line-height:1;"><?= htmlspecialchars(strtoupper(company_name()), ENT_QUOTES) ?></div>
                 <div style="font-size:.63rem;color:#6b7280;margin-top:3px;">B34 L1, Hibiscus St. Ceris 1, Calamba, Laguna</div>
                 <div style="font-size:.63rem;color:#6b7280;">+639178850408</div>
                 <div style="font-size:.63rem;color:#6b7280;">inquiries@vastsolutionsmanila.com</div>
               </div>
             </div>
             <div style="text-align:right;min-width:200px;">
-              <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:#6b7280;letter-spacing:.14em;margin-bottom:10px;">SALES QUOTATION</div>
+              <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:700;color:#6b7280;letter-spacing:.14em;margin-bottom:10px;">SALES QUOTATION</div>
               <table style="margin-left:auto;border-collapse:collapse;width:100%;">
                 <tr>
                   <td style="font-size:.62rem;font-weight:700;color:#6b7280;padding:2px 6px 2px 0;text-align:left;">Date:</td>

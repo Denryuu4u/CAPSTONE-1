@@ -24,7 +24,7 @@
     box-shadow:0 18px 50px rgba(0,0,0,.25);overflow:hidden;animation:vsmPop .16s ease-out;}
   @keyframes vsmPop{from{transform:translateY(8px) scale(.98);opacity:0}to{transform:none;opacity:1}}
   #vsModalOverlay .vsm-body{padding:22px 24px 18px;}
-  #vsModalOverlay .vsm-title{font-family:'Syne','Inter',sans-serif;font-size:1.02rem;font-weight:700;color:#0d1b2a;margin:0 0 6px;}
+  #vsModalOverlay .vsm-title{font-family:'Montserrat','Inter',sans-serif;font-size:1.02rem;font-weight:700;color:#0d1b2a;margin:0 0 6px;}
   #vsModalOverlay .vsm-msg{font-size:.88rem;color:#4b5563;line-height:1.55;white-space:pre-wrap;word-break:break-word;}
   #vsModalOverlay .vsm-foot{display:flex;justify-content:flex-end;gap:8px;padding:0 24px 20px;}
   #vsModalOverlay .vsm-btn{font-size:.82rem;font-weight:600;border-radius:8px;padding:8px 18px;cursor:pointer;

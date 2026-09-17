@@ -22,7 +22,7 @@ $sysUsers = db()->query(
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -153,8 +153,14 @@ $sysUsers = db()->query(
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label add-customer-label">Email</label>
+                            <label class="form-label add-customer-label">Email <span class="text-danger">*</span></label>
                             <input type="email" class="form-control add-customer-input" id="newUserEmail" placeholder="Enter email">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label add-customer-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control add-customer-input" id="newUserPassword" placeholder="Min. 8 characters" minlength="8">
+                            <div class="form-text">Sets the sign-in password for this account.</div>
                         </div>
 
                         <div class="col-md-6">
@@ -218,6 +224,12 @@ $sysUsers = db()->query(
                         <div class="col-md-6">
                             <label class="add-customer-label">Email</label>
                             <input type="email" class="form-control add-customer-input" id="editUserEmail">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="add-customer-label">Password</label>
+                            <input type="password" class="form-control add-customer-input" id="editUserPassword" placeholder="Leave blank to keep current" minlength="8">
+                            <div class="form-text">Only fill this in to reset the password.</div>
                         </div>
 
                         <div class="col-md-6">
@@ -302,10 +314,19 @@ $sysUsers = db()->query(
             // ADD USER
             const addUserBtn = document.getElementById("saveNewUserBtn");
             if (addUserBtn) addUserBtn.addEventListener("click", function () {
+                const name     = (val('newUserFirstName') + ' ' + val('newUserLastName')).trim();
+                const email    = val('newUserEmail').trim();
+                const password = val('newUserPassword');
+                const role     = val('newUserRole');
+                if (!name) { vsAlert('First and last name are required.', {title:'Missing details'}); return; }
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { vsAlert('A valid email is required (used as the login).', {title:'Missing details'}); return; }
+                if (password.length < 8) { vsAlert('Set a password of at least 8 characters for this account.', {title:'Missing details'}); return; }
+                if (role !== 'Super Admin' && role !== 'Admin' && role !== 'Staff') { vsAlert('Please select a role.', {title:'Missing details'}); return; }
                 post('save_user.php', {
-                    full_name: (val('newUserFirstName') + ' ' + val('newUserLastName')).trim(),
-                    email: val('newUserEmail'), phone: val('newUserPhone'),
-                    role: val('newUserRole'), status: val('newUserStatus'),
+                    full_name: name,
+                    email: email, phone: val('newUserPhone'),
+                    role: role, status: val('newUserStatus'),
+                    password: password,
                 }).then(() => { vsToastFlash('User account created.'); location.reload(); }).catch(e => alert(e.message));
             });
 
@@ -320,15 +341,19 @@ $sysUsers = db()->query(
                     document.getElementById("editUserPhone").value = this.dataset.phone || "";
                     document.getElementById("editUserRole").value = this.dataset.role || "";
                     document.getElementById("editUserStatus").value = this.dataset.status || "";
+                    if (document.getElementById("editUserPassword")) document.getElementById("editUserPassword").value = "";
                 });
             });
             document.getElementById("updateUserBtn").addEventListener("click", function() {
                 const last = val('editUserLastName');
+                const password = val('editUserPassword');
+                if (password && password.length < 8) { vsAlert('A new password must be at least 8 characters (or leave it blank to keep the current one).', {title:'Check password'}); return; }
                 post('save_user.php', {
                     id: selectedUserId,
                     full_name: (val('editUserName') + (last ? ' ' + last : '')).trim(),
                     email: val('editUserEmail'), phone: val('editUserPhone'),
                     role: val('editUserRole'), status: val('editUserStatus'),
+                    password: password,
                 }).then(() => { vsToastFlash('User account updated.'); location.reload(); }).catch(e => alert(e.message));
             });
 

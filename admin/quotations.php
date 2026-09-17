@@ -41,7 +41,7 @@ $quoteBadge = [
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -212,14 +212,14 @@ $quoteBadge = [
     </div>
     <div class="modal fade" id="viewQuotationModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content" style="border:none;border-radius:8px;overflow:hidden;font-family:'Syne', sans-serif;">
+        <div class="modal-content" style="border:none;border-radius:8px;overflow:hidden;font-family:'Montserrat', sans-serif;">
 
             <!-- TOP GREEN BAR -->
             <div style="height:10px;background:#2e4a45;"></div>
 
-            <div class="modal-body" style="background:#f3f4f2;padding:20px;font-family:'Syne', sans-serif;">
+            <div class="modal-body" style="background:#f3f4f2;padding:20px;font-family:'Montserrat', sans-serif;">
 
-                <div style="background:#fff;border:1px solid #ccc;font-family:'Syne', sans-serif;">
+                <div style="background:#fff;border:1px solid #ccc;font-family:'Montserrat', sans-serif;">
 
                     <!-- HEADER -->
                     <div class="qd-row-header" style="display:flex;justify-content:space-between;padding:20px;border-bottom:1px solid #ccc;">
@@ -231,7 +231,7 @@ $quoteBadge = [
                                 <img src="../style/assets/logo.jpg" style="width:60px;height:60px;object-fit:contain;">
                             </div>
 
-                            <div style="font-family:'Syne', sans-serif;">
+                            <div style="font-family:'Montserrat', sans-serif;">
                                 <div style="font-size:22px;font-weight:800;">VAST</div>
                                 <div style="font-size:13px;">B34 L1, Hibiscus St. Ceris 1, Calamba, Laguna</div>
                                 <div style="font-size:13px;">+639178850408</div>
@@ -240,7 +240,7 @@ $quoteBadge = [
                         </div>
 
                         <!-- RIGHT -->
-                        <div style="text-align:right;font-family:'Syne', sans-serif;">
+                        <div style="text-align:right;font-family:'Montserrat', sans-serif;">
                             <div style="font-size:18px;letter-spacing:2px;font-weight:700;">SALES QUOTATION</div>
 
                             <div style="margin-top:10px;font-size:13px;">
@@ -256,7 +256,7 @@ $quoteBadge = [
                     <div id="vqCounterCallout" class="counter-callout" style="display:none;margin:16px 20px 0;"></div>
 
                     <!-- BILL / SHIP -->
-                    <div class="qd-billship" style="display:flex;gap:40px;padding:20px;border-bottom:1px solid #ccc;font-family:'Syne', sans-serif;">
+                    <div class="qd-billship" style="display:flex;gap:40px;padding:20px;border-bottom:1px solid #ccc;font-family:'Montserrat', sans-serif;">
 
                         <div style="flex:1;">
                             <div style="font-weight:700;border-bottom:2px solid #ccc;margin-bottom:10px;">BILL TO</div>
@@ -273,7 +273,7 @@ $quoteBadge = [
                     </div>
 
                     <!-- TABLE -->
-                    <div class="qd-table-wrap" style="padding:20px;font-family:'Syne', sans-serif;">
+                    <div class="qd-table-wrap" style="padding:20px;font-family:'Montserrat', sans-serif;">
 
                         <table style="width:100%;border-collapse:collapse;border:2px solid #1f2f2b;">
 
@@ -317,7 +317,7 @@ $quoteBadge = [
                     </div>
 
                     <!-- TERMS -->
-                    <div style="padding:20px;font-size:13px;font-family:'Syne', sans-serif;">
+                    <div style="padding:20px;font-size:13px;font-family:'Montserrat', sans-serif;">
 
                         <b>Terms and Conditions:</b><br><br>
 
@@ -340,7 +340,7 @@ $quoteBadge = [
                     </div>
 
                     <!-- SIGNATURE -->
-                    <div style="padding:20px;font-family:'Syne', sans-serif;">
+                    <div style="padding:20px;font-family:'Montserrat', sans-serif;">
                         <div style="margin-bottom:40px;font-style:italic;">Conforme:</div>
 
                         <div class="qd-sign" style="width:300px;border-top:2px solid #000;">
@@ -354,7 +354,7 @@ $quoteBadge = [
             <!-- FOOTER -->
             <div style="height:10px;background:#2e4a45;"></div>
 
-            <div class="modal-footer" style="font-family:'Syne', sans-serif;">
+            <div class="modal-footer" style="font-family:'Montserrat', sans-serif;">
                 <button class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                 <button class="btn btn-success" id="vqDownloadBtn">
                     <i class="bi bi-download"></i> Download PDF
@@ -370,7 +370,7 @@ $quoteBadge = [
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="border-radius:14px;border:none;">
                 <div class="modal-header">
-                    <h5 class="modal-title" style="font-family:'Syne',sans-serif;">
+                    <h5 class="modal-title" style="font-family:'Montserrat',sans-serif;">
                         <i class="bi bi-arrow-repeat me-1"></i> Revise &amp; Resend Quotation
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

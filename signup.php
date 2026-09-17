@@ -32,11 +32,11 @@ try {
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Sign Up – <?= $be($brandName) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style/signup.css" />
   <style>
     /* Legal modal content (matches legal.php styling) */
-    .legal-modal .modal-title { font-family:'Syne',sans-serif; font-weight:800; }
+    .legal-modal .modal-title { font-family:'Montserrat',sans-serif; font-weight:800; }
     .legal-modal-body { font-size:.9rem; line-height:1.6; color:#374151; }
     .legal-modal-body .legal-h { font-size:1rem; font-weight:700; margin:18px 0 6px; color:#111827; }
     .legal-modal-body p { margin:0 0 10px; }

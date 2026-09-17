@@ -40,7 +40,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $e($title) ?> – Vast Solutions</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
   *{box-sizing:border-box;} body{margin:0;font-family:'Inter',system-ui,sans-serif;background:#f4f5f7;
@@ -49,7 +49,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
     max-width:460px;width:100%;padding:36px 34px;text-align:center;}
   .err-icon{width:72px;height:72px;border-radius:50%;background:#fef2f2;color:#dc2626;display:flex;
     align-items:center;justify-content:center;font-size:2rem;margin:0 auto 18px;}
-  .err-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;color:#0d1b2a;margin:0 0 8px;}
+  .err-title{font-family:'Montserrat',sans-serif;font-size:1.3rem;font-weight:700;color:#0d1b2a;margin:0 0 8px;}
   .err-msg{font-size:.92rem;color:#4b5563;line-height:1.6;margin-bottom:24px;}
   .err-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
   .err-btn{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;font-weight:600;border-radius:9px;

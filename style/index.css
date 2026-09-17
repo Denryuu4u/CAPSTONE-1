@@ -33,7 +33,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: 'Syne', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 1.05rem;
   color: #1a1a2e;
@@ -95,7 +95,11 @@ body {
 
 /* ── HERO ── */
 .hero {
-  background: linear-gradient(160deg, #0d1b2a 0%, #1a2e44 60%, #0f2233 100%);
+  /* CSS-only depth: two soft teal glows over the navy gradient (no image). */
+  background:
+    radial-gradient(circle at 18% 22%, rgba(29,200,154,0.14), transparent 42%),
+    radial-gradient(circle at 85% 78%, rgba(29,200,154,0.10), transparent 46%),
+    linear-gradient(160deg, #0d1b2a 0%, #1a2e44 60%, #0f2233 100%);
   /* Fill the viewport (minus the sticky navbar) so the gallery stays below
      the fold and the headline is seen first. */
   min-height: calc(100vh - 66px);
@@ -103,9 +107,22 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 80px 20px 120px;
+  padding: 90px 20px 120px;
   position: relative;
   overflow: hidden;
+}
+/* Faint grid texture, faded out toward the edges so it never looks like a table. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 20%, transparent 72%);
+  mask-image: radial-gradient(circle at 50% 45%, #000 20%, transparent 72%);
+  pointer-events: none;
 }
 .hero::after {
   content: '';
@@ -113,9 +130,76 @@ body {
   bottom: -1px; left: 0; right: 0;
   height: 100px;
   background: linear-gradient(to bottom, transparent, var(--bg-light));
+  z-index: 1;
+}
+.hero-inner { position: relative; z-index: 2; max-width: 840px; }
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+  background: rgba(29,200,154,0.12);
+  border: 1px solid rgba(29,200,154,0.3);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  margin-bottom: 1.5rem;
+}
+.hero-lead {
+  max-width: 620px;
+  margin: 1.2rem auto 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.72);
+}
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+.hero-tag {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.hero-tag:hover { background: rgba(29,200,154,0.14); border-color: rgba(29,200,154,0.4); }
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2.8rem;
+  margin-top: 3rem;
+  padding-top: 2.2rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.hero-stat { text-align: center; }
+.hero-stat-num {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 1.9rem;
+  color: #fff;
+  line-height: 1;
+}
+.hero-stat-label {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.55);
 }
 .hero-title {
-  font-family: 'Syne', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 800;
   font-size: clamp(2.1rem, 4.5vw, 3.15rem);
   line-height: 1.06;
@@ -176,7 +260,7 @@ body {
   margin-bottom: 0.5rem;
 }
 .section-title {
-  font-family: 'Syne', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 2rem;
   font-weight: 700;
   color: #1a1a2e;
@@ -193,7 +277,7 @@ body {
   text-align: center;
 }
 .step-num {
-  font-family: 'Syne', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 4rem;
   font-weight: 800;
   color: rgba(29, 200, 154, 0.603);
@@ -211,6 +295,82 @@ body {
   color: var(--text-muted-light);
   line-height: 1.6;
 }
+
+/* ── WHY CHOOSE US ── */
+.features-section {
+  background: #fff;
+  padding: 80px 20px;
+  text-align: center;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.4rem;
+  max-width: 1080px;
+  margin: 3rem auto 0;
+}
+.feature-card {
+  background: var(--bg-light);
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  padding: 2rem 1.4rem;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(13,27,42,0.09);
+}
+.feature-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 1rem;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  color: var(--teal);
+  background: rgba(29,200,154,0.12);
+}
+.feature-card h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: #1a1a2e;
+  margin-bottom: 0.5rem;
+}
+.feature-card p {
+  font-size: 0.82rem;
+  color: var(--text-muted-light);
+  line-height: 1.6;
+}
+
+/* ── CTA BAND ── */
+.cta-band {
+  background: linear-gradient(120deg, var(--teal) 0%, var(--teal-dark) 100%);
+  padding: 60px 20px;
+  text-align: center;
+  color: #fff;
+}
+.cta-inner { max-width: 640px; margin: 0 auto; }
+.cta-title {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 1.85rem;
+  margin-bottom: 0.6rem;
+}
+.cta-sub { font-size: 0.95rem; opacity: 0.92; margin-bottom: 1.6rem; }
+.cta-btn {
+  display: inline-block;
+  background: #fff;
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.8rem 1.9rem;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.22); color: var(--navy); }
+
 /* ── BROWSE DESIGNS (view only) ── */
 .designs-section {
   background: var(--bg-light);
@@ -355,7 +515,8 @@ body {
 }
 
 .contact-info h3 {
-  font-family: 'Syne', sans-serif;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
   font-size: 1.6rem;
   margin-bottom: 0.8rem;
 }
@@ -425,31 +586,84 @@ body {
 .contact-form button:hover {
   background: var(--teal-dark);
 }
-.section-fade {
-  height: 120px;
-  background: linear-gradient(
-    to bottom,
-    var(--bg-light),
-    var(--navy)
-  );
-}
-
 /* ── FOOTER ── */
-footer {
+.site-footer {
   background: var(--navy);
-  color: rgba(255,255,255,0.45);
-  text-align: center;
-  font-size: 0.78rem;
-  padding: 1.5rem;
+  color: rgba(255,255,255,0.55);
+  padding: 3rem 2rem 0;
 }
-
-footer a { color: var(--teal); text-decoration: none; }
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1.2fr;
+  gap: 2.5rem;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 2.2rem;
+}
+.footer-col h4 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1rem;
+  letter-spacing: 0.02em;
+}
+.footer-col a {
+  display: block;
+  color: rgba(255,255,255,0.6);
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-bottom: 0.6rem;
+  transition: color 0.2s;
+}
+.footer-col a:hover { color: var(--teal); }
+.footer-col p {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 0.6rem;
+}
+.footer-col p i { color: var(--teal); margin-right: 0.4rem; }
+.footer-brand .footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #fff;
+  text-decoration: none;
+  margin-bottom: 0.9rem;
+}
+.footer-brand p { max-width: 320px; }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.45);
+  padding: 1.2rem;
+}
+.footer-bottom a { color: var(--teal); text-decoration: none; }
 
 /* ── RESPONSIVE ── */
+@media (max-width: 991.98px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .footer-brand { grid-column: 1 / -1; }
+}
+
 @media (max-width: 767.98px) {
   .steps-wrap { gap: 2rem; }
   .contact-wrap { gap: 2rem; }
   .designs-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-stats { gap: 2rem; }
+}
+
+@media (max-width: 479.98px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr; gap: 1.8rem; }
+  .hero-stats { gap: 1.4rem 2rem; }
+  .hero-stat-num { font-size: 1.6rem; }
 }
 
 @media (max-width: 575.98px) {

@@ -78,7 +78,7 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
     <title>Project Monitoring – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="admin.css">
@@ -91,7 +91,7 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
         /* Hero header */
         .pvm-hero { background:#fff; padding:22px 26px 16px; border-bottom:1px solid #e5e7eb; }
         .pvm-hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-        .pvm-title { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; color:#0d1b2a; line-height:1.2; margin:0; }
+        .pvm-title { font-family:'Montserrat',sans-serif; font-size:1.15rem; font-weight:700; color:#0d1b2a; line-height:1.2; margin:0; }
         .pvm-code  { font-size:0.72rem; color:#6b7280; margin-top:3px; }
         .pvm-hero-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 
@@ -147,7 +147,7 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
 
         /* Updates section */
         .pvm-updates-section { padding:18px 26px 24px; }
-        .pvm-section-title { font-family:'Syne',sans-serif; font-size:0.82rem; font-weight:700; color:#0d1b2a; display:flex; align-items:center; gap:6px; margin-bottom:14px; }
+        .pvm-section-title { font-family:'Montserrat',sans-serif; font-size:0.82rem; font-weight:700; color:#0d1b2a; display:flex; align-items:center; gap:6px; margin-bottom:14px; }
         .pvm-section-title i { color:#0D9676; }
 
         /* Composer */
@@ -525,13 +525,13 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
   .trk-summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
   .trk-sum-card{flex:1 1 160px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;}
   .trk-sum-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:4px;}
-  .trk-sum-num{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:#0d1b2a;}
+  .trk-sum-num{font-family:'Montserrat',sans-serif;font-size:1.2rem;font-weight:700;color:#0d1b2a;}
   #trkProfitCard.profit .trk-sum-num{color:#0a7a60;} #trkProfitCard.loss .trk-sum-num{color:#dc2626;}
-  .trk-amount-wrap{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:#0d1b2a;display:flex;align-items:center;gap:4px;}
+  .trk-amount-wrap{font-family:'Montserrat',sans-serif;font-size:1.1rem;font-weight:700;color:#0d1b2a;display:flex;align-items:center;gap:4px;}
   .trk-amount-input{border:1px solid #e5e7eb;border-radius:6px;padding:3px 8px;font-size:1rem;font-weight:700;width:130px;font-family:'Inter',sans-serif;}
   .trk-amount-input:focus{outline:none;border-color:#0D9676;}
   .trk-section{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:14px;}
-  .trk-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;color:#0d1b2a;}
+  .trk-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:'Montserrat',sans-serif;font-size:.82rem;font-weight:700;color:#0d1b2a;}
   .trk-add-btn{border:1px solid #0D9676;color:#0D9676;background:#f0fdf9;border-radius:7px;padding:4px 10px;font-size:.72rem;font-weight:600;cursor:pointer;}
   .trk-add-btn:hover{background:#0D9676;color:#fff;}
   .trk-table{width:100%;border-collapse:collapse;font-size:.78rem;}

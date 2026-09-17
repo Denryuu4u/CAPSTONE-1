@@ -18,7 +18,7 @@ $company = db()->query("SELECT company_name FROM company_settings WHERE id=1")->
   <title><?= htmlspecialchars($doc['title'] ?? 'Legal') ?> – <?= htmlspecialchars($company) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root { --brand:#0D9676; }
     body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; color:#1f2937; margin:0; }
@@ -27,7 +27,7 @@ $company = db()->query("SELECT company_name FROM company_settings WHERE id=1")->
     .legal-tabs a { display:inline-block; padding:7px 14px; border-radius:999px; text-decoration:none; font-size:.85rem; font-weight:600; color:#374151; background:#fff; border:1px solid #e5e7eb; }
     .legal-tabs a.active { background:var(--brand); color:#fff; border-color:var(--brand); }
     .legal-card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:34px 40px; }
-    .legal-card h1 { font-family:'Syne',sans-serif; font-weight:800; font-size:1.6rem; margin:0 0 4px; }
+    .legal-card h1 { font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.6rem; margin:0 0 4px; }
     .legal-updated { color:#6b7280; font-size:.82rem; margin-bottom:20px; }
     .legal-h { font-size:1.02rem; font-weight:700; margin:22px 0 6px; color:#111827; }
     .legal-card p { font-size:.92rem; line-height:1.65; margin:0 0 10px; }

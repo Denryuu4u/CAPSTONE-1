@@ -190,7 +190,7 @@ function industryIcon($i){
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Archive – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="dashboard.css"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -238,7 +238,7 @@ function industryIcon($i){
       border-radius: 50%;
       background: #d1fae5;
       color: #065f46;
-      font-family: 'Syne', sans-serif;
+      font-family: 'Montserrat', sans-serif;
       font-size: .72rem;
       font-weight: 700;
       display: flex; align-items: center; justify-content: center;
@@ -403,7 +403,7 @@ function industryIcon($i){
     .avm-big-avatar.cust { background: #dbeafe; color: #1d4ed8; border-color: rgba(191,219,254,.45); }
 
     .avm-label { font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.4); margin-bottom: 3px; }
-    .avm-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: #fff; margin: 0 0 2px; }
+    .avm-title { font-family: 'Montserrat', sans-serif; font-size: 1rem; font-weight: 800; color: #fff; margin: 0 0 2px; }
     .avm-sub   { font-size: .7rem; color: rgba(255,255,255,.5); }
     .avm-badges { display: flex; gap: 7px; margin-top: 11px; flex-wrap: wrap; }
 
@@ -425,7 +425,7 @@ function industryIcon($i){
       padding: 18px 20px; margin-bottom: 14px;
     }
     .avm-card-title {
-      font-family: 'Syne', sans-serif; font-size: .8rem; font-weight: 700;
+      font-family: 'Montserrat', sans-serif; font-size: .8rem; font-weight: 700;
       color: #0d1b2a; display: flex; align-items: center; gap: 6px; margin-bottom: 14px;
     }
     .avm-card-title i { color: #0D9676; }

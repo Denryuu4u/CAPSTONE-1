@@ -44,7 +44,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -260,13 +260,19 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label add-customer-label">Email</label>
+                            <label class="form-label add-customer-label">Email <span class="text-danger">*</span></label>
                             <input type="email" class="form-control add-customer-input" id="newCustomerEmail" placeholder="Enter email">
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label add-customer-label">Phone Number</label>
                             <input type="text" class="form-control add-customer-input" id="newCustomerPhone" placeholder="Enter phone number">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label add-customer-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control add-customer-input" id="newCustomerPassword" placeholder="Min. 8 characters" minlength="8">
+                            <div class="form-text">Creates a login for this customer (email + password).</div>
                         </div>
 
                         <div class="col-12">
@@ -278,7 +284,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 
                 <div class="modal-footer add-customer-footer">
                     <button type="button" class="btn btn-light border add-customer-cancel" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success add-customer-save" id="saveNewCustomerBtn">Add Customer</button>
+                    <button type="button" class="btn btn-success add-customer-save" id="saveNewCustomerBtn">Save Customer</button>
                 </div>
 
             </div>
@@ -417,16 +423,21 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
     // ADD CUSTOMER
     const addBtn = document.getElementById("saveNewCustomerBtn");
     if (addBtn) addBtn.addEventListener("click", function () {
-        const name = document.getElementById("newCustomerName").value.trim();
+        const name     = document.getElementById("newCustomerName").value.trim();
+        const email    = document.getElementById("newCustomerEmail").value.trim();
+        const password = document.getElementById("newCustomerPassword").value;
         if (!name) { vsAlert('Customer name is required.', {title:'Missing details'}); return; }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { vsAlert('A valid email is required (used as the login).', {title:'Missing details'}); return; }
+        if (password.length < 8) { vsAlert('Set a password of at least 8 characters for the customer login.', {title:'Missing details'}); return; }
         vsConfirm('Please review the customer details.\nAre you sure everything is correct?', {title:'Add customer', okText:'Yes, add customer'}).then(function(ok){
             if (!ok) return;
             post('save_customer.php', {
                 name: name,
-                email: document.getElementById("newCustomerEmail").value,
+                email: email,
                 phone: document.getElementById("newCustomerPhone").value,
                 address: document.getElementById("newCustomerAddress").value,
-            }).then(() => { vsToastFlash('Customer added successfully.'); location.reload(); }).catch(e => alert(e.message));
+                password: password,
+            }).then(() => { vsToastFlash('Customer added with a login account.'); location.reload(); }).catch(e => alert(e.message));
         });
     });
 

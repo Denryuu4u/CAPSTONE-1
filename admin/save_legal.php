@@ -19,7 +19,9 @@ if (current_role() !== 'Super Admin') {
 
 $key   = trim((string) ($_POST['doc_key'] ?? ''));
 $title = trim((string) ($_POST['title'] ?? ''));
-$body  = trim((string) ($_POST['body'] ?? ''));
+// Store canonically ("Vast Solutions"): the editor shows the configured brand,
+// so normalize it back before saving to keep legal text revertible.
+$body  = legal_brand_for_storage(trim((string) ($_POST['body'] ?? '')));
 
 if (!in_array($key, LEGAL_KEYS, true)) {
     http_response_code(422);

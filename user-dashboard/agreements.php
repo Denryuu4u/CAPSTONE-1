@@ -37,12 +37,12 @@ $updatedExisting = count($pending) < count(legal_docs()); // some already accept
   <title>Review our policies – <?= htmlspecialchars($company) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root { --brand:#0D9676; }
     body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; color:#1f2937; margin:0; }
     .wrap { max-width:760px; margin:0 auto; padding:32px 18px 60px; }
-    .intro h1 { font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem; margin:0 0 6px; }
+    .intro h1 { font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.5rem; margin:0 0 6px; }
     .intro p { color:#4b5563; font-size:.92rem; margin:0 0 20px; }
     .doc { background:#fff; border:1px solid #e5e7eb; border-radius:14px; margin-bottom:16px; overflow:hidden; }
     .doc-head { padding:16px 22px; border-bottom:1px solid #eef0f2; display:flex; align-items:center; justify-content:space-between; gap:10px; }

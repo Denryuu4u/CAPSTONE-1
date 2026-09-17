@@ -43,7 +43,7 @@ try {
   <title><?= $be($brandName) ?> – <?= $be($brandTag) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style/index.css" />
 </head>
 
@@ -71,17 +71,59 @@ try {
 
   <!-- HERO -->
   <section class="hero">
-    <div>
+    <div class="hero-inner">
+      <span class="hero-badge"><i class="bi bi-tools"></i> Custom Cabinet Manufacturing</span>
       <h1 class="hero-title">
         <?= $be($brandTagLine1) ?><?php if ($brandTagLine2 !== ''): ?><br>
         <span><?= $be($brandTagLine2) ?></span><?php endif; ?>
       </h1>
-      <p class="hero-sub">
-        Wardrobe <span>|</span> Kitchen <span>|</span> Bathroom <span>|</span> Entertainment <span>|</span> Office
+      <p class="hero-lead">
+        Custom cabinetry designed, manufactured, and installed — from first sketch to final fit.
       </p>
+      <div class="hero-tags">
+        <span class="hero-tag">Wardrobe</span>
+        <span class="hero-tag">Kitchen</span>
+        <span class="hero-tag">Bathroom</span>
+        <span class="hero-tag">Entertainment</span>
+        <span class="hero-tag">Office Built-ins</span>
+      </div>
       <div class="hero-btns">
         <a href="login.php" class="btn-get-started">Get Started &rarr;</a>
         <a href="#designs" class="btn-learn-more">Browse Designs</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-stat-num">10+</span><span class="hero-stat-label">Years of Craft</span></div>
+        <div class="hero-stat"><span class="hero-stat-num">500+</span><span class="hero-stat-label">Projects Delivered</span></div>
+        <div class="hero-stat"><span class="hero-stat-num">100%</span><span class="hero-stat-label">Custom Built</span></div>
+        <div class="hero-stat"><span class="hero-stat-num">5&#9733;</span><span class="hero-stat-label">Client Rated</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-section" id="how">
+    <p class="section-label">How It Works</p>
+    <h2 class="section-title">From Idea to Installation</h2>
+    <div class="steps-wrap">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-name">Request a Quote</div>
+        <p class="step-desc">Log in and tell us your space, style, and measurements — it takes just a few minutes.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-name">Design &amp; Costing</div>
+        <p class="step-desc">We prepare a tailored design and a transparent quotation for your approval.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-name">Manufacturing</div>
+        <p class="step-desc">Your cabinets are precision-built in our workshop using quality materials.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-name">Delivery &amp; Install</div>
+        <p class="step-desc">We deliver and fit everything on-site, then track it through to completion.</p>
       </div>
     </div>
   </section>
@@ -109,7 +151,44 @@ try {
 
     <div class="designs-pagination" id="designsPager"></div>
   </section>
-  <div class="section-fade"></div>
+
+  <!-- WHY CHOOSE US -->
+  <section class="features-section" id="why">
+    <p class="section-label">Why Choose Us</p>
+    <h2 class="section-title">Built Around You</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-rulers"></i></div>
+        <h3>Fully Custom</h3>
+        <p>Every piece is designed to your exact space and style — no off-the-shelf compromises.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-gem"></i></div>
+        <h3>Quality Materials</h3>
+        <p>Durable boards, hardware, and finishes selected to last for years of daily use.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-receipt"></i></div>
+        <h3>Transparent Pricing</h3>
+        <p>Clear, itemized quotations up front — you always know what you're paying for.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-truck"></i></div>
+        <h3>On-Time Delivery</h3>
+        <p>Manufacturing and installation tracked end-to-end so your project stays on schedule.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BAND -->
+  <section class="cta-band">
+    <div class="cta-inner">
+      <h2 class="cta-title">Ready to start your project?</h2>
+      <p class="cta-sub">Get a free, no-obligation quotation tailored to your space.</p>
+      <a href="login.php" class="cta-btn">Get a Free Quote &rarr;</a>
+    </div>
+  </section>
+
   <!-- CONTACT SECTION -->
   <section class="contact-section" id="contact">
     <div class="container">
@@ -169,8 +248,35 @@ try {
     </div>
   </section>
 
-  <footer>
-    &copy; 2025 <?= $be($brandName) ?>. All rights reserved. &nbsp;|&nbsp; <a href="legal.php?doc=terms">Terms &amp; Conditions</a> &nbsp;|&nbsp; <a href="legal.php?doc=privacy">Privacy Policy</a>
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a class="footer-logo" href="index.php">
+          <img src="<?= $be($brandLogo) ?>" alt="Logo" style="width:26px; height:26px; object-fit:contain;">
+          <?= $be($brandName) ?>
+        </a>
+        <p>Custom cabinet manufacturing — designed, built, and installed with precision, from concept to completion.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Explore</h4>
+        <a href="#how">How It Works</a>
+        <a href="#designs">Browse Designs</a>
+        <a href="#why">Why Choose Us</a>
+        <a href="#contact">Contact</a>
+        <a href="login.php">Login</a>
+      </div>
+      <div class="footer-col">
+        <h4>Get in Touch</h4>
+        <p><i class="bi bi-envelope"></i> <?= $ce('web_email') ?></p>
+        <p><i class="bi bi-telephone"></i> <?= $ce('web_phone') ?></p>
+        <p><i class="bi bi-geo-alt"></i> <?= $ce('web_location') ?></p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2025 <?= $be($brandName) ?>. All rights reserved. &nbsp;|&nbsp;
+      <a href="legal.php?doc=terms">Terms &amp; Conditions</a> &nbsp;|&nbsp;
+      <a href="legal.php?doc=privacy">Privacy Policy</a>
+    </div>
   </footer>
 
   <!-- DESIGN LIGHTBOX (view only) -->

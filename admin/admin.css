@@ -92,7 +92,7 @@ body {
     align-items: center;
     gap: 0.55rem;
     padding: 1.2rem 1.1rem 1rem;
-    font-family: 'Syne', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-weight: 700;
     font-size: 0.95rem;
     color: #fff;
@@ -323,7 +323,7 @@ body {
 
 /* DASHBOARD */
 .page-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 1.6rem;
     font-weight: 700;
 }
@@ -333,7 +333,7 @@ body {
 }
 
 .stat-number {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 1.8rem;
     font-weight: 700;
     color: #111827;
@@ -2770,7 +2770,7 @@ body {
 }
 
 .summ-section-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 0.9rem;
     font-weight: 700;
     color: #111827;
@@ -2971,7 +2971,7 @@ body {
 .lib-panel-head {
     background: #2e4a45;
     color: #fff;
-    font-family: 'Syne', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-weight: 700;
     font-size: 0.82rem;
     padding: 0.6rem 0.85rem;

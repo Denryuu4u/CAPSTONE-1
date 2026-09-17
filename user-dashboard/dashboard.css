@@ -2,7 +2,7 @@
    Vast Solutions – Dashboard Shared Styles
    ========================================= */
 
-   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
    :root {
      --teal:         #0D9676;
@@ -65,7 +65,7 @@
      align-items: center;
      gap: 0.55rem;
      padding: 1.2rem 1.1rem 1rem;
-     font-family: 'Syne', sans-serif;
+     font-family: 'Montserrat', sans-serif;
      font-weight: 700;
      font-size: 0.95rem;
      color: #fff;
@@ -233,13 +233,75 @@
    }
    
    .page-title {
-     font-family: 'Syne', sans-serif;
+     font-family: 'Montserrat', sans-serif;
      font-weight: 700;
      font-size: 1.55rem;
      color: var(--text);
      margin-bottom: 1.5rem;
    }
-   
+
+   /* =========================================
+      WELCOME HERO (customer homepage banner)
+      ========================================= */
+   .welcome-hero {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     gap: 1.25rem;
+     flex-wrap: wrap;
+     background: linear-gradient(120deg, var(--navy) 0%, var(--navy-mid) 55%, var(--teal-dark) 130%);
+     color: #fff;
+     border-radius: 16px;
+     padding: 1.6rem 1.9rem;
+     margin-bottom: 1.5rem;
+     box-shadow: 0 10px 24px rgba(13,27,42,0.18);
+   }
+   .welcome-hero-title {
+     font-family: 'Montserrat', sans-serif;
+     font-weight: 800;
+     font-size: 1.6rem;
+     margin: 0 0 0.35rem;
+     line-height: 1.2;
+   }
+   .welcome-hero-sub {
+     margin: 0;
+     font-size: 0.9rem;
+     color: rgba(255,255,255,0.8);
+   }
+   .welcome-hero-meta {
+     display: flex;
+     flex-direction: column;
+     align-items: flex-end;
+     gap: 0.7rem;
+   }
+   .welcome-hero-date {
+     font-size: 0.8rem;
+     font-weight: 500;
+     color: rgba(255,255,255,0.7);
+     white-space: nowrap;
+   }
+   .welcome-hero-btn {
+     display: inline-flex;
+     align-items: center;
+     gap: 0.4rem;
+     background: var(--teal);
+     color: #fff;
+     text-decoration: none;
+     font-size: 0.85rem;
+     font-weight: 600;
+     padding: 0.5rem 1rem;
+     border-radius: 9px;
+     transition: background 0.18s;
+     white-space: nowrap;
+   }
+   .welcome-hero-btn:hover { background: var(--teal-dark); color: #fff; }
+
+   @media (max-width: 640px) {
+     .welcome-hero { padding: 1.3rem 1.3rem; }
+     .welcome-hero-title { font-size: 1.3rem; }
+     .welcome-hero-meta { align-items: flex-start; width: 100%; }
+   }
+
    /* =========================================
       CARDS
       ========================================= */
@@ -282,7 +344,7 @@
    .stat-icon.teal   { background: var(--teal-light);      color: var(--teal); }
    
    .stat-num {
-     font-family: 'Syne', sans-serif;
+     font-family: 'Montserrat', sans-serif;
      font-weight: 700;
      font-size: 1.6rem;
      color: var(--text);
@@ -612,7 +674,7 @@
      max-width: 680px; margin: 0 auto;
    }
    .q-paper-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.8rem; }
-   .q-company-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--text); }
+   .q-company-name { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--text); }
    .q-company-sub  { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
    .q-label-right  { text-align: right; }
    .q-word         { font-weight: 700; font-size: 0.88rem; letter-spacing: 0.1em; color: var(--text); }
@@ -692,7 +754,7 @@
      width: 52px; height: 52px; border-radius: 50%;
      background: var(--blue);
      display: flex; align-items: center; justify-content: center;
-     font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; color: #fff;
+     font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 1rem; color: #fff;
    }
    .btn-change-photo {
      background: #fff; border: 1.5px solid var(--border);

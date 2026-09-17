@@ -8,7 +8,11 @@ require_once __DIR__ . '/../includes/project_status.php';
 
 $active_page = 'dashboard';
 
-$user_name = $_SESSION['full_name'] ?? 'John Doe';
+$user_name  = $_SESSION['full_name'] ?? 'John Doe';
+$first_name = explode(' ', trim($user_name))[0] ?: $user_name;
+// Time-aware greeting for the homepage welcome banner.
+$__hour   = (int) date('G');
+$greeting = $__hour < 12 ? 'Good morning' : ($__hour < 18 ? 'Good afternoon' : 'Good evening');
 
 require_once __DIR__ . '/../includes/helpers.php';
 $__cid = current_user()['id'] ?? 0;
@@ -36,7 +40,7 @@ $dashRecent = $__rp->fetchAll();
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="dashboard.css"/>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -62,7 +66,20 @@ $dashRecent = $__rp->fetchAll();
   </div>
 
   <div class="page-content">
-    <h1 class="page-title">Dashboard</h1>
+
+    <!-- WELCOME HERO -->
+    <div class="welcome-hero">
+      <div class="welcome-hero-text">
+        <h1 class="welcome-hero-title">Welcome, <?= htmlspecialchars($first_name) ?>! 👋</h1>
+        <p class="welcome-hero-sub"><?= $greeting ?> — here's what's happening with your projects today.</p>
+      </div>
+      <div class="welcome-hero-meta">
+        <div class="welcome-hero-date"><?= date('l, F j, Y') ?></div>
+        <a href="request_quote.php" class="welcome-hero-btn">
+          <i class="bi bi-plus-lg"></i> Request a Quote
+        </a>
+      </div>
+    </div>
 
     <!-- STAT CARDS -->
     <div class="stats-row">

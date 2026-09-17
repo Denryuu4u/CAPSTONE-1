@@ -44,7 +44,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -366,7 +366,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                         </div>
                         <!-- current values, read when opening the modal -->
                         <input type="hidden" class="legal-store-title" value="<?= htmlspecialchars((string) $__doc['title'], ENT_QUOTES) ?>">
-                        <textarea class="legal-store-body d-none"><?= htmlspecialchars((string) $__doc['body']) ?></textarea>
+                        <textarea class="legal-store-body d-none"><?= htmlspecialchars(legal_brand_for_display((string) $__doc['body'])) ?></textarea>
                     </div>
                     <?php endforeach; ?>
                 </div>

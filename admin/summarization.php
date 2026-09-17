@@ -33,7 +33,7 @@ try {
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -212,7 +212,7 @@ try {
                     <div class="summ-modal-icon mb-3">
                         <i class="bi bi-check-circle-fill"></i>
                     </div>
-                    <h6 class="fw-bold mb-1" style="font-family:'Syne',sans-serif;">Mark Ready for Production?</h6>
+                    <h6 class="fw-bold mb-1" style="font-family:'Montserrat',sans-serif;">Mark Ready for Production?</h6>
                     <p class="text-muted mb-4" style="font-size:0.8rem;">This will move <strong id="fabricationProjectName"></strong> to <em>Production in Progress</em>, notify the production team, and lock the material list.</p>
                     <div class="d-flex gap-2 justify-content-center">
                         <button class="btn btn-light btn-sm px-4" data-bs-dismiss="modal" style="font-size:0.75rem; border-radius:6px;">Cancel</button>
@@ -228,7 +228,7 @@ try {
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content" style="border-radius:14px; border:none;">
                 <div class="modal-header">
-                    <h5 class="modal-title" style="font-family:'Syne',sans-serif;">
+                    <h5 class="modal-title" style="font-family:'Montserrat',sans-serif;">
                         <i class="bi bi-journal-text me-1"></i> Custom Material &amp; Edge Library
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

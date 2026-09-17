@@ -92,8 +92,41 @@ function require_agreements(string $agreementsPath = 'agreements.php'): void
  * Markup:  "# heading", "- bullet", "-- sub-bullet", blank line = new block,
  * everything else = paragraph text. All text is HTML-escaped.
  */
+/**
+ * Configured company name (cached), falling back to the default. Legal text is
+ * stored canonically under 'Vast Solutions' and shown under the configured brand
+ * so a rebrand (Settings → Branding & Identity) reflects everywhere and reverts
+ * cleanly when the name is restored.
+ */
+function legal_company_name(): string
+{
+    static $brand = null;
+    if ($brand === null) {
+        try { $brand = trim((string) db()->query("SELECT company_name FROM company_settings WHERE id = 1")->fetchColumn()); }
+        catch (Throwable $e) { $brand = ''; }
+        if ($brand === '') $brand = 'Vast Solutions';
+    }
+    return $brand;
+}
+
+/** Canonical stored text → what the reader/editor sees (default name → brand). */
+function legal_brand_for_display(string $body): string
+{
+    $b = legal_company_name();
+    return $b !== 'Vast Solutions' ? str_replace('Vast Solutions', $b, $body) : $body;
+}
+
+/** Edited text → canonical for storage (brand → default name), keeping it revertible. */
+function legal_brand_for_storage(string $body): string
+{
+    $b = legal_company_name();
+    return $b !== 'Vast Solutions' ? str_replace($b, 'Vast Solutions', $body) : $body;
+}
+
 function legal_render(string $body): string
 {
+    $body = legal_brand_for_display($body);
+
     $lines = preg_split('/\r\n|\r|\n/', $body);
     $html  = '';
     $list  = 0; // current open <ul> nesting depth (0,1,2)
