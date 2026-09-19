@@ -31,6 +31,7 @@ $progressMap = [
 
 $pdo = db();
 ensure_completion_columns();
+ensure_prev_status_column(); // so the change can be rolled back
 $row = $pdo->prepare("SELECT * FROM projects WHERE id = ?");
 $row->execute([$projectId]);
 $project = $row->fetch();
@@ -49,11 +50,13 @@ if ($currentIdx !== null && $newIdx !== null && $newIdx < $currentIdx) {
 $isCompleting = ($status === 'completed' && $project['status'] !== 'completed');
 
 try {
+    // Record the phase we're leaving so the monitoring view can undo this change.
     if (isset($progressMap[$status])) {
-        $pdo->prepare("UPDATE projects SET status = ?, progress = ? WHERE id = ?")
-            ->execute([$status, $progressMap[$status], $projectId]);
+        $pdo->prepare("UPDATE projects SET status = ?, progress = ?, prev_status = ? WHERE id = ?")
+            ->execute([$status, $progressMap[$status], $project['status'], $projectId]);
     } else {
-        $pdo->prepare("UPDATE projects SET status = ? WHERE id = ?")->execute([$status, $projectId]);
+        $pdo->prepare("UPDATE projects SET status = ?, prev_status = ? WHERE id = ?")
+            ->execute([$status, $project['status'], $projectId]);
     }
 
     $label = project_status_label($status);

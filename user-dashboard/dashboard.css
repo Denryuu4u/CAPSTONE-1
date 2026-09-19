@@ -440,6 +440,8 @@
      display: flex;
      justify-content: space-between;
      align-items: center;
+     flex-wrap: wrap;
+     gap: 0.8rem;
      margin-bottom: 1rem;
    }
    .btn-new {
@@ -904,7 +906,28 @@
    }
    .notif-dropdown.open .notif-menu { display: block; }
    .notif-list { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-   .notif-item.is-read { opacity: 0.6; }
+   /* Unread notifications are highlighted; read ones are plain + muted. */
+   .notif-item:not(.is-read) { background: #f0fdf9; border-left: 3px solid var(--teal, #0D9676); }
+   .notif-item:not(.is-read) .notif-item-title { font-weight: 700; color: #0f172a; }
+   .notif-item:not(.is-read):hover { background: #e7f9f3; }
+   .notif-item.is-read { opacity: 0.72; }
+   .notif-item.is-read .notif-dot { background: #cbd5e1 !important; box-shadow: none !important; }
+
+   /* ── MY PROJECTS: filters, priority rows, approval sub-statuses ── */
+   .mp-filters { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; flex:1 1 100%; justify-content:flex-start; }
+   .mp-filters .btn-new { margin-left:auto; }
+   .mp-filters .mp-query { max-width:190px; font-size:.85rem; }
+   .mp-filter-input { max-width:160px; font-size:.85rem; }
+   .mp-date-label { display:inline-flex; align-items:center; gap:.35rem; font-size:.72rem; color:var(--text-muted); margin:0; white-space:nowrap; }
+   .mp-date-label input { max-width:145px; }
+   .mp-clear-btn { font-size:.8rem; font-weight:600; color:var(--text-muted); background:#fff; border:1px solid var(--border); border-radius:8px; padding:.4rem .8rem; cursor:pointer; transition:border-color .15s,color .15s; }
+   .mp-clear-btn:hover { border-color:var(--teal); color:var(--teal); }
+   .proj-priority > td { background:#fffdf5; }
+   .proj-priority:hover > td { background:#fef9ec; }
+   .proj-action-flag { display:inline-block; margin-left:8px; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:2px 7px; border-radius:999px; vertical-align:middle; }
+   .badge-status.st-await-review   { background: rgba(245,158,11,0.14); color:#b45309; }
+   .badge-status.st-await-approval { background: rgba(37,99,235,0.14);  color:#1d4ed8; }
+   .badge-status.st-countered      { background: rgba(139,92,246,0.14); color:#6d28d9; }
    .notif-head {
      display: flex; align-items: center; justify-content: space-between;
      padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--border);

@@ -27,11 +27,16 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('input[class*="-search"]').forEach(function (input) {
     var cls = Array.prototype.find.call(input.classList, function (c) { return /-search$/.test(c); });
     if (!cls) return;
-    var table = document.querySelector('.' + cls.slice(0, -7) + '-table');
-    if (table) initTableTool(table, input);
+    var name = cls.slice(0, -7);
+    var table = document.querySelector('.' + name + '-table');
+    // Optional filter dropdowns paired by class "<name>-filter"; each carries a
+    // data-col (0-based column index) whose cell text is matched against the value.
+    var filters = Array.prototype.slice.call(document.querySelectorAll('select.' + name + '-filter'));
+    if (table) initTableTool(table, input, filters);
   });
 
-  function initTableTool(table, input) {
+  function initTableTool(table, input, filters) {
+    filters = filters || [];
     var tbody = table.querySelector('tbody');
     if (!tbody) return;
     var dataRows = Array.prototype.filter.call(tbody.querySelectorAll(':scope > tr'), function (tr) {
@@ -68,7 +73,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function apply() {
       var q = input ? input.value.trim().toLowerCase() : '';
-      filtered = dataRows.filter(function (tr) { return tr.textContent.toLowerCase().indexOf(q) !== -1; });
+      var active = filters.map(function (f) { return { col: parseInt(f.getAttribute('data-col'), 10), val: f.value }; });
+      filtered = dataRows.filter(function (tr) {
+        if (q && tr.textContent.toLowerCase().indexOf(q) === -1) return false;
+        for (var i = 0; i < active.length; i++) {
+          var a = active[i];
+          if (!a.val) continue;                       // "" = All
+          var cell = tr.children[a.col];
+          var txt = (cell ? cell.textContent : '').trim().toLowerCase();
+          if (txt.indexOf(a.val.toLowerCase()) === -1) return false;
+        }
+        return true;
+      });
       var pages = Math.max(1, Math.ceil(filtered.length / pageSize));
       if (page > pages) page = pages;
       dataRows.forEach(function (tr) { tr.style.display = 'none'; });
@@ -90,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
     prevBtn.addEventListener('click', function () { if (page > 1) { page--; apply(); } });
     nextBtn.addEventListener('click', function () { page++; apply(); });
     if (input) input.addEventListener('input', function () { page = 1; apply(); });
+    filters.forEach(function (f) { f.addEventListener('change', function () { page = 1; apply(); }); });
     apply();
   }
 });

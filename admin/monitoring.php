@@ -12,11 +12,12 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
 
 // Auto-confirm any completed projects the client left unconfirmed past the deadline.
 auto_confirm_completions();
+ensure_prev_status_column(); // rollback support (self-migrating)
 
 // Live projects (exclude rejected). materials_key / updates_key are the project id.
 $monitor_projects = [];
 foreach (db()->query(
-    "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status,
+    "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status, p.prev_status,
             p.target_completion, p.start_date, p.progress, p.approver, p.description,
             p.completion_notified_at, p.client_confirmed_at,
             q.id AS quotation_id, q.quote_code, q.total_amount AS quote_total, q.status AS quote_status
@@ -34,6 +35,7 @@ foreach (db()->query(
         'project'  => $r['project_name'],
         'customer' => $r['customer'] ?? '—',
         'status'   => $r['status'],
+        'prev_status' => $r['prev_status'] ?? '',
         'target'   => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
         'start'    => $r['start_date'] ?? '',
         'progress' => (int) $r['progress'],
@@ -106,6 +108,10 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
         .pvm-state-select:focus { outline:none; border-color:#0D9676; }
         .pvm-state-select.state-active { border-color:#0D9676; color:#0D9676; background-color:#f0fdf9; }
         .pvm-state-select.state-paused { border-color:#f59e0b; color:#d97706; background-color:#fffbeb; }
+        .pvm-revert-btn { display:inline-flex; align-items:center; gap:5px; font-size:.78rem; font-weight:600;
+            padding:6px 12px; border-radius:8px; border:1px solid #fca5a5; color:#dc2626; background:#fef2f2;
+            cursor:pointer; transition:background .15s,border-color .15s; }
+        .pvm-revert-btn:hover { background:#fee2e2; border-color:#f87171; }
 
         /* Edit button */
         .pvm-edit-btn {
@@ -261,16 +267,23 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                                 <div class="monitor-actions">
                                     <div class="action-left">
                                         <?php if ($can_complete): ?>
-                                        <a href="#" class="monitor-action complete"><i class="bi bi-check-circle"></i><span>Complete</span></a>
+                                        <a href="#" class="monitor-action complete" title="Mark complete"><i class="bi bi-check-circle"></i><span>Complete</span></a>
                                         <?php endif; ?>
                                     </div>
                                     <div class="action-right">
-                                        <a href="#" class="monitor-action view-project-btn"
+                                        <a href="#" class="monitor-action chat-project-btn" title="Chat"
+                                            data-chat-open
+                                            data-chat-id="<?= (int) $p['id'] ?>"
+                                            data-chat-name="<?= htmlspecialchars($p['project']) ?>">
+                                            <i class="bi bi-chat-dots"></i><span>Chat</span>
+                                        </a>
+                                        <a href="#" class="monitor-action view-project-btn" title="View project"
                                             data-code="<?= $p['code'] ?>"
                                             data-project="<?= htmlspecialchars($p['project']) ?>"
                                             data-customer="<?= htmlspecialchars($p['customer']) ?>"
                                             data-target="<?= htmlspecialchars($p['target']) ?>"
                                             data-status="<?= project_status_key($p['status']) ?>"
+                                            data-prev-status="<?= htmlspecialchars($p['prev_status']) ?>"
                                             data-details="<?= htmlspecialchars($p['details']) ?>"
                                             data-start="<?= $p['start'] ?>" data-progress="<?= $p['progress'] ?>"
                                             data-approver="<?= htmlspecialchars($p['approver']) ?>"
@@ -318,6 +331,9 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                             <option value="<?= $key ?>"><?= htmlspecialchars($label) ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <button type="button" class="pvm-revert-btn" id="pvmRevertBtn" title="Undo the last status change" style="display:none;">
+                            <i class="bi bi-arrow-counterclockwise"></i> Revert
+                        </button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
                     </div>
                 </div>
@@ -622,6 +638,8 @@ document.getElementById('pvmImageInput').addEventListener('change',function(){
 
 // ── POST UPDATE (persists to the database + notifies the client) ──
 let currentProjectId = 0;
+let currentPrevStatus = '';   // the recorded previous phase (exact undo), if any
+let currentRevertTarget = ''; // where "Revert" will move the project (prev, else one phase back)
 let currentRow = null; // the monitoring-table <tr> currently open in the modal
 document.getElementById('pvmPostBtn').addEventListener('click',function(){
     const input=document.getElementById('pvmUpdateInput');
@@ -728,6 +746,42 @@ function statusKeyForIdx(idx){
     const keys=Object.keys(PROJECT_STATUS.phases);
     return keys[idx] || keys[0];
 }
+
+// ── REVERT / UNDO the last status change (error protection) ──
+// Delegated so it works regardless of where #revertModal sits in the DOM.
+(function(){
+    let bsRevert = null;
+    function getModal(){
+        if (!bsRevert) { const el = document.getElementById('revertModal'); if (el) bsRevert = new bootstrap.Modal(el); }
+        return bsRevert;
+    }
+    document.addEventListener('click', function(e){
+        const openBtn = e.target.closest ? e.target.closest('#pvmRevertBtn') : null;
+        if (openBtn) {
+            if (!currentProjectId || !currentRevertTarget) return;
+            document.getElementById('revertProjName').textContent =
+                (currentProjectName || document.getElementById('viewProjectModalLabel').textContent || 'this project');
+            document.getElementById('revertPrevLabel').textContent = statusLabel(currentRevertTarget);
+            const codeEl = document.getElementById('revertAdminCode');
+            if (codeEl) codeEl.value = '';
+            const m = getModal();
+            if (m) { m.show(); if (codeEl) setTimeout(function(){ codeEl.focus(); }, 250); }
+            return;
+        }
+        const confirmBtn = e.target.closest ? e.target.closest('#revertConfirmBtn') : null;
+        if (confirmBtn) {
+            const codeEl = document.getElementById('revertAdminCode');
+            const body = new URLSearchParams({ project_id: currentProjectId });
+            if (codeEl) body.append('revert_code', codeEl.value.trim());
+            confirmBtn.disabled = true;
+            fetch('revert_project_status.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+                .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+                .then(d=>{ const m=getModal(); if(m) m.hide(); vsToastFlash('Change reverted to "'+d.label+'".'); location.reload(); })
+                .catch(err=>{ vsAlert(err.message, {title:'Could not revert'}); })
+                .finally(()=>{ confirmBtn.disabled=false; });
+        }
+    });
+})();
 document.getElementById('pvmUpdateInput').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&e.ctrlKey) document.getElementById('pvmPostBtn').click();
 });
@@ -758,6 +812,14 @@ function fillProjectModal(btn){
     renderStepTracker('pvmStepTracker', getStepIdx(d.status));
     currentPhaseIdx = getStepIdx(d.status);
     lockPhaseOptions(currentPhaseIdx);
+
+    // Revert target: the recorded previous phase (exact undo) or, failing that,
+    // one phase back in the sequence — so revert is available whenever the project
+    // is past the first phase, not only right after a monitoring change.
+    currentPrevStatus   = d.prevStatus || '';
+    currentRevertTarget = currentPrevStatus || (currentPhaseIdx > 0 ? statusKeyForIdx(currentPhaseIdx - 1) : '');
+    const revertBtn = document.getElementById('pvmRevertBtn');
+    if (revertBtn) revertBtn.style.display = currentRevertTarget ? 'inline-flex' : 'none';
 
     // Client confirmation (only meaningful once completed)
     const confWrap=document.getElementById('wrapClientConfirm');
@@ -998,5 +1060,35 @@ document.addEventListener('DOMContentLoaded',function(){
   });
 })();
 </script>
+<!-- REVERT (UNDO) CONFIRMATION MODAL -->
+<div class="modal fade" id="revertModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;">
+      <div class="modal-header" style="background:#fef2f2;border-bottom:1px solid #fee2e2;">
+        <h6 class="modal-title fw-bold" style="color:#b91c1c;"><i class="bi bi-arrow-counterclockwise me-1"></i>Undo status change</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="font-size:.9rem;color:#374151;">
+        <p class="mb-2">Are you sure you want to undo the last status change?</p>
+        <p class="mb-0">This will move <b id="revertProjName">this project</b> back to
+           <b id="revertPrevLabel" style="color:#0d9676;">—</b>.</p>
+        <?php if (!in_array(current_role(), ['Super Admin', 'Admin'], true)): ?>
+        <div class="mt-3">
+          <label class="form-label small fw-semibold mb-1">Authorization code required</label>
+          <input type="text" id="revertAdminCode" class="form-control form-control-sm text-uppercase"
+                 placeholder="Enter revert code (e.g. R7K2QX)" autocomplete="off" maxlength="20" style="letter-spacing:.08em;">
+          <div class="form-text">Reverting a change needs a code generated by an admin (Settings &rarr; Revert Codes).</div>
+        </div>
+        <?php endif; ?>
+      </div>
+      <div class="modal-footer" style="background:#f8fafc;border-top:1px solid #e5e7eb;">
+        <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger" id="revertConfirmBtn"><i class="bi bi-arrow-counterclockwise me-1"></i>Yes, undo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php include __DIR__ . '/../includes/chat_modal.php'; // project chat (client <-> back office) ?>
 </body>
 </html>

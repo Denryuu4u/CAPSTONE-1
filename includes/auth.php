@@ -20,6 +20,10 @@
  * Accepts: false / 0 / off / no  (case-insensitive) to turn it off.
  */
 
+// The business runs in the Philippines — pin PHP's clock to Manila so greetings,
+// time_ago(), and any date() output match local time regardless of server locale.
+date_default_timezone_set('Asia/Manila');
+
 // Resolve DEV_MODE from the environment: unset -> true (local dev default);
 // false / 0 / off / no (case-insensitive) -> false (e.g. production on Railway).
 $__devEnv = getenv('DEV_MODE');

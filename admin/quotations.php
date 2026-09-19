@@ -16,6 +16,12 @@ $quotes = db()->query(
       ORDER BY q.date_created DESC, q.id DESC"
 )->fetchAll();
 
+// Priority: quotations needing attention float to the top — counter-offers and
+// those awaiting approval first, then those sent to the client; approved/rejected
+// settle below. Stable sort keeps newest-first order within each group.
+$__qRank = ['Countered' => 0, 'Accepted' => 1, 'Sent' => 2];
+usort($quotes, fn($a, $b) => ($__qRank[$a['status']] ?? 9) <=> ($__qRank[$b['status']] ?? 9));
+
 // Items grouped by quotation (for the admin view modal — internal breakdown).
 $itemsByQuote = [];
 foreach (db()->query("SELECT quotation_id, description, qty, unit_cost, line_total FROM quotation_items ORDER BY sort_order, id") as $it) {
@@ -153,8 +159,9 @@ $quoteBadge = [
                                 $counterAmt    = ($q['counter_amount'] !== null && $q['counter_amount'] !== '') ? peso($q['counter_amount']) : '';
                                 $counterAmtRaw = ($q['counter_amount'] !== null) ? (float) $q['counter_amount'] : 0;
                                 $counterCmt    = (string) ($q['counter_comment'] ?? '');
+                                $isPriority    = in_array($q['status'], ['Countered', 'Accepted', 'Sent'], true);
                             ?>
-                            <tr data-status="<?= htmlspecialchars($q['status']) ?>">
+                            <tr data-status="<?= htmlspecialchars($q['status']) ?>" class="<?= $isPriority ? 'quote-priority' : '' ?>">
                                 <td><?= htmlspecialchars($q['quote_code']) ?></td>
                                 <td><?= htmlspecialchars($q['customer_name'] ?? '—') ?></td>
                                 <td class="quotation-project"><?= htmlspecialchars($q['project_name']) ?></td>

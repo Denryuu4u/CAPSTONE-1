@@ -292,6 +292,36 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             </div>
             <?php endif; // $canAdminSettings (Design Gallery) ?>
 
+            <?php if ($canAdminSettings):
+                ensure_revert_codes_table();
+                $revertCodes = [];
+                try { $revertCodes = db()->query("SELECT id, code, created_at, used_at FROM revert_codes ORDER BY created_at DESC")->fetchAll(); } catch (Throwable $e) {}
+            ?>
+            <!-- Revert Authorization Codes -->
+            <div class="settings-card mt-3" id="revertCodesCard">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+                    <div>
+                        <div class="settings-card-title mb-0">Revert Authorization Codes</div>
+                        <p class="settings-card-sub" style="margin:.35rem 0 0;max-width:720px;">Reusable codes that let staff undo a project's status change in Monitoring. Generate one, share it with your staff, and revoke it anytime — it stays valid until you remove it.</p>
+                    </div>
+                    <button type="button" class="settings-save-btn" id="genRevertCodeBtn" style="width:auto;padding:8px 14px;">
+                        <i class="bi bi-plus-lg"></i> <span>Generate code</span>
+                    </button>
+                </div>
+                <div id="revertCodesList" class="revert-codes-list mt-2">
+                    <div class="text-muted small" id="revertCodesEmpty" <?= $revertCodes ? 'style="display:none;"' : '' ?>>No active codes. Generate one to authorize a staff revert.</div>
+                    <?php foreach ($revertCodes as $rc): ?>
+                    <div class="revert-code-item" data-id="<?= (int) $rc['id'] ?>">
+                        <span class="revert-code-value"><?= htmlspecialchars($rc['code']) ?></span>
+                        <span class="revert-code-date">Generated <?= date('M d, Y', strtotime($rc['created_at'])) ?><?= !empty($rc['used_at']) ? ' · last used ' . date('M d, Y', strtotime($rc['used_at'])) : '' ?></span>
+                        <button type="button" class="revert-code-copy" title="Copy code" data-code="<?= htmlspecialchars($rc['code']) ?>"><i class="bi bi-clipboard"></i></button>
+                        <button type="button" class="revert-code-revoke" title="Revoke code" data-id="<?= (int) $rc['id'] ?>"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; // $canAdminSettings (Revert Codes) ?>
+
             <style>
                 .gallery-manage-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:12px; margin-top:10px; }
                 .gallery-manage-item { position:relative; border-radius:8px; overflow:hidden; border:1px solid #e5e7eb; aspect-ratio:4/3; background:#f9fafb; }
@@ -327,6 +357,20 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                     background:rgba(255,255,255,.9); border:2px solid #9ca3af; display:none;
                     align-items:center; justify-content:center; color:#fff; font-size:14px; z-index:2;
                 }
+
+                /* Revert authorization codes */
+                .revert-codes-list { display:flex; flex-direction:column; gap:8px; }
+                .revert-code-item { display:flex; align-items:center; gap:12px; padding:10px 14px;
+                    border:1px solid #e5e7eb; border-radius:10px; background:#f9fafb; flex-wrap:wrap; }
+                .revert-code-value { font-family:'Courier New',monospace; font-weight:700; font-size:1.05rem;
+                    letter-spacing:.12em; color:#0f172a; background:#fff; border:1px solid #e5e7eb;
+                    border-radius:7px; padding:4px 12px; }
+                .revert-code-date { font-size:.78rem; color:#6b7280; margin-right:auto; }
+                .revert-code-copy, .revert-code-revoke { border:1px solid #e5e7eb; background:#fff; color:#374151;
+                    width:34px; height:34px; border-radius:8px; cursor:pointer; display:inline-flex;
+                    align-items:center; justify-content:center; transition:border-color .15s,color .15s,background .15s; }
+                .revert-code-copy:hover { border-color:var(--teal); color:var(--teal); }
+                .revert-code-revoke:hover { border-color:#fca5a5; color:#dc2626; background:#fef2f2; }
                 #galleryGrid.selecting .gallery-check { display:flex; }
                 .gallery-manage-item.selected { outline:3px solid #0D9676; outline-offset:-3px; }
                 .gallery-manage-item.selected .gallery-check { background:#0D9676; border-color:#0D9676; }
@@ -777,6 +821,69 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
                 btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
             });
         });
+    </script>
+    <script>
+        // ── Revert authorization codes (generate / copy / revoke) ──
+        (function () {
+            const genBtn = document.getElementById('genRevertCodeBtn');
+            const list   = document.getElementById('revertCodesList');
+            if (!genBtn || !list) return;
+            const emptyMsg = document.getElementById('revertCodesEmpty');
+            const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+            function itemHtml(id, code, dateStr) {
+                return '<div class="revert-code-item" data-id="' + id + '">'
+                    + '<span class="revert-code-value">' + esc(code) + '</span>'
+                    + '<span class="revert-code-date">Generated ' + esc(dateStr) + '</span>'
+                    + '<button type="button" class="revert-code-copy" title="Copy code" data-code="' + esc(code) + '"><i class="bi bi-clipboard"></i></button>'
+                    + '<button type="button" class="revert-code-revoke" title="Revoke code" data-id="' + id + '"><i class="bi bi-trash"></i></button>'
+                    + '</div>';
+            }
+
+            genBtn.addEventListener('click', function () {
+                genBtn.disabled = true;
+                fetch('generate_revert_code.php', { method: 'POST' })
+                    .then(r => r.json())
+                    .then(function (d) {
+                        if (!d.ok) throw new Error(d.error || 'Failed');
+                        if (emptyMsg) emptyMsg.style.display = 'none';
+                        const now = new Date();
+                        const ds = now.toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' })
+                                 + ' · ' + now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+                        list.insertAdjacentHTML('afterbegin', itemHtml(d.id, d.code, ds));
+                        if (window.vsToastFlash) vsToastFlash('Code ' + d.code + ' generated.');
+                        else if (window.vsToast) vsToast('Code ' + d.code + ' generated.');
+                    })
+                    .catch(e => { if (window.vsAlert) vsAlert(e.message); })
+                    .finally(() => { genBtn.disabled = false; });
+            });
+
+            list.addEventListener('click', function (e) {
+                const copyBtn = e.target.closest ? e.target.closest('.revert-code-copy') : null;
+                if (copyBtn) {
+                    const code = copyBtn.getAttribute('data-code');
+                    if (navigator.clipboard) navigator.clipboard.writeText(code).then(function () {
+                        if (window.vsToast) vsToast('Code copied: ' + code);
+                    });
+                    return;
+                }
+                const revokeBtn = e.target.closest ? e.target.closest('.revert-code-revoke') : null;
+                if (revokeBtn) {
+                    const id = revokeBtn.getAttribute('data-id');
+                    vsConfirm('Revoke this code? It will no longer work.', { title: 'Revoke code', okText: 'Revoke', tone: 'danger' }).then(function (ok) {
+                        if (!ok) return;
+                        fetch('revoke_revert_code.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id=' + encodeURIComponent(id) })
+                            .then(r => r.json()).then(function (d) {
+                                if (!d.ok) throw new Error(d.error || 'Failed');
+                                const item = list.querySelector('.revert-code-item[data-id="' + id + '"]');
+                                if (item) item.remove();
+                                if (!list.querySelector('.revert-code-item') && emptyMsg) emptyMsg.style.display = '';
+                                if (window.vsToast) vsToast('Code revoked.');
+                            }).catch(e => { if (window.vsAlert) vsAlert(e.message); });
+                    });
+                }
+            });
+        })();
     </script>
 </body>
 

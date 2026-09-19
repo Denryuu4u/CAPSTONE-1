@@ -33,7 +33,14 @@ $__rows = db()->prepare(
             q.id AS quotation_id, q.quote_code, q.status AS quote_status_raw,
             q.date_created AS quote_issued, q.valid_until AS quote_valid,
             q.total_amount AS quote_total, q.notes AS quote_notes,
-            q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id
+            q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id,
+            -- 'Last Updated' = most recent activity: the project row, its quotation,
+            -- or its latest timeline update (quote accept/approve only touch quotations).
+            GREATEST(
+              p.updated_at,
+              COALESCE(q.updated_at, p.updated_at),
+              COALESCE((SELECT MAX(created_at) FROM project_updates WHERE project_id = p.id), p.updated_at)
+            ) AS last_activity
        FROM projects p
        JOIN customers c ON c.id = p.customer_id
        LEFT JOIN quotations q ON q.id = (SELECT id FROM quotations WHERE project_id = p.id ORDER BY id DESC LIMIT 1)
@@ -76,7 +83,7 @@ foreach ($__rows->fetchAll() as $r) {
     $projects[] = [
         'id' => $pid, 'name' => $r['project_name'], 'category' => $r['category'] ?? '',
         'status' => $r['status'], 'submitted' => date('M d, Y', strtotime($r['created_at'])),
-        'updated' => time_ago($r['updated_at']), 'notes' => $r['description'] ?? '',
+        'updated' => time_ago($r['last_activity'] ?? $r['updated_at']), 'notes' => $r['description'] ?? '',
         'files' => $files, 'activity' => $activity,
         'quote_id' => $r['quote_code'] ?? '—', 'quotation_pk' => (int) ($r['quotation_id'] ?? 0),
         'quote_status' => $qstatus ?: 'Pending', 'quote_prepared_for' => $r['customer_name'],
@@ -219,6 +226,33 @@ $__ignore = [
 function awaitingClientDecision(array $p): bool {
   return $p['quote_status'] === 'Pending' && $p['quote_issued'] !== '';
 }
+
+/** True when the client has something to act on (verify a quote or confirm completion). */
+function client_needs_action(array $p): bool {
+  return awaitingClientDecision($p) || (($p['awaiting_confirm'] ?? '0') === '1');
+}
+
+/**
+ * Customer-facing status badge [label, cssClass]. The whole pre-approval phase
+ * ('quote_submitted') is expanded into clearer client-facing states based on the
+ * quotation's own status, instead of always showing "Quote Submitted".
+ */
+function client_status_display(array $p): array {
+  if (project_status_key($p['status']) === 'quote_submitted') {
+    $qs     = strtolower((string) ($p['quote_status'] ?? ''));
+    $issued = ($p['quote_issued'] ?? '') !== '';
+    if ($qs === 'countered') return ['Counter-offer Sent',   'st-countered'];
+    if ($qs === 'accepted')  return ['Waiting for Approval',  'st-await-approval'];
+    if ($qs === 'rejected')  return ['Quote Rejected',        'status-rejected'];
+    if ($issued)             return ['Awaiting Your Review',   'st-await-review'];
+    return ['Under Review', 'st-await-review'];
+  }
+  return [project_status_label($p['status']), project_status_class($p['status'])];
+}
+
+// Priority ordering: projects that need the client's action float to the top.
+// usort is stable in PHP 8, so the created-desc order is kept within each group.
+usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_needs_action($b) ? 0 : 1));
 
 // peso() is provided by includes/helpers.php
 ?>
@@ -406,7 +440,12 @@ function awaitingClientDecision(array $p): bool {
       font-family:'Inter',sans-serif; transition:background .18s;
     }
     .vm-counter-btn:hover { background:rgba(245,158,11,.2); }
-    .vm-counter-btn svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    /* All three action-button icons render as outline strokes, not filled shapes
+       (without this the Accept checkmark defaults to fill:black and looks broken). */
+    .vm-accept-btn svg, .vm-reject-btn svg, .vm-counter-btn svg {
+      width:15px; height:15px; fill:none; stroke:currentColor;
+      stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    }
 
     /* Counter-offer form panel */
     .vm-counter-panel {
@@ -579,9 +618,20 @@ function awaitingClientDecision(array $p): bool {
     <div class="section-card" style="padding:1.4rem 1.6rem;">
       <div class="table-header-row">
         <div class="section-card-title mb-0">All Projects</div>
-        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
-          <input type="text" class="projects-search form-control" placeholder="Search projects..."
-                 style="max-width:220px;font-size:.85rem;">
+        <div class="mp-filters">
+          <input type="text" id="mpSearch" class="form-control mp-query" placeholder="Search projects...">
+          <select id="mpStatus" class="form-control mp-filter-input">
+            <option value="">All statuses</option>
+            <?php foreach (project_phases() as $k => $lbl): ?>
+              <option value="<?= $k ?>"><?= htmlspecialchars($lbl) ?></option>
+            <?php endforeach; ?>
+            <?php foreach (project_off_track() as $k => $lbl): ?>
+              <option value="<?= $k ?>"><?= htmlspecialchars($lbl) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <label class="mp-date-label">From <input type="date" id="mpFrom" class="form-control mp-filter-input"></label>
+          <label class="mp-date-label">To <input type="date" id="mpTo" class="form-control mp-filter-input"></label>
+          <button type="button" id="mpClear" class="mp-clear-btn">Clear</button>
           <a href="request_quote.php" class="btn-new">+ New Quote Request</a>
         </div>
       </div>
@@ -596,11 +646,21 @@ function awaitingClientDecision(array $p): bool {
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($projects as $p): ?>
-          <tr>
-            <td class="fw-semibold"><?= htmlspecialchars($p['name']) ?></td>
+          <?php foreach ($projects as $p):
+            [$stLabel, $stClass] = client_status_display($p);
+            $needs = client_needs_action($p);
+            $submittedIso = date('Y-m-d', strtotime($p['submitted']));
+          ?>
+          <tr class="proj-row<?= $needs ? ' proj-priority' : '' ?>"
+              data-name="<?= htmlspecialchars(strtolower($p['name'] . ' ' . $p['category'] . ' ' . $p['code'])) ?>"
+              data-status-key="<?= project_status_key($p['status']) ?>"
+              data-submitted="<?= $submittedIso ?>">
+            <td class="fw-semibold">
+              <?= htmlspecialchars($p['name']) ?>
+              <?php if ($needs): ?><span class="proj-action-flag">Action needed</span><?php endif; ?>
+            </td>
             <td class="muted"><?= htmlspecialchars($p['category']) ?></td>
-            <td><?= project_status_badge($p['status'], 'badge-status') ?></td>
+            <td><span class="badge-status <?= $stClass ?>"><?= htmlspecialchars($stLabel) ?></span></td>
             <td class="muted"><?= $p['submitted'] ?></td>
             <td class="muted"><?= $p['updated'] ?></td>
             <td style="text-align:right">
@@ -618,6 +678,8 @@ function awaitingClientDecision(array $p): bool {
                   data-submitted="<?= $p['submitted'] ?>"
                   data-updated="<?= htmlspecialchars($p['updated']) ?>"
                   data-status="<?= project_status_key($p['status']) ?>"
+                  data-display-label="<?= htmlspecialchars($stLabel) ?>"
+                  data-display-class="<?= htmlspecialchars($stClass) ?>"
                   data-notes="<?= htmlspecialchars($p['notes']) ?>"
                   data-files="<?= htmlspecialchars(json_encode($p['files'])) ?>"
                   data-activity="<?= htmlspecialchars(json_encode($p['activity'])) ?>"
@@ -644,6 +706,8 @@ function awaitingClientDecision(array $p): bool {
                   data-name="<?= htmlspecialchars($p['name']) ?>"
                   data-code="<?= htmlspecialchars($p['code']) ?>"
                   data-status="<?= project_status_key($p['status']) ?>"
+                  data-display-label="<?= htmlspecialchars($stLabel) ?>"
+                  data-display-class="<?= htmlspecialchars($stClass) ?>"
                   data-customer="<?= htmlspecialchars($p['customer']) ?>"
                   data-target="<?= htmlspecialchars($p['target']) ?>"
                   data-start="<?= $p['start'] ?>"
@@ -658,10 +722,21 @@ function awaitingClientDecision(array $p): bool {
                   View
                 </button>
 
+                <!-- CHAT — message the team about this project -->
+                <button class="btn-view chat-open-btn" data-chat-open
+                  data-chat-id="<?= (int) $p['id'] ?>"
+                  data-chat-name="<?= htmlspecialchars($p['name']) ?>">
+                  <i class="bi bi-chat-dots"></i>
+                  Chat
+                </button>
+
               </div>
             </td>
           </tr>
           <?php endforeach; ?>
+          <tr id="mpNoResults" style="display:none;">
+            <td colspan="6" class="muted" style="text-align:center;padding:1.6rem;">No projects match your filters.</td>
+          </tr>
         </tbody>
       </table>
       </div><!-- /mp-scroll -->
@@ -1047,10 +1122,10 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     document.getElementById('vmTitle').textContent = d.name;
     document.getElementById('vmCode').textContent  = d.code;
 
-    // Status badge in detail card
+    // Status badge in detail card (uses the client-facing display status).
     const stBadge = document.getElementById('vmStatus');
-    stBadge.textContent = statusLabel(d.status);
-    stBadge.className   = 'badge-status ' + statusClass(d.status);
+    stBadge.textContent = d.displayLabel || statusLabel(d.status);
+    stBadge.className   = 'badge-status ' + (d.displayClass || statusClass(d.status));
 
     // Fields
     document.getElementById('vmCategory').textContent  = d.category;
@@ -1250,8 +1325,8 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     document.getElementById('viewCode').textContent  = d.code;
 
     const badge = document.getElementById('viewStatusBadge');
-    badge.textContent = statusLabel(d.status);
-    badge.className   = 'badge-status ' + statusClass(d.status);
+    badge.textContent = d.displayLabel || statusLabel(d.status);
+    badge.className   = 'badge-status ' + (d.displayClass || statusClass(d.status));
 
     renderStepTracker('viewStepTracker', getStepIdx(d.status));
 
@@ -1353,7 +1428,45 @@ document.getElementById('btnViewMaterials').addEventListener('click', function()
   document.getElementById('matSummary').textContent = `${rows.length} material${rows.length!==1?'s':''} listed`;
   new bootstrap.Modal(document.getElementById('materialsModal')).show();
 });
-</script>
 
+// ══ FILTERS (search + status + submitted-date range) ═══════════════════
+(function(){
+  const search = document.getElementById('mpSearch');
+  const stSel  = document.getElementById('mpStatus');
+  const fromEl = document.getElementById('mpFrom');
+  const toEl   = document.getElementById('mpTo');
+  const clr    = document.getElementById('mpClear');
+  const empty  = document.getElementById('mpNoResults');
+  const rows   = Array.from(document.querySelectorAll('.projects-table tbody tr.proj-row'));
+  if (!rows.length && !search) return;
+
+  function apply(){
+    const q    = (search.value || '').trim().toLowerCase();
+    const st   = stSel.value;
+    const from = fromEl.value;   // YYYY-MM-DD or ''
+    const to   = toEl.value;
+    let shown = 0;
+    rows.forEach(r => {
+      let ok = true;
+      if (q    && r.dataset.name.indexOf(q) === -1)  ok = false;
+      if (ok && st   && r.dataset.statusKey !== st)  ok = false;
+      if (ok && from && r.dataset.submitted < from)  ok = false;
+      if (ok && to   && r.dataset.submitted > to)    ok = false;
+      r.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    if (empty) empty.style.display = shown ? 'none' : '';
+  }
+  [search, stSel, fromEl, toEl].forEach(el => {
+    if (!el) return;
+    el.addEventListener('input', apply);
+    el.addEventListener('change', apply);
+  });
+  if (clr) clr.addEventListener('click', function(){
+    search.value=''; stSel.value=''; fromEl.value=''; toEl.value=''; apply();
+  });
+})();
+</script>
+<?php include __DIR__ . '/../includes/chat_modal.php'; // project chat (client <-> back office) ?>
 </body>
 </html>

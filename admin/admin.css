@@ -1098,13 +1098,20 @@ body {
 .quotation-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    /* 🔥 important */
-    gap: 2px;
-    width: 90px;
-    /* adjust spacing */
+    justify-content: center;
+    gap: 12px;
+    width: auto;              /* size to content so all icons fit (revise/approve/reject/view/download) */
     margin: 0 auto;
+    white-space: nowrap;
 }
+/* Reserve a fixed slot for the left icons (approve/reject or revise, or none) so
+   the View + Download icons stay in the SAME position on every row. */
+.quotation-actions .action-left {
+    min-width: 56px;
+    justify-content: flex-end;
+    gap: 12px;
+}
+.quotation-actions .action-right { gap: 12px; }
 
 .action-left,
 .action-right {
@@ -1148,6 +1155,12 @@ body {
 .quotation-action.reject:hover {
     color: #dc2626;
 }
+
+/* Priority rows (needs attention) float to the top and get a soft highlight. */
+.req-priority > td,
+.quote-priority > td { background: #fffdf5; }
+.req-priority:hover > td,
+.quote-priority:hover > td { background: #fef7e6; }
 
 @media (max-width: 991.98px) {
     .quotation-search-wrap {
@@ -1377,32 +1390,18 @@ body {
 .monitor-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 14px;
-    width: 150px;
+    width: auto;              /* size to content so 3 actions never overflow/clip */
     margin: 0 auto;
+    white-space: nowrap;
 }
 
 .action-left,
 .action-right {
     display: flex;
     align-items: center;
-}
-
-.action-left {
-    min-width: 78px;
-    /* reserve space for Complete */
-}
-
-.action-left:empty::after {
-    content: "";
-    display: block;
-    width: 78px;
-}
-
-.action-right {
-    min-width: 48px;
-    /* keeps View aligned */
+    gap: 14px;
 }
 
 .monitor-action {
@@ -1416,8 +1415,9 @@ body {
     white-space: nowrap;
 }
 
+.monitor-action span { display: none; } /* icon-only keeps the actions column compact */
 .monitor-action i {
-    font-size: 0.8rem;
+    font-size: 1rem;
     line-height: 1;
 }
 
@@ -1437,18 +1437,6 @@ body {
 @media (max-width: 991.98px) {
     .monitor-search-wrap {
         width: 100%;
-    }
-
-    .monitor-actions {
-        width: 140px;
-    }
-
-    .action-left {
-        min-width: 72px;
-    }
-
-    .action-left:empty::after {
-        width: 72px;
     }
 }
 .project-view-modal {
@@ -3117,7 +3105,16 @@ body {
 }
 .notif-dropdown.open .notif-menu { display: block; }
 .notif-list { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.notif-item.is-read { opacity: 0.6; }
+/* Unread notifications are highlighted: tinted background + teal left accent +
+   bolder title. Read ones are plain (and slightly muted). */
+.notif-item:not(.is-read) {
+    background: #f0fdf9;
+    border-left: 3px solid var(--teal, #0D9676);
+}
+.notif-item:not(.is-read) .notif-item-title { font-weight: 700; color: #0f172a; }
+.notif-item:not(.is-read):hover { background: #e7f9f3; }
+.notif-item.is-read { opacity: 0.72; }
+.notif-item.is-read .notif-dot { background: #cbd5e1 !important; box-shadow: none !important; }
 .notif-head {
     display: flex;
     align-items: center;

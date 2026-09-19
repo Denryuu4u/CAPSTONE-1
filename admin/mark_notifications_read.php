@@ -16,10 +16,15 @@ try {
         db()->prepare("UPDATE notifications SET is_read = 1, read_at = NOW() WHERE id = ? AND (user_id = ? OR user_id IS NULL)")
             ->execute([$id, $uid]);
     } else {
+        // Same broadcast buckets as the bell: back-office roles all share 'Admin'.
+        $roleSet = in_array($role, ['Super Admin', 'Admin', 'Staff'], true)
+            ? ['Admin', 'Super Admin', 'Staff']
+            : ($role !== '' ? [$role] : ['__none__']);
+        $ph = implode(',', array_fill(0, count($roleSet), '?'));
         db()->prepare(
             "UPDATE notifications SET is_read = 1, read_at = NOW()
-              WHERE is_read = 0 AND (user_id = :uid OR (user_id IS NULL AND target_role = :role))"
-        )->execute([':uid' => $uid, ':role' => $role]);
+              WHERE is_read = 0 AND (user_id = ? OR (user_id IS NULL AND target_role IN ($ph)))"
+        )->execute(array_merge([$uid], $roleSet));
     }
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {

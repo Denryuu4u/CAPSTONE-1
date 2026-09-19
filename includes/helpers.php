@@ -175,6 +175,70 @@ function ensure_completion_columns(): void
 }
 
 /**
+ * Self-migrate the projects.prev_status column, used by the monitoring rollback:
+ * every status change records the phase it came from so it can be undone.
+ */
+function ensure_prev_status_column(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $cols = db()->query("SHOW COLUMNS FROM projects")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('prev_status', $cols, true)) {
+            db()->exec("ALTER TABLE projects ADD COLUMN prev_status VARCHAR(30) NULL DEFAULT NULL AFTER status");
+        }
+    } catch (Throwable $e) {
+        // Non-fatal — revert simply won't be offered if this can't run.
+    }
+}
+
+/**
+ * Self-migrate the revert_codes table. Super Admin / Admin generate single-use
+ * codes (Settings) that Staff enter to authorize a monitoring rollback, instead
+ * of an admin password.
+ */
+function ensure_revert_codes_table(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        db()->exec(
+            "CREATE TABLE IF NOT EXISTS revert_codes (
+                id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                code       VARCHAR(20) NOT NULL UNIQUE,
+                is_used    TINYINT(1) NOT NULL DEFAULT 0,
+                created_by INT UNSIGNED NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                used_by    INT UNSIGNED NULL,
+                used_at    DATETIME NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+    } catch (Throwable $e) {
+        // Non-fatal.
+    }
+}
+
+/** Generate a fresh, unambiguous single-use revert code (e.g. "R7K2QX"). */
+function generate_revert_code(): string
+{
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
+    for ($tries = 0; $tries < 10; $tries++) {
+        $code = '';
+        for ($i = 0; $i < 6; $i++) $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        try {
+            $st = db()->prepare("SELECT 1 FROM revert_codes WHERE code = ? LIMIT 1");
+            $st->execute([$code]);
+            if (!$st->fetchColumn()) return $code;
+        } catch (Throwable $e) {
+            return $code;
+        }
+    }
+    return $code; // extremely unlikely to loop out
+}
+
+/**
  * Sweep completed-but-unconfirmed projects and auto-confirm any that have sat
  * past the deadline. Cheap enough to call on relevant page loads (monitoring,
  * my_projects, dashboard) since there's no reliable cron here.

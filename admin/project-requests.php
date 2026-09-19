@@ -19,6 +19,11 @@ $requests = db()->query(
       ORDER BY r.date_submitted DESC, r.id DESC"
 )->fetchAll();
 
+// Priority: requests still awaiting a quotation float to the top (stable sort in
+// PHP 8 keeps the newest-first order within each group).
+usort($requests, fn($a, $b) =>
+    (($a['status'] === 'Requesting Quotation') ? 0 : 1) <=> (($b['status'] === 'Requesting Quotation') ? 0 : 1));
+
 // Uploaded files grouped by request.
 $filesByReq = [];
 foreach (db()->query("SELECT request_id, file_name, file_path FROM request_files") as $f) {
@@ -123,7 +128,13 @@ $reqBadge = [
                 </button>
             </div>
 
-            <div class="d-flex justify-content-end mb-3">
+            <div class="d-flex justify-content-end align-items-center gap-2 mb-3 flex-wrap">
+                <select class="form-select form-select-sm request-filter" data-col="4" style="max-width:210px;">
+                    <option value="">All statuses</option>
+                    <option value="Requesting Quotation">Requesting Quotation</option>
+                    <option value="Quotation Sent">Quotation Sent</option>
+                    <option value="Closed">Closed</option>
+                </select>
                 <div class="request-search-wrap">
                     <i class="bi bi-search request-search-icon"></i>
                     <input type="text" class="form-control request-search" placeholder="Search requests...">
@@ -174,7 +185,7 @@ $reqBadge = [
                                 $badge = $reqBadge[$r['status']] ?? 'badge-requesting';
                                 $canQuote = $r['status'] === 'Requesting Quotation';
                             ?>
-                            <tr>
+                            <tr class="<?= $canQuote ? 'req-priority' : '' ?>">
                                 <td><?= htmlspecialchars($r['request_code']) ?></td>
                                 <td><?= htmlspecialchars($r['customer_name'] ?? '—') ?></td>
                                 <td><?= htmlspecialchars($r['project_name']) ?></td>

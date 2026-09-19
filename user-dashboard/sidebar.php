@@ -63,3 +63,41 @@ if (!isset($active_page)) $active_page = '';
 
 <?php include __DIR__ . '/../includes/ui_modal.php'; // shared alert/confirm modal ?>
 <?php include __DIR__ . '/../includes/table_search.php'; // shared list-page search + pagination ?>
+
+<?php if (in_array($active_page, ['dashboard', 'my_projects'], true)): // live auto-refresh on the read-only views ?>
+<script>
+(function () {
+  if (window.__liveReloadBound) return;
+  window.__liveReloadBound = true;
+
+  var initial = null, pending = false;
+
+  // Don't refresh while the client is mid-interaction (a modal is open, or they're
+  // typing in a field) — defer until they're idle so nothing is interrupted.
+  function busy() {
+    if (document.querySelector('.modal.show')) return true;
+    var a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return true;
+    return false;
+  }
+  function reloadSoon() { if (busy()) { pending = true; } else { location.reload(); } }
+
+  function poll() {
+    fetch('poll_updates.php', { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.sig) return;
+        if (initial === null) { initial = d.sig; return; }
+        if (d.sig !== initial) reloadSoon();
+      })
+      .catch(function () {});
+  }
+
+  // Flush a deferred reload once the user finishes what they were doing.
+  document.addEventListener('click', function () { if (pending && !busy()) location.reload(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && pending && !busy()) location.reload(); });
+
+  setInterval(poll, 12000);
+})();
+</script>
+<?php endif; ?>
