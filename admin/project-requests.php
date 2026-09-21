@@ -129,12 +129,18 @@ $reqBadge = [
             </div>
 
             <div class="d-flex justify-content-end align-items-center gap-2 mb-3 flex-wrap">
-                <select class="form-select form-select-sm request-filter" data-col="4" style="max-width:210px;">
+                <select class="form-select form-select-sm list-filter request-filter" data-col="4" style="max-width:200px;">
                     <option value="">All statuses</option>
                     <option value="Requesting Quotation">Requesting Quotation</option>
                     <option value="Quotation Sent">Quotation Sent</option>
                     <option value="Closed">Closed</option>
                 </select>
+                <label class="filter-date-label">From
+                    <input type="date" class="form-control form-control-sm request-datefrom" data-col="3">
+                </label>
+                <label class="filter-date-label">to
+                    <input type="date" class="form-control form-control-sm request-dateto" data-col="3">
+                </label>
                 <div class="request-search-wrap">
                     <i class="bi bi-search request-search-icon"></i>
                     <input type="text" class="form-control request-search" placeholder="Search requests...">

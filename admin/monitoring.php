@@ -229,12 +229,20 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h1 class="page-title mb-0">Project Monitoring</h1>
         </div>
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
-            <div class="monitor-filters">
-                <a href="#" class="monitor-pill active" data-filter="all">All</a>
-                <?php foreach (project_statuses() as $key => $label): ?>
-                <a href="#" class="monitor-pill" data-filter="<?= $key ?>"><?= htmlspecialchars($label) ?></a>
-                <?php endforeach; ?>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <select class="form-select form-select-sm list-filter monitor-filter" data-col="3" style="max-width:200px;">
+                    <option value="">All statuses</option>
+                    <?php foreach (project_statuses() as $key => $label): ?>
+                    <option value="<?= htmlspecialchars($label) ?>"><?= htmlspecialchars($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label class="filter-date-label">Target from
+                    <input type="date" class="form-control form-control-sm monitor-datefrom" data-col="4">
+                </label>
+                <label class="filter-date-label">to
+                    <input type="date" class="form-control form-control-sm monitor-dateto" data-col="4">
+                </label>
             </div>
             <div class="monitor-search-wrap">
                 <i class="bi bi-search monitor-search-icon"></i>
@@ -918,18 +926,7 @@ document.addEventListener('DOMContentLoaded',function(){
         });
     });
 
-    // Status filter pills — match on the row's canonical status key.
-    document.querySelectorAll('.monitor-pill').forEach(pill=>{
-        pill.addEventListener('click',function(e){
-            e.preventDefault();
-            document.querySelectorAll('.monitor-pill').forEach(p=>p.classList.remove('active'));
-            this.classList.add('active');
-            const want=this.dataset.filter;
-            document.querySelectorAll('.monitor-table tbody tr').forEach(row=>{
-                row.style.display=(want==='all'||row.dataset.status===want)?'':'none';
-            });
-        });
-    });
+    // Status + date filtering is handled by the shared table tool (includes/table_search.php).
 
     const params=new URLSearchParams(window.location.search);
     const projectId=params.get('project'), open=params.get('open');

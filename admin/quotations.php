@@ -114,12 +114,22 @@ $quoteBadge = [
             </div>
 
             <!-- FILTERS + SEARCH -->
-            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
-                <div class="quotation-filters">
-                    <a href="#" class="quotation-pill active">All</a>
-                    <a href="#" class="quotation-pill">Waiting</a>
-                    <a href="#" class="quotation-pill">Approved</a>
-                    <a href="#" class="quotation-pill">Rejected</a>
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <select class="form-select form-select-sm list-filter quotation-filter" data-col="5" style="max-width:200px;">
+                        <option value="">All statuses</option>
+                        <option value="Sent to Client">Sent to Client</option>
+                        <option value="Awaiting Approval">Awaiting Approval</option>
+                        <option value="Counter-offer">Counter-offer</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                    <label class="filter-date-label">Date from
+                        <input type="date" class="form-control form-control-sm quotation-datefrom" data-col="3">
+                    </label>
+                    <label class="filter-date-label">to
+                        <input type="date" class="form-control form-control-sm quotation-dateto" data-col="3">
+                    </label>
                 </div>
 
                 <div class="quotation-search-wrap">
@@ -524,23 +534,7 @@ $quoteBadge = [
                     .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; });
             });
 
-            // Status filter pills.
-            document.querySelectorAll('.quotation-pill').forEach(pill => {
-                pill.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    document.querySelectorAll('.quotation-pill').forEach(p => p.classList.remove('active'));
-                    this.classList.add('active');
-                    const want = this.textContent.trim().toLowerCase();
-                    document.querySelectorAll('.quotation-table tbody tr').forEach(row => {
-                        const st = (row.dataset.status || '').toLowerCase();
-                        let show = want === 'all'
-                            || (want === 'waiting'  && (st === 'sent' || st === 'accepted' || st === 'countered'))
-                            || (want === 'approved' && st === 'approved')
-                            || (want === 'rejected' && st === 'rejected');
-                        row.style.display = show ? '' : 'none';
-                    });
-                });
-            });
+            // Status + date filtering is handled by the shared table tool (includes/table_search.php).
 
         });
     </script>

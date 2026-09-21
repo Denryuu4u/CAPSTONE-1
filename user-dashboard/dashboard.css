@@ -916,11 +916,14 @@
    /* ── MY PROJECTS: filters, priority rows, approval sub-statuses ── */
    .mp-filters { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; flex:1 1 100%; justify-content:flex-start; }
    .mp-filters .btn-new { margin-left:auto; }
-   .mp-filters .mp-query { max-width:190px; font-size:.85rem; }
-   .mp-filter-input { max-width:160px; font-size:.85rem; }
-   .mp-date-label { display:inline-flex; align-items:center; gap:.35rem; font-size:.72rem; color:var(--text-muted); margin:0; white-space:nowrap; }
-   .mp-date-label input { max-width:145px; }
-   .mp-clear-btn { font-size:.8rem; font-weight:600; color:var(--text-muted); background:#fff; border:1px solid var(--border); border-radius:8px; padding:.4rem .8rem; cursor:pointer; transition:border-color .15s,color .15s; }
+   /* Consistent height + sizing for every control in the filter bar. */
+   .mp-filters .mp-query,
+   .mp-filters .mp-filter-input { height:38px; font-size:.85rem; }
+   .mp-filters .mp-query { width:190px; }
+   .mp-filters select.mp-filter-input { width:160px; }
+   .mp-date-label { display:inline-flex; align-items:center; gap:.4rem; font-size:.75rem; color:var(--text-muted); margin:0; white-space:nowrap; }
+   .mp-date-label input.mp-filter-input { width:150px; }
+   .mp-clear-btn { height:38px; font-size:.82rem; font-weight:600; color:var(--text-muted); background:#fff; border:1px solid var(--border); border-radius:8px; padding:0 .9rem; cursor:pointer; transition:border-color .15s,color .15s; }
    .mp-clear-btn:hover { border-color:var(--teal); color:var(--teal); }
    .proj-priority > td { background:#fffdf5; }
    .proj-priority:hover > td { background:#fef9ec; }

@@ -1429,8 +1429,9 @@ document.getElementById('btnViewMaterials').addEventListener('click', function()
   new bootstrap.Modal(document.getElementById('materialsModal')).show();
 });
 
-// ══ FILTERS (search + status + submitted-date range) ═══════════════════
+// ══ FILTERS (search + status + submitted-date range) + PAGINATION (10/page) ══
 (function(){
+  const PAGE_SIZE = 10;
   const search = document.getElementById('mpSearch');
   const stSel  = document.getElementById('mpStatus');
   const fromEl = document.getElementById('mpFrom');
@@ -1440,23 +1441,60 @@ document.getElementById('btnViewMaterials').addEventListener('click', function()
   const rows   = Array.from(document.querySelectorAll('.projects-table tbody tr.proj-row'));
   if (!rows.length && !search) return;
 
-  function apply(){
+  let page = 1, filtered = rows.slice();
+
+  // Pager, inserted just after the table's scroll wrapper.
+  const host = document.querySelector('.projects-table').closest('.mp-scroll') || document.querySelector('.projects-table');
+  const pager = document.createElement('div');
+  pager.className = 'tbl-pager';
+  pager.innerHTML =
+    '<span class="tbl-pager-info"></span>' +
+    '<span class="tbl-pager-btns">' +
+      '<button type="button" class="tbl-pager-btn" data-dir="-1"><i class="bi bi-chevron-left"></i> Prev</button>' +
+      '<span class="tbl-pager-page"></span>' +
+      '<button type="button" class="tbl-pager-btn" data-dir="1">Next <i class="bi bi-chevron-right"></i></button>' +
+    '</span>';
+  host.parentNode.insertBefore(pager, host.nextSibling);
+  const info = pager.querySelector('.tbl-pager-info');
+  const pageLbl = pager.querySelector('.tbl-pager-page');
+  const prevBtn = pager.querySelector('[data-dir="-1"]');
+  const nextBtn = pager.querySelector('[data-dir="1"]');
+
+  function computeFiltered(){
     const q    = (search.value || '').trim().toLowerCase();
     const st   = stSel.value;
     const from = fromEl.value;   // YYYY-MM-DD or ''
     const to   = toEl.value;
-    let shown = 0;
-    rows.forEach(r => {
-      let ok = true;
-      if (q    && r.dataset.name.indexOf(q) === -1)  ok = false;
-      if (ok && st   && r.dataset.statusKey !== st)  ok = false;
-      if (ok && from && r.dataset.submitted < from)  ok = false;
-      if (ok && to   && r.dataset.submitted > to)    ok = false;
-      r.style.display = ok ? '' : 'none';
-      if (ok) shown++;
+    filtered = rows.filter(r => {
+      if (q    && r.dataset.name.indexOf(q) === -1)  return false;
+      if (st   && r.dataset.statusKey !== st)        return false;
+      if (from && r.dataset.submitted < from)        return false;
+      if (to   && r.dataset.submitted > to)          return false;
+      return true;
     });
-    if (empty) empty.style.display = shown ? 'none' : '';
   }
+
+  function render(){
+    const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (page > pages) page = pages;
+    rows.forEach(r => r.style.display = 'none');
+    const start = (page - 1) * PAGE_SIZE;
+    filtered.slice(start, start + PAGE_SIZE).forEach(r => r.style.display = '');
+    if (empty) empty.style.display = filtered.length ? 'none' : '';
+
+    info.textContent = filtered.length
+      ? 'Showing ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, filtered.length) + ' of ' + filtered.length
+      : 'No results';
+    pageLbl.textContent = page + ' / ' + pages;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= pages;
+    pager.style.display = filtered.length > PAGE_SIZE ? 'flex' : 'none';
+  }
+
+  function apply(){ page = 1; computeFiltered(); render(); }
+
+  prevBtn.addEventListener('click', function(){ if (page > 1) { page--; render(); } });
+  nextBtn.addEventListener('click', function(){ page++; render(); });
   [search, stSel, fromEl, toEl].forEach(el => {
     if (!el) return;
     el.addEventListener('input', apply);
@@ -1465,6 +1503,8 @@ document.getElementById('btnViewMaterials').addEventListener('click', function()
   if (clr) clr.addEventListener('click', function(){
     search.value=''; stSel.value=''; fromEl.value=''; toEl.value=''; apply();
   });
+
+  apply();
 })();
 </script>
 <?php include __DIR__ . '/../includes/chat_modal.php'; // project chat (client <-> back office) ?>

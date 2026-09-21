@@ -20,13 +20,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (trim($body) === '') { echo json_encode(['ok' => false, 'error' => 'Message is empty.']); exit; }
     chat_send($pid, $user, $body);
 
-    // Notify the back office of the new client message.
+    // Notify the back office of the new client message — name the sender (and project).
     try {
+        $senderName = trim((string) ($user['full_name'] ?? '')) ?: 'A client';
+        $projName = '';
+        $ps = db()->prepare("SELECT project_name FROM projects WHERE id = ?");
+        $ps->execute([$pid]);
+        $projName = (string) $ps->fetchColumn();
         notify([
             'target_role' => 'Admin',
             'type'        => 'system',
-            'title'       => 'New client message',
-            'message'     => mb_substr(trim($body), 0, 90),
+            'title'       => 'New message from ' . $senderName,
+            'message'     => ($projName !== '' ? $projName . ': ' : '') . mb_substr(trim($body), 0, 80),
             'link'        => 'monitoring.php',
             'severity'    => 'info',
             'project_id'  => $pid,

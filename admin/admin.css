@@ -1156,6 +1156,14 @@ body {
     color: #dc2626;
 }
 
+/* Shared list-filter controls (status dropdown + date range) across admin lists. */
+.list-filter { font-size: 0.85rem; }
+.filter-date-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.72rem; color: #6b7280; white-space: nowrap; margin: 0;
+}
+.filter-date-label input[type="date"] { max-width: 150px; font-size: 0.82rem; }
+
 /* Priority rows (needs attention) float to the top and get a soft highlight. */
 .req-priority > td,
 .quote-priority > td { background: #fffdf5; }

@@ -32,11 +32,29 @@ document.addEventListener('DOMContentLoaded', function () {
     // Optional filter dropdowns paired by class "<name>-filter"; each carries a
     // data-col (0-based column index) whose cell text is matched against the value.
     var filters = Array.prototype.slice.call(document.querySelectorAll('select.' + name + '-filter'));
-    if (table) initTableTool(table, input, filters);
+    // Optional date-range inputs "<name>-datefrom" / "<name>-dateto" (data-col = the
+    // column whose date the range applies to).
+    var dateFrom = document.querySelector('.' + name + '-datefrom');
+    var dateTo   = document.querySelector('.' + name + '-dateto');
+    if (table) initTableTool(table, input, filters, dateFrom, dateTo);
   });
 
-  function initTableTool(table, input, filters) {
+  function initTableTool(table, input, filters, dateFrom, dateTo) {
     filters = filters || [];
+
+    // Parse a cell's displayed date (e.g. "Sep 19, 2026") to a YYYY-MM-DD string.
+    function cellDateISO(tr, col) {
+      var cell = tr.children[col];
+      if (!cell) return '';
+      var t = (cell.textContent || '').trim();
+      if (!t || t === '—') return '';
+      var d = new Date(t);
+      if (isNaN(d.getTime())) return '';
+      var m = ('0' + (d.getMonth() + 1)).slice(-2), day = ('0' + d.getDate()).slice(-2);
+      return d.getFullYear() + '-' + m + '-' + day;
+    }
+    var dateCol = dateFrom ? parseInt(dateFrom.getAttribute('data-col'), 10)
+                : (dateTo ? parseInt(dateTo.getAttribute('data-col'), 10) : -1);
     var tbody = table.querySelector('tbody');
     if (!tbody) return;
     var dataRows = Array.prototype.filter.call(tbody.querySelectorAll(':scope > tr'), function (tr) {
@@ -74,6 +92,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function apply() {
       var q = input ? input.value.trim().toLowerCase() : '';
       var active = filters.map(function (f) { return { col: parseInt(f.getAttribute('data-col'), 10), val: f.value }; });
+      var from = dateFrom && dateFrom.value ? dateFrom.value : '';
+      var to   = dateTo   && dateTo.value   ? dateTo.value   : '';
       filtered = dataRows.filter(function (tr) {
         if (q && tr.textContent.toLowerCase().indexOf(q) === -1) return false;
         for (var i = 0; i < active.length; i++) {
@@ -82,6 +102,12 @@ document.addEventListener('DOMContentLoaded', function () {
           var cell = tr.children[a.col];
           var txt = (cell ? cell.textContent : '').trim().toLowerCase();
           if (txt.indexOf(a.val.toLowerCase()) === -1) return false;
+        }
+        if ((from || to) && dateCol >= 0) {
+          var iso = cellDateISO(tr, dateCol);
+          if (!iso) return false;                     // no date → excluded when filtering by date
+          if (from && iso < from) return false;
+          if (to && iso > to) return false;
         }
         return true;
       });
@@ -107,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
     nextBtn.addEventListener('click', function () { page++; apply(); });
     if (input) input.addEventListener('input', function () { page = 1; apply(); });
     filters.forEach(function (f) { f.addEventListener('change', function () { page = 1; apply(); }); });
+    [dateFrom, dateTo].forEach(function (el) { if (el) el.addEventListener('change', function () { page = 1; apply(); }); });
     apply();
   }
 });
