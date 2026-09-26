@@ -7,7 +7,7 @@
  * filtered by the search text and split into pages (default 10 rows/page; set
  * data-page-size on the table to change). Included once via each sidebar, so
  * every list page gets it automatically. Tables without a matching search input
- * are left untouched (archive.php uses its own filter, class "arch-search-input").
+ * are left untouched.
  */
 ?>
 <style>

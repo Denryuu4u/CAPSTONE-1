@@ -11,6 +11,13 @@ $sysUsers = db()->query(
     "SELECT * FROM users WHERE role IN ('Super Admin','Admin','Staff') AND is_archived = 0
       ORDER BY FIELD(role,'Super Admin','Admin','Staff'), full_name"
 )->fetchAll();
+
+// Archived staff/admin accounts — shown in the Archive tab, restorable from here.
+$archivedUsers = db()->query(
+    "SELECT u.*, a.full_name AS archiver FROM users u LEFT JOIN users a ON a.id = u.archived_by
+      WHERE u.role IN ('Super Admin','Admin','Staff') AND u.is_archived = 1
+      ORDER BY u.archived_at DESC"
+)->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,6 +71,27 @@ $sysUsers = db()->query(
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h1 class="page-title mb-0">User Management</h1>
             </div>
+
+            <!-- Tabs: Active Users | Archive -->
+            <ul class="nav nav-pills page-tabs mb-3" id="userTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-users" type="button">
+                        <i class="bi bi-people me-1"></i> Users
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-archive" type="button">
+                        <i class="bi bi-archive me-1"></i> Archive
+                        <?php if (count($archivedUsers) > 0): ?>
+                        <span class="badge rounded-pill bg-secondary ms-1"><?= count($archivedUsers) ?></span>
+                        <?php endif; ?>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+            <!-- ===== USERS TAB ===== -->
+            <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
 
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
                 <button type="button" class="customer-btn" data-bs-toggle="modal" data-bs-target="#addUserModal">
@@ -127,6 +155,63 @@ $sysUsers = db()->query(
                     </table>
                 </div>
             </div>
+
+            </div><!-- /#tab-users -->
+
+            <!-- ===== ARCHIVE TAB (archived users) ===== -->
+            <div class="tab-pane fade" id="tab-archive" role="tabpanel">
+
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+                <p class="text-muted mb-0" style="font-size:.9rem;">Archived accounts can't sign in. Restore to reactivate them.</p>
+                <div class="user-search-wrap">
+                    <i class="bi bi-search user-search-icon"></i>
+                    <input type="text" class="form-control archuser-search" placeholder="Search archive...">
+                </div>
+            </div>
+
+            <div class="user-card">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 archuser-table user-table">
+                        <thead>
+                            <tr>
+                                <th>NAME</th>
+                                <th>EMAIL</th>
+                                <th>ROLE</th>
+                                <th>DATE ARCHIVED</th>
+                                <th>ARCHIVED BY</th>
+                                <th class="text-center">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($archivedUsers)): ?>
+                            <tr><td colspan="6" class="text-center text-muted py-4">No archived users.</td></tr>
+                            <?php else: foreach ($archivedUsers as $usr):
+                                $roleCls = $usr['role'] === 'Super Admin' ? 'role-superadmin'
+                                         : ($usr['role'] === 'Admin' ? 'role-admin' : 'role-staff');
+                            ?>
+                            <tr>
+                                <td class="user-name"><?= htmlspecialchars($usr['full_name']) ?></td>
+                                <td class="user-email"><?= htmlspecialchars($usr['email']) ?></td>
+                                <td><span class="user-role-badge <?= $roleCls ?>"><?= htmlspecialchars($usr['role']) ?></span></td>
+                                <td class="user-last-login"><?= $usr['archived_at'] ? date('M d, Y', strtotime($usr['archived_at'])) : '—' ?></td>
+                                <td class="user-email"><?= htmlspecialchars($usr['archiver'] ?? '—') ?></td>
+                                <td class="text-center">
+                                    <div class="user-actions">
+                                        <button type="button" class="restore-user-btn"
+                                           data-id="<?= (int) $usr['id'] ?>" data-name="<?= htmlspecialchars($usr['full_name']) ?>">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            </div><!-- /#tab-archive -->
+            </div><!-- /.tab-content -->
 
         </div>
     </div>
@@ -368,6 +453,18 @@ $sysUsers = db()->query(
             document.getElementById("confirmArchiveUserBtn").addEventListener("click", function() {
                 post('archive_entity.php', { type: 'user', id: selectedUserId, action: 'archive' })
                     .then(() => { vsToastFlash('User archived.'); location.reload(); }).catch(e => alert(e.message));
+            });
+
+            // RESTORE USER (Archive tab)
+            document.querySelectorAll(".restore-user-btn").forEach(btn => {
+                btn.addEventListener("click", function () {
+                    const id = this.dataset.id, name = this.dataset.name;
+                    vsConfirm('Restore "' + name + '"? The account will be reactivated and able to sign in.', {title:'Restore user', okText:'Restore'}).then(function(ok){
+                        if (!ok) return;
+                        post('archive_entity.php', { type: 'user', id: id, action: 'restore' })
+                            .then(() => { vsToastFlash('User restored.'); location.reload(); }).catch(e => alert(e.message));
+                    });
+                });
             });
 
         });

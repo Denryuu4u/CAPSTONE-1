@@ -1164,6 +1164,10 @@ body {
 }
 .filter-date-label input[type="date"] { max-width: 150px; font-size: 0.82rem; }
 
+/* Client-posted message badge in the monitoring project-updates feed. */
+.pvm-client-tag { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: #0a7a60; background: #e7f9f3; border: 1px solid #6ee7d0; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+
 /* Priority rows (needs attention) float to the top and get a soft highlight. */
 .req-priority > td,
 .quote-priority > td { background: #fffdf5; }
@@ -1433,6 +1437,34 @@ body {
     color: var(--teal);
 }
 
+/* Red dot on the View icon when a project has unread client messages. */
+.monitor-action.view-project-btn.has-unread { position: relative; }
+.monitor-action.view-project-btn.has-unread::after {
+    content: "";
+    position: absolute;
+    top: -3px; right: -3px;
+    width: 9px; height: 9px;
+    background: #ef4444;
+    border: 1.5px solid #fff;
+    border-radius: 50%;
+}
+
+/* Client-reported completion issue: row highlight + inline flag */
+.monitor-issue-row > td { background: #fef2f2; }
+.monitor-issue-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(220,38,38,.1);
+    color: #dc2626;
+    font-size: .62rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .monitor-action.complete {
     color: #16a34a;
     font-weight: 500;
@@ -1680,6 +1712,29 @@ body {
     color: #7c8798;
 }
 
+/* "Projects" cell: a button that jumps to this customer's projects in Monitoring. */
+.customer-projects-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.32rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid #d7dee7;
+    background: #f6f8fb;
+    color: #37506b;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1.2;
+    transition: background .15s, border-color .15s, color .15s;
+}
+
+.customer-projects-btn:hover {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+}
+
 .customer-badge {
     font-size: 0.58rem;
     font-weight: 600;
@@ -1710,6 +1765,29 @@ body {
 
 .customer-action:hover {
     color: var(--teal);
+}
+
+/* Restore button (Archive tabs on Customers / User Management) */
+.restore-customer-btn,
+.restore-user-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--teal);
+    background: #f0fdf9;
+    border: 1.5px solid var(--teal);
+    border-radius: 999px;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: background .18s, color .18s;
+}
+
+.restore-customer-btn:hover,
+.restore-user-btn:hover {
+    background: var(--teal);
+    color: #fff;
 }
 
 @media (max-width: 991.98px) {

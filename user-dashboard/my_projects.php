@@ -7,6 +7,7 @@ require_agreements(); // clients must accept the latest Terms & Privacy first
 require_once __DIR__ . '/../includes/project_status.php';
 require_once __DIR__ . '/../includes/helpers.php'; // company_name()/company_logo_url()
 ensure_counter_offer_columns(); // client counter-offer support (self-migrating)
+ensure_client_comment_column();  // client-posted messages on the project timeline
 
 $active_page = 'my_projects';
 
@@ -52,13 +53,13 @@ $__rows->execute([$clientId]);
 foreach ($__rows->fetchAll() as $r) {
     $pid = (int) $r['id'];
 
-    $ups = db()->prepare("SELECT author_name, update_text, attachment_path, created_at FROM project_updates WHERE project_id = ? ORDER BY created_at DESC, id DESC");
+    $ups = db()->prepare("SELECT author_name, update_text, attachment_path, created_at, is_client FROM project_updates WHERE project_id = ? ORDER BY created_at DESC, id DESC");
     $ups->execute([$pid]);
     $activity = []; $updatesJs = [];
     foreach ($ups as $u) {
         $img = $u['attachment_path'] ? '../' . $u['attachment_path'] : null;
         $activity[]  = ['text' => $u['update_text'], 'date' => date('Y-m-d', strtotime($u['created_at'])), 'by' => $u['author_name'] ?: 'Vast Solutions', 'dot' => 'blue', 'image' => $img];
-        $updatesJs[] = ['author' => $u['author_name'] ?: 'Vast Solutions', 'initials' => strtoupper(mb_substr($u['author_name'] ?: 'V', 0, 1)), 'time' => date('M d, Y · g:i A', strtotime($u['created_at'])), 'text' => $u['update_text'], 'image' => $img, 'attachments' => []];
+        $updatesJs[] = ['author' => $u['author_name'] ?: 'Vast Solutions', 'initials' => strtoupper(mb_substr($u['author_name'] ?: 'V', 0, 1)), 'time' => date('M d, Y · g:i A', strtotime($u['created_at'])), 'text' => $u['update_text'], 'image' => $img, 'attachments' => [], 'isClient' => (int) $u['is_client']];
     }
     if ($updatesJs) $updatesByProject[(string) $pid] = $updatesJs;
 
@@ -102,7 +103,9 @@ foreach ($__rows->fetchAll() as $r) {
         'materials_key' => isset($materialsByProject[(string) $pid]) ? (string) $pid : '',
         'updates_key' => (string) $pid,
         'confirmed' => !empty($r['client_confirmed_at']) ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
-        'awaiting_confirm' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
+        // A completed project awaits the client only while it's neither confirmed nor disputed.
+        'awaiting_confirm' => ($r['status'] === 'completed' && empty($r['client_confirmed_at']) && empty($r['completion_issue_at'])) ? '1' : '0',
+        'issue' => !empty($r['completion_issue_at']) ? date('M d, Y', strtotime($r['completion_issue_at'])) : '',
     ];
 }
 
@@ -238,6 +241,8 @@ function client_needs_action(array $p): bool {
  * quotation's own status, instead of always showing "Quote Submitted".
  */
 function client_status_display(array $p): array {
+  // A completed project the client disputed is returned to review until re-completed.
+  if (($p['issue'] ?? '') !== '') return ['Under Review', 'st-await-review'];
   if (project_status_key($p['status']) === 'quote_submitted') {
     $qs     = strtolower((string) ($p['quote_status'] ?? ''));
     $issued = ($p['quote_issued'] ?? '') !== '';
@@ -280,6 +285,8 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
     #verifyModal   { z-index: 1055; }
     #viewModal     { z-index: 1065; }
     #materialsModal{ z-index: 1075; }
+    #messagesModal { z-index: 1085; } /* stacks above the project view modal */
+    #issueModal    { z-index: 1090; } /* report-issue, stacks above the view modal */
 
     /* ══ VERIFY MODAL ══════════════════════════════ */
     /* Header */
@@ -296,7 +303,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
     /* Two-column project details block (matches Image 1 top section) */
     .vm-detail-grid {
       display: grid;
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: 1fr;
       gap: 14px;
       margin-bottom: 14px;
     }
@@ -514,6 +521,31 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
     .pvm-section-title i { color:#0D9676; }
     .pvm-readonly-notice { display:flex; align-items:center; gap:7px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:7px; padding:7px 11px; font-size:.7rem; color:#6b7280; margin-bottom:12px; }
     .pvm-readonly-notice i { color:#9ca3af; flex-shrink:0; }
+    .pvm-client-tag { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#0a7a60; background:#e7f9f3; border:1px solid #6ee7d0; border-radius:999px; padding:1px 7px; margin-left:4px; }
+    .pvm-updates-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .pvm-msg-btn { display:inline-flex; align-items:center; gap:6px; background:#0D9676; color:#fff; border:none; border-radius:8px; padding:6px 13px; font-size:.76rem; font-weight:700; cursor:pointer; transition:background .18s; }
+    .pvm-msg-btn:hover { background:#0a7a60; }
+
+    /* ── Messages modal (client → team) ── */
+    #messagesModal .modal-dialog { max-width:460px; }
+    .msg-modal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 18px; background:#0d1b2a; color:#fff; }
+    .msg-modal-title { font-family:'Montserrat',sans-serif; font-weight:700; font-size:.95rem; }
+    .msg-modal-sub { font-size:.7rem; color:rgba(255,255,255,.6); margin-top:1px; }
+    .msg-modal-head .btn-close { filter:invert(1) grayscale(1); opacity:.85; }
+    .msg-modal-body { background:#f4f5f7; padding:14px; height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
+    .msg-empty { margin:auto; text-align:center; color:#9ca3af; font-size:.82rem; }
+    .msg-empty i { font-size:1.5rem; display:block; margin-bottom:6px; opacity:.5; }
+    .msg-item { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:9px 12px; align-self:flex-end; max-width:85%; }
+    .msg-item-head { display:flex; align-items:center; gap:8px; margin-bottom:3px; }
+    .msg-item-author { font-size:.72rem; font-weight:700; color:#0a7a60; }
+    .msg-item-time { font-size:.64rem; color:#9ca3af; }
+    .msg-item-text { font-size:.82rem; color:#111827; line-height:1.45; white-space:pre-wrap; word-wrap:break-word; }
+    .msg-compose { display:flex; gap:8px; padding:12px 14px; background:#fff; border-top:1px solid #e5e7eb; }
+    .msg-compose textarea { flex:1; border:1px solid #e5e7eb; border-radius:10px; padding:9px 11px; font-size:.82rem; font-family:'Inter',sans-serif; resize:none; outline:none; }
+    .msg-compose textarea:focus { border-color:#0D9676; }
+    .msg-compose button { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; align-self:flex-end; border:none; border-radius:10px; background:#0D9676; color:#fff; font-size:.8rem; font-weight:700; padding:9px 14px; cursor:pointer; transition:background .15s; }
+    .msg-compose button:hover { background:#0a7a60; }
+    .msg-compose button:disabled { opacity:.6; cursor:not-allowed; }
 
     .pvm-update-item { display:flex; gap:9px; margin-bottom:14px; }
     .pvm-update-item:last-child { margin-bottom:0; }
@@ -572,6 +604,16 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
 .btn-view:hover {
   background: #0D9676; color: #fff;
   box-shadow: 0 2px 8px rgba(13,150,118,.25);
+}
+
+/* Red dot on an action button when the client has something to act on
+   (verify a quote, or confirm/dispute a completed project). */
+.btn-verify.has-action, .btn-view.has-action { position: relative; overflow: visible; }
+.btn-verify.has-action::after, .btn-view.has-action::after {
+  content: ""; position: absolute; top: -3px; right: -3px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #ef4444; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(239,68,68,.35);
 }
 
 /* ══ RESPONSIVE (My Projects) ══════════════════════ */
@@ -668,7 +710,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
 
                 <?php if (!empty($p['quotation_pk'])): $awaiting = awaitingClientDecision($p); ?>
                 <!-- QUOTE — "Verify" while awaiting a decision, else "View Quote" (always available) -->
-                <button class="btn-verify verify-btn"
+                <button class="btn-verify verify-btn<?= $awaiting ? ' has-action' : '' ?>"
                   data-id="<?= $p['id'] ?>"
                   data-awaiting="<?= $awaiting ? '1' : '0' ?>"
                   data-quotation-pk="<?= (int) ($p['quotation_pk'] ?? 0) ?>"
@@ -700,11 +742,12 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
                 </button>
                 <?php endif; ?>
 
-                <!-- VIEW — always shown -->
-                <button class="btn-view view-btn"
+                <!-- VIEW — always shown; red dot when a completion confirmation is awaited -->
+                <button class="btn-view view-btn<?= ($p['awaiting_confirm'] ?? '0') === '1' ? ' has-action' : '' ?>"
                   data-id="<?= $p['id'] ?>"
                   data-name="<?= htmlspecialchars($p['name']) ?>"
                   data-code="<?= htmlspecialchars($p['code']) ?>"
+                  data-issue="<?= htmlspecialchars($p['issue'] ?? '') ?>"
                   data-status="<?= project_status_key($p['status']) ?>"
                   data-display-label="<?= htmlspecialchars($stLabel) ?>"
                   data-display-class="<?= htmlspecialchars($stClass) ?>"
@@ -720,14 +763,6 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
                   data-updates-key="<?= $p['updates_key'] ?>">
                   <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
                   View
-                </button>
-
-                <!-- CHAT — message the team about this project -->
-                <button class="btn-view chat-open-btn" data-chat-open
-                  data-chat-id="<?= (int) $p['id'] ?>"
-                  data-chat-name="<?= htmlspecialchars($p['name']) ?>">
-                  <i class="bi bi-chat-dots"></i>
-                  Chat
                 </button>
 
               </div>
@@ -798,12 +833,6 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
               </div>
 
             </div>
-          </div>
-
-          <!-- Activity card -->
-          <div class="vm-card">
-            <div class="vm-card-title">Activity</div>
-            <div class="vm-activity-list" id="vmActivity"></div>
           </div>
 
         </div>
@@ -1001,20 +1030,27 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
       <div class="modal-body">
         <!-- Completion confirmation banner (shown only while awaiting the client) -->
         <div id="confirmCompletionBanner" style="display:none;margin:14px 22px 0;padding:14px 16px;border:1px solid #6ee7d0;background:#f0fdf9;border-radius:10px;">
-          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
-            <i class="bi bi-check2-circle" style="color:#0a7a60;font-size:1.2rem;margin-top:1px;"></i>
-            <div style="flex:1;min-width:180px;">
-              <div style="font-weight:700;color:#0a7a60;font-size:.85rem;">Your project is marked completed</div>
-              <div style="font-size:.75rem;color:#4b5563;line-height:1.5;margin-top:2px;">
-                Please confirm you've received it. If you don't respond within <?= (int) COMPLETION_AUTO_CONFIRM_DAYS ?> days, it will be confirmed automatically.
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <i id="completionIcon" class="bi bi-check2-circle" style="color:#0a7a60;font-size:1.2rem;margin-top:1px;"></i>
+            <div style="flex:1;">
+              <div id="completionTitle" style="font-weight:700;color:#0a7a60;font-size:.85rem;">Your project is marked completed</div>
+              <div id="completionSubtext" style="font-size:.75rem;color:#4b5563;line-height:1.5;margin-top:2px;">
+                Confirm you've received it in good condition, or report an issue if something's wrong. Auto-confirms after <?= (int) COMPLETION_AUTO_CONFIRM_DAYS ?> days.
               </div>
             </div>
+          </div>
+          <div id="completionActions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
+            <button type="button" id="btnReportIssue"
+              style="background:#fff;color:#b45309;border:1.5px solid #f59e0b;border-radius:8px;padding:7px 14px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+              <i class="bi bi-exclamation-triangle"></i> Report an Issue
+            </button>
             <button type="button" id="btnConfirmCompletion"
               style="background:#0D9676;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;">
               <i class="bi bi-check-lg"></i> Confirm Completion
             </button>
           </div>
           <div id="confirmedNote" style="display:none;font-size:.78rem;color:#0a7a60;font-weight:600;margin-top:4px;"></div>
+          <div id="issueNote" style="display:none;font-size:.78rem;color:#b45309;font-weight:600;margin-top:8px;padding-top:8px;border-top:1px dashed #fcd9a6;"></div>
         </div>
         <div class="pvm-details-section">
           <div class="pvm-grid-2">
@@ -1050,10 +1086,13 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
         </div>
 
         <div class="pvm-updates-section">
-          <div class="pvm-section-title"><i class="bi bi-activity"></i> Project Updates</div>
-          <div class="pvm-readonly-notice">
+          <div class="pvm-updates-head">
+            <div class="pvm-section-title" style="margin:0;"><i class="bi bi-activity"></i> Project Updates</div>
+            <button type="button" id="viewMsgBtn" class="pvm-msg-btn"><i class="bi bi-chat-left-text"></i> Message the team</button>
+          </div>
+          <div class="pvm-readonly-notice" id="viewUpdatesNotice">
             <i class="bi bi-lock-fill"></i>
-            Updates are posted by the <?= htmlspecialchars(company_name()) ?> team. You will be notified of new activity.
+            Updates are posted by the <?= htmlspecialchars(company_name()) ?> team. Use <strong>Message the team</strong> to send them a note.
           </div>
           <div id="viewUpdatesFeed"></div>
         </div>
@@ -1085,6 +1124,57 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
       <div class="modal-footer" style="background:#f8fafc;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;">
         <small class="text-muted me-auto" id="matSummary"></small>
         <button class="btn btn-sm btn-light border" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MESSAGES MODAL (client → team)
+══════════════════════════════════════════════ -->
+<div class="modal fade" id="messagesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;">
+      <div class="msg-modal-head">
+        <div>
+          <div class="msg-modal-title" id="msgModalTitle">Messages</div>
+          <div class="msg-modal-sub">Send a note to the <?= htmlspecialchars(company_name()) ?> team</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="msg-modal-body" id="msgList"></div>
+      <div class="msg-compose">
+        <textarea id="msgInput" rows="2" maxlength="1000" placeholder="Type your message…"></textarea>
+        <button type="button" id="msgSendBtn"><i class="bi bi-send"></i> Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Report Completion Issue modal (stacks above the view modal) -->
+<div class="modal fade" id="issueModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;">
+      <div class="modal-header" style="background:#fffbeb;border-bottom:1px solid #fde68a;">
+        <h5 class="modal-title" style="font-size:1rem;font-weight:700;color:#b45309;">
+          <i class="bi bi-exclamation-triangle me-1"></i> Report an Issue
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:.82rem;color:#4b5563;line-height:1.5;margin-bottom:10px;">
+          Tell us what wasn't done properly. Our team will review your report and get back to you — the project won't be auto-confirmed while an issue is open.
+        </p>
+        <textarea id="issueInput" rows="4" maxlength="1000" class="form-control"
+          placeholder="e.g. A cabinet door is damaged, or an item is missing…"
+          style="font-size:.85rem;"></textarea>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #f0f0f0;">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="font-size:.82rem;">Cancel</button>
+        <button type="button" class="btn" id="btnSubmitIssue"
+          style="background:#f59e0b;color:#fff;font-weight:700;font-size:.82rem;">
+          <i class="bi bi-send"></i> Submit Report
+        </button>
       </div>
     </div>
   </div>
@@ -1137,21 +1227,6 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     document.getElementById('vmFiles').innerHTML = files.length
       ? files.map(f=>`<a href="#" class="vm-file-link"><i class="bi bi-file-earmark-text"></i>${f}</a>`).join('')
       : '<span style="color:#9ca3af;font-size:.78rem">No files</span>';
-
-    // Activity
-    const activity = JSON.parse(d.activity || '[]');
-    document.getElementById('vmActivity').innerHTML = activity.map(a=>{
-      const cap = (a.image && a.text === '(image)') ? '' : a.text;
-      const img = a.image ? `<a href="${a.image}" target="_blank" class="pvm-update-image-link"><img src="${a.image}" alt="Project update photo" class="pvm-update-image"></a>` : '';
-      return `
-      <div class="vm-activity-item">
-        <div class="vm-activity-dot"></div>
-        <div>
-          ${cap?`<div class="vm-activity-text">${cap}</div>`:''}
-          ${img}
-          <div class="vm-activity-date">${a.date} · ${a.by}</div>
-        </div>
-      </div>`;}).join('');
 
     // Quotation bar
     document.getElementById('vmQId').textContent = d.quoteId;
@@ -1269,10 +1344,13 @@ document.getElementById('vmDownloadBtn').addEventListener('click', function(){
 // An off-track status (On Hold, Rejected) yields stepIdx -1: no step is marked active.
 function renderStepTracker(containerId,stepIdx){
   let html='';
+  const lastIdx = PROJECT_STEPS.length - 1;
+  const allDone = stepIdx >= lastIdx; // 'completed' → the final step is done too
   PROJECT_STEPS.forEach(function(label,i){
     if(i>0) html+='<div class="pvm-step-connector'+(i<=stepIdx?' done':'')+'"></div>';
-    const cls=i<stepIdx?'done':i===stepIdx?'active':'';
-    const dot=i<stepIdx?'<i class="bi bi-check2" style="font-size:0.6rem"></i>':(i+1);
+    const done = i<stepIdx || (allDone && i===lastIdx);
+    const cls = done?'done':(i===stepIdx?'active':'');
+    const dot = done?'<i class="bi bi-check2" style="font-size:0.6rem"></i>':(i+1);
     html+='<div class="pvm-step '+cls+'">'
       +'<div class="pvm-step-dot">'+dot+'</div>'
       +'<div class="pvm-step-label">'+label+'</div>'
@@ -1285,7 +1363,7 @@ let currentMatsKey='', currentMatName='';
 
 function renderFeed(key){
   const feed = document.getElementById('viewUpdatesFeed');
-  const all  = SEED_UPDATES[key] || [];
+  const all  = (SEED_UPDATES[key] || []).filter(u => !u.isClient); // team updates only; client messages live in the Messages modal
   if(!all.length){
     feed.innerHTML=`<div class="pvm-empty-updates"><i class="bi bi-chat-left-dots"></i>No updates posted yet.</div>`;
     return;
@@ -1293,12 +1371,13 @@ function renderFeed(key){
   feed.innerHTML = all.map((u,idx)=>{
     const isLast = idx===all.length-1;
     const chips  = (u.attachments||[]).map((a,ci)=>
-      `<span class="pvm-attachment-chip ${a.cls||CHIPS[ci%CHIPS.length]}">${a.label}</span>`
+      `<span class="pvm-attachment-chip ${a.cls||CHIPS[ci%CHIPS.length]}">${esc(a.label)}</span>`
     ).join('');
     const caption = (u.image && u.text === '(image)') ? '' : u.text;
     const imgHtml = u.image
       ? `<a href="${u.image}" target="_blank" class="pvm-update-image-link"><img src="${u.image}" alt="Project update photo" class="pvm-update-image"></a>`
       : '';
+    const tag = u.isClient ? '<span class="pvm-client-tag">You</span>' : '';
     return `<div class="pvm-update-item">
       <div class="pvm-update-dot-col">
         <div class="pvm-update-dot"></div>
@@ -1306,17 +1385,92 @@ function renderFeed(key){
       </div>
       <div class="pvm-update-content">
         <div class="pvm-update-meta">
-          <div class="pvm-update-avatar">${u.initials}</div>
-          <span class="pvm-update-author">${u.author}</span>
-          <span class="pvm-update-time">· ${u.time}</span>
+          <div class="pvm-update-avatar">${esc(u.initials)}</div>
+          <span class="pvm-update-author">${esc(u.author)}</span>
+          ${tag}
+          <span class="pvm-update-time">· ${esc(u.time)}</span>
         </div>
-        ${caption?`<div class="pvm-update-text">${caption}</div>`:''}
+        ${caption?`<div class="pvm-update-text">${esc(caption)}</div>`:''}
         ${imgHtml}
         ${chips?`<div class="pvm-attachments">${chips}</div>`:''}
       </div>
     </div>`;
   }).join('');
 }
+
+function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':s; return d.innerHTML; }
+
+// ── Client MESSAGES to the team (own button + modal, separate from Project Updates) ──
+(function(){
+  let msgProjectId = 0, msgKey = '', msgName = '';
+  const modalEl = document.getElementById('messagesModal');
+  let bsModal = null;
+
+  // When this (stacked) modal closes, Bootstrap drops body.modal-open even though
+  // the project view modal is still open — restore the scroll lock so the page
+  // behind doesn't start scrolling.
+  if (modalEl) modalEl.addEventListener('hidden.bs.modal', function(){
+    if (document.querySelector('.modal.show')) document.body.classList.add('modal-open');
+  });
+
+  function renderMessages(){
+    const list = document.getElementById('msgList');
+    const msgs = (SEED_UPDATES[msgKey] || []).filter(u => u.isClient);
+    if(!msgs.length){
+      list.innerHTML = '<div class="msg-empty"><i class="bi bi-chat-left-text"></i>No messages yet.<br>Send your first note to the team.</div>';
+      return;
+    }
+    // SEED_UPDATES is newest-first; show oldest→newest so the latest is at the bottom.
+    list.innerHTML = msgs.slice().reverse().map(m => `
+      <div class="msg-item">
+        <div class="msg-item-head">
+          <span class="msg-item-author">${esc(m.author)}</span>
+          <span class="msg-item-time">${esc(m.time)}</span>
+        </div>
+        <div class="msg-item-text">${esc(m.text)}</div>
+      </div>`).join('');
+    list.scrollTop = list.scrollHeight;
+  }
+
+  window.openMessages = function(pid, name, key){
+    msgProjectId = parseInt(pid, 10) || 0;
+    msgName = name || 'Project';
+    msgKey = key || String(msgProjectId);
+    document.getElementById('msgModalTitle').textContent = 'Messages — ' + msgName;
+    renderMessages();
+    if(!bsModal) bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show(); // stacks on top of the project view modal
+    setTimeout(function(){ const t=document.getElementById('msgInput'); if(t) t.focus(); }, 250);
+  };
+
+  // Open from the "Message the team" button inside the project view modal.
+  const viewMsgBtn = document.getElementById('viewMsgBtn');
+  if(viewMsgBtn) viewMsgBtn.addEventListener('click', function(){
+    if(!currentViewProjectId){ vsAlert('Open a project first.'); return; }
+    window.openMessages(currentViewProjectId, currentViewName, currentViewKey);
+  });
+
+  const sendBtn = document.getElementById('msgSendBtn');
+  const input   = document.getElementById('msgInput');
+  if(sendBtn && input){
+    function send(){
+      const text = input.value.trim();
+      if(!text || !msgProjectId) return;
+      sendBtn.disabled = true;
+      fetch('post_comment.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({project_id:msgProjectId, body:text})})
+        .then(r=>r.json()).then(function(d){
+          if(!d.ok) throw new Error(d.error||'Failed');
+          input.value='';
+          if(!SEED_UPDATES[msgKey]) SEED_UPDATES[msgKey] = [];
+          SEED_UPDATES[msgKey].unshift({author:d.author, initials:d.initials, time:d.time, text:d.text, image:null, attachments:[], isClient:1});
+          renderMessages();
+          if(window.vsToast) vsToast('Message sent to the team.');
+        }).catch(e=>{ vsAlert(e.message); }).finally(()=>{ sendBtn.disabled=false; });
+    }
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', function(e){ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) send(); });
+  }
+})();
 
 document.querySelectorAll('.view-btn').forEach(btn=>{
   btn.addEventListener('click', function(){
@@ -1346,17 +1500,54 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
 
     // Completion-confirmation banner
     currentViewProjectId = d.id || 0;
-    const banner = document.getElementById('confirmCompletionBanner');
-    const confBtn = document.getElementById('btnConfirmCompletion');
+    currentViewName = d.name || 'Project';
+    currentViewKey  = d.updatesKey || String(currentViewProjectId);
+
+    // Messaging closes once the project is completed/rejected.
+    const closed = (statusKey(d.status) === 'completed' || statusKey(d.status) === 'rejected');
+    const vmb = document.getElementById('viewMsgBtn');
+    if (vmb) vmb.style.display = closed ? 'none' : '';
+    const notice = document.getElementById('viewUpdatesNotice');
+    if (notice) {
+      if (!notice.dataset.def) notice.dataset.def = notice.innerHTML;
+      notice.innerHTML = closed
+        ? '<i class="bi bi-lock-fill"></i> This project is closed. Messaging is no longer available.'
+        : notice.dataset.def;
+    }
+
+    const banner   = document.getElementById('confirmCompletionBanner');
+    const actions  = document.getElementById('completionActions');
+    const confBtn  = document.getElementById('btnConfirmCompletion');
     const confNote = document.getElementById('confirmedNote');
-    if (d.awaitingConfirm === '1') {
+    const issueNote = document.getElementById('issueNote');
+    const bTitle   = document.getElementById('completionTitle');
+    const bSubtext = document.getElementById('completionSubtext');
+    const bIcon    = document.getElementById('completionIcon');
+    confNote.style.display = 'none';
+    issueNote.style.display = 'none';
+    if (d.issue) {
+      // Issue reported — project is out of "Completed" and under review by the team.
       banner.style.display = '';
-      confBtn.style.display = '';
+      actions.style.display = 'none';
+      bIcon.className = 'bi bi-hourglass-split'; bIcon.style.color = '#d97706';
+      bTitle.textContent = 'Your project is under review'; bTitle.style.color = '#b45309';
+      bSubtext.style.display = 'none';
+      issueNote.style.display = '';
+      issueNote.innerHTML = '<i class="bi bi-exclamation-triangle"></i> You reported an issue on ' + d.issue + '. Our team is reviewing it and will re-submit it for your confirmation once resolved.';
+    } else if (d.awaitingConfirm === '1') {
+      // Awaiting the client: offer both Confirm and Report an Issue.
+      banner.style.display = '';
+      actions.style.display = 'flex';
       confBtn.disabled = false;
-      confNote.style.display = 'none';
+      bIcon.className = 'bi bi-check2-circle'; bIcon.style.color = '#0a7a60';
+      bTitle.textContent = 'Your project is marked completed'; bTitle.style.color = '#0a7a60';
+      bSubtext.style.display = '';
     } else if (statusKey(d.status) === 'completed' && d.confirmed) {
       banner.style.display = '';
-      confBtn.style.display = 'none';
+      actions.style.display = 'none';
+      bIcon.className = 'bi bi-check2-circle'; bIcon.style.color = '#0a7a60';
+      bTitle.textContent = 'Your project is marked completed'; bTitle.style.color = '#0a7a60';
+      bSubtext.style.display = '';
       confNote.style.display = '';
       confNote.textContent = '✓ You confirmed completion on ' + d.confirmed + '.';
     } else {
@@ -1369,7 +1560,7 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
 });
 
 // Confirm-completion action ("Order received" style)
-let currentViewProjectId = 0;
+let currentViewProjectId = 0, currentViewName = '', currentViewKey = '';
 document.getElementById('btnConfirmCompletion').addEventListener('click', function(){
   if(!currentViewProjectId) return;
   const self = this;
@@ -1381,13 +1572,53 @@ document.getElementById('btnConfirmCompletion').addEventListener('click', functi
       .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
       .then(function(){
         vsToast('Thank you! Your project completion has been confirmed.');
-        self.style.display='none';
+        document.getElementById('completionActions').style.display='none';
         const confNote = document.getElementById('confirmedNote');
         confNote.style.display=''; confNote.textContent='✓ You confirmed completion just now.';
+        markViewActionResolved();
       })
       .catch(function(e){ self.disabled=false; alert(e.message); });
   });
 });
+
+// Report-an-issue action — client says a completed project wasn't done properly.
+document.getElementById('btnReportIssue').addEventListener('click', function(){
+  if(!currentViewProjectId) return;
+  document.getElementById('issueInput').value = '';
+  const m = new bootstrap.Modal(document.getElementById('issueModal'));
+  m.show();
+  // Keep the underlying view modal usable after this stacked modal closes.
+  document.getElementById('issueModal').addEventListener('hidden.bs.modal', function(){
+    if(document.querySelector('.modal.show')) document.body.classList.add('modal-open');
+  }, {once:true});
+});
+
+document.getElementById('btnSubmitIssue').addEventListener('click', function(){
+  const self = this;
+  const body = document.getElementById('issueInput').value.trim();
+  if(!body){ vsAlert('Please describe what went wrong so we can help.', {title:'Add a description'}); return; }
+  self.disabled = true;
+  fetch('report_completion_issue.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({project_id: currentViewProjectId, body: body})})
+    .then(async r=>{const d=await r.json().catch(()=>({ok:false})); if(!r.ok||!d.ok) throw new Error(d.error||'Failed'); return d;})
+    .then(function(d){
+      bootstrap.Modal.getInstance(document.getElementById('issueModal')).hide();
+      vsToast('Your report has been sent. Our team will follow up with you.');
+      document.getElementById('completionActions').style.display='none';
+      const issueNote = document.getElementById('issueNote');
+      issueNote.style.display='';
+      issueNote.innerHTML = '<i class="bi bi-exclamation-triangle"></i> You reported an issue on ' + (d.reported||'just now') + '. Our team is reviewing it and will follow up.';
+      markViewActionResolved();
+    })
+    .catch(function(e){ self.disabled=false; alert(e.message); })
+    .finally(function(){ self.disabled=false; });
+});
+
+// After the client acts on a completed project, clear the red dot on its View button.
+function markViewActionResolved(){
+  const btn = document.querySelector('.view-btn[data-id="'+CSS.escape(String(currentViewProjectId))+'"]');
+  if(btn) btn.classList.remove('has-action');
+}
 
 // Deep link: my_projects.php?view=<projectId> opens that project's detail modal
 // (used by notifications so the client lands on the project details here).
@@ -1507,6 +1738,5 @@ document.getElementById('btnViewMaterials').addEventListener('click', function()
   apply();
 })();
 </script>
-<?php include __DIR__ . '/../includes/chat_modal.php'; // project chat (client <-> back office) ?>
 </body>
 </html>

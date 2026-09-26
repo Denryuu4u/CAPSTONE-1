@@ -169,6 +169,11 @@ function ensure_completion_columns(): void
         if (!in_array('client_confirmed_at', $cols, true)) {
             $pdo->exec("ALTER TABLE projects ADD COLUMN client_confirmed_at DATETIME NULL DEFAULT NULL");
         }
+        // Set when a client reports a completed project wasn't done properly. While
+        // it's set (and unconfirmed), the project is disputed: no auto-confirm.
+        if (!in_array('completion_issue_at', $cols, true)) {
+            $pdo->exec("ALTER TABLE projects ADD COLUMN completion_issue_at DATETIME NULL DEFAULT NULL");
+        }
     } catch (Throwable $e) {
         // Non-fatal — the feature degrades gracefully if the ALTER can't run.
     }
@@ -220,6 +225,27 @@ function ensure_revert_codes_table(): void
     }
 }
 
+/**
+ * Self-migrate project_updates.is_client — marks timeline entries a client posted
+ * (their own message/comment) so both sides can distinguish them from team updates.
+ */
+function ensure_client_comment_column(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $cols = db()->query("SHOW COLUMNS FROM project_updates")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('is_client', $cols, true)) {
+            db()->exec("ALTER TABLE project_updates ADD COLUMN is_client TINYINT(1) NOT NULL DEFAULT 0");
+        }
+        // client_read_at: when the back office has seen a client's message (NULL = unread).
+        if (!in_array('client_read_at', $cols, true)) {
+            db()->exec("ALTER TABLE project_updates ADD COLUMN client_read_at DATETIME NULL DEFAULT NULL");
+        }
+    } catch (Throwable $e) { /* non-fatal */ }
+}
+
 /** Generate a fresh, unambiguous single-use revert code (e.g. "R7K2QX"). */
 function generate_revert_code(): string
 {
@@ -253,6 +279,7 @@ function auto_confirm_completions(): void
             "SELECT id, project_code, project_name FROM projects
               WHERE status = 'completed'
                 AND client_confirmed_at IS NULL
+                AND completion_issue_at IS NULL
                 AND completion_notified_at IS NOT NULL
                 AND completion_notified_at < (NOW() - INTERVAL {$days} DAY)"
         )->fetchAll();

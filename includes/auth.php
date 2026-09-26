@@ -197,7 +197,6 @@ function role_pages(): array
         'reports'          => $adminUp,
         'settings'         => $adminUp,   // company/website/costing/gallery sections
         'settings_self'    => $all,       // opening Settings for own profile + password
-        'archive'          => $adminUp,
         'user_management'  => $superOnly,
         'audit_logs'       => $superOnly,
     ];

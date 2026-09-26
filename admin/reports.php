@@ -226,6 +226,19 @@ foreach (db()->query(
         .it-rejected   { background:rgba(239,68,68,.12);   color:#dc2626; }
         .it-cat        { background:#f0f9ff; color:#0369a1; }
 
+        /* ── inline table pagination ── */
+        .rp-pager { display:none; align-items:center; justify-content:space-between; gap:12px;
+            flex-wrap:wrap; padding:12px 18px; border-top:1px solid #f0f0f0; font-size:.72rem; color:#6b7280; }
+        .rp-pager-info { font-weight:500; }
+        .rp-pager-btns { display:flex; align-items:center; gap:6px; }
+        .rp-pager-btn { display:inline-flex; align-items:center; gap:5px; font-size:.72rem; font-weight:600;
+            padding:6px 12px; border-radius:8px; border:1px solid #e5e7eb; background:#fff; color:#374151; cursor:pointer;
+            transition:background .15s,border-color .15s; }
+        .rp-pager-btn:hover:not(:disabled) { border-color:#cbd5e1; background:#f9fafb; }
+        .rp-pager-btn:disabled { opacity:.45; cursor:not-allowed; }
+        .rp-pager-page { min-width:38px; text-align:center; font-weight:700; color:#111827; }
+        @media print { .rp-pager { display:none !important; } }
+
         /* ── responsive: report preview document ── */
         #reportPreviewBody { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         @media (max-width: 768px) {
@@ -840,6 +853,7 @@ function renderCosting(){
             <td>${peso(r.labor)}</td><td>${peso(r.other)}</td>
             <td><strong>${peso(r.total)}</strong></td></tr>`).join('')
         : '<tr><td colspan="5" class="text-center text-muted py-3">No data.</td></tr>';
+    pageState['costing']=1; paginate('costing');
 }
 
 // ════════════════════════════════════════════════════
@@ -892,6 +906,7 @@ function renderTracking(){
                 <a class="btn btn-sm btn-outline-secondary" href="tracking_print.php?project_id=${r.project_id}" target="_blank" title="PDF"><i class="bi bi-printer"></i></a>
             </td></tr>`).join('')
         : '<tr><td colspan="7" class="text-center text-muted py-3">No tracking records yet. Add cost tracking from Monitoring.</td></tr>';
+    pageState['tracking']=1; paginate('tracking');
 }
 
 // Tracking viewer modal — fetch + render a project's ledger read-only.
@@ -1166,15 +1181,54 @@ document.getElementById('btnPrint').addEventListener('click',()=>window.print())
 // ════════════════════════════════════════════════════
 const cardFilter = {project:'', quotation:'', cutting:''};
 
+// ── Inline-table pagination (10 rows/page), works alongside the card filter ──
+const RP_PAGE_SIZE = 10;
+const pageState = {project:1, quotation:1, cutting:1, costing:1, tracking:1};
+
+function ensurePager(tab){
+    const wrap=document.getElementById('tbl-wrap-'+tab);
+    if(!wrap) return null;
+    let pager=wrap.querySelector('.rp-pager');
+    if(!pager){
+        pager=document.createElement('div');
+        pager.className='rp-pager';
+        pager.innerHTML='<span class="rp-pager-info"></span>'+
+            '<span class="rp-pager-btns">'+
+                '<button type="button" class="rp-pager-btn" data-dir="-1"><i class="bi bi-chevron-left"></i> Prev</button>'+
+                '<span class="rp-pager-page"></span>'+
+                '<button type="button" class="rp-pager-btn" data-dir="1">Next <i class="bi bi-chevron-right"></i></button>'+
+            '</span>';
+        wrap.appendChild(pager);
+        pager.querySelector('[data-dir="-1"]').addEventListener('click',()=>{ if(pageState[tab]>1){ pageState[tab]--; paginate(tab); } });
+        pager.querySelector('[data-dir="1"]').addEventListener('click',()=>{ pageState[tab]++; paginate(tab); });
+    }
+    return pager;
+}
+
+function paginate(tab){
+    const tbody=document.getElementById('tbl-'+tab);
+    if(!tbody) return;
+    const cat=(tab in cardFilter)?cardFilter[tab]:'';
+    const dataRows=Array.prototype.slice.call(tbody.querySelectorAll('tr')).filter(tr=>!tr.querySelector('td[colspan]'));
+    const eligible=dataRows.filter(tr=>!cat || tr.dataset.cat===cat);
+    dataRows.forEach(tr=>{ if(eligible.indexOf(tr)===-1) tr.style.display='none'; });
+    const pages=Math.max(1,Math.ceil(eligible.length/RP_PAGE_SIZE));
+    let pg=pageState[tab]||1; if(pg>pages)pg=pages; if(pg<1)pg=1; pageState[tab]=pg;
+    const start=(pg-1)*RP_PAGE_SIZE;
+    eligible.forEach((tr,i)=>{ tr.style.display=(i>=start && i<start+RP_PAGE_SIZE)?'':'none'; });
+    const pager=ensurePager(tab);
+    if(!pager) return;
+    if(eligible.length<=RP_PAGE_SIZE){ pager.style.display='none'; return; }
+    pager.style.display='flex';
+    pager.querySelector('.rp-pager-info').textContent='Showing '+(start+1)+'–'+Math.min(start+RP_PAGE_SIZE,eligible.length)+' of '+eligible.length;
+    pager.querySelector('.rp-pager-page').textContent=pg+' / '+pages;
+    pager.querySelector('[data-dir="-1"]').disabled=pg<=1;
+    pager.querySelector('[data-dir="1"]').disabled=pg>=pages;
+}
+
 function applyCardFilter(tab){
     if(!(tab in cardFilter)) return;
     const cat=cardFilter[tab];
-    const tbody=document.getElementById('tbl-'+tab);
-    if(tbody){
-        tbody.querySelectorAll('tr[data-cat]').forEach(tr=>{
-            tr.style.display=(!cat || tr.dataset.cat===cat)?'':'none';
-        });
-    }
     const strip=document.getElementById('strip-'+tab);
     if(strip) strip.querySelectorAll('.sum-card[data-cat]').forEach(c=>c.classList.toggle('sum-card-active',(c.dataset.cat||'')===cat));
     const wrap=document.getElementById('tbl-wrap-'+tab);
@@ -1186,6 +1240,8 @@ function applyCardFilter(tab){
             note.innerHTML='· '+(CAT_LABEL[cat]||cat)+' <span class="it-clear" data-clear="'+tab+'">clear</span>';
         } else if(note){ note.remove(); }
     }
+    pageState[tab]=1;   // filter changed / table re-rendered → back to first page
+    paginate(tab);
 }
 
 document.addEventListener('click',function(e){

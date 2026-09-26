@@ -15,14 +15,27 @@ $customers = db()->query(
             COALESCE(NULLIF(c.email, ''),   u.email)    AS email,
             COALESCE(NULLIF(c.phone, ''),   u.phone)    AS phone,
             COALESCE(NULLIF(c.address, ''), u.location) AS address,
-            (SELECT COUNT(*) FROM projects p WHERE p.customer_id = c.id) AS project_count,
-            (SELECT p.status FROM projects p WHERE p.customer_id = c.id ORDER BY p.created_at DESC LIMIT 1) AS last_status
+            (SELECT COUNT(*) FROM projects p WHERE p.customer_id = c.id) AS project_count
        FROM customers c
        LEFT JOIN users u ON u.id = c.user_id
       WHERE c.is_archived = 0
       ORDER BY c.name"
 )->fetchAll();
 $initials = fn($name) => strtoupper(implode('', array_map(fn($w) => $w[0] ?? '', array_slice(explode(' ', trim($name)), 0, 2))));
+
+// Archived customers (soft-deleted) — shown in the Archive tab, restorable from here.
+$archived_customers = db()->query(
+    "SELECT c.*,
+            COALESCE(NULLIF(c.email, ''),   u.email)    AS email,
+            COALESCE(NULLIF(c.phone, ''),   u.phone)    AS phone,
+            a.full_name AS archiver,
+            (SELECT COUNT(*) FROM projects p WHERE p.customer_id = c.id) AS project_count
+       FROM customers c
+       LEFT JOIN users u ON u.id = c.user_id
+       LEFT JOIN users a ON a.id = c.archived_by
+      WHERE c.is_archived = 1
+      ORDER BY c.archived_at DESC"
+)->fetchAll();
 
 // Contact-form messages (public "Let's Talk" form → reviewed/replied to here).
 require_once __DIR__ . '/../includes/contact.php';
@@ -102,6 +115,14 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                         <?php endif; ?>
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-archive" type="button">
+                        <i class="bi bi-archive me-1"></i> Archive
+                        <?php if (count($archived_customers) > 0): ?>
+                        <span class="badge rounded-pill bg-secondary ms-1"><?= count($archived_customers) ?></span>
+                        <?php endif; ?>
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content">
@@ -129,13 +150,12 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                                 <th>EMAIL</th>
                                 <th>PHONE</th>
                                 <th>PROJECTS</th>
-                                <th>LAST STATUS</th>
                                 <th class="text-center">ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($customers)): ?>
-                            <tr><td colspan="6" class="text-center text-muted py-4">No customers yet.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-4">No customers yet.</td></tr>
                             <?php else: foreach ($customers as $c): ?>
                             <tr>
                                 <td>
@@ -146,8 +166,16 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                                 </td>
                                 <td class="customer-email"><?= htmlspecialchars($c['email'] ?? '—') ?></td>
                                 <td class="customer-phone"><?= htmlspecialchars($c['phone'] ?? '—') ?></td>
-                                <td class="customer-projects"><?= (int) $c['project_count'] ?></td>
-                                <td><?= $c['last_status'] ? project_status_badge($c['last_status'], 'customer-badge') : '<span class="text-muted">—</span>' ?></td>
+                                <td class="customer-projects">
+                                    <?php $pc = (int) $c['project_count']; if ($pc > 0): ?>
+                                    <a href="monitoring.php?customer=<?= urlencode($c['name']) ?>" class="customer-projects-btn" title="View this customer's projects in Monitoring">
+                                        <i class="bi bi-folder2-open"></i>
+                                        <span><?= $pc ?> <?= $pc === 1 ? 'project' : 'projects' ?></span>
+                                    </a>
+                                    <?php else: ?>
+                                    <span class="text-muted">No projects</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-center">
                                     <div class="customer-actions">
                                         <a href="#" class="customer-action edit-customer-btn" title="Edit"
@@ -217,6 +245,62 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                 </div>
                 <?php endif; ?>
             </div><!-- /#tab-messages -->
+
+            <!-- ===== ARCHIVE TAB (archived customers) ===== -->
+            <div class="tab-pane fade" id="tab-archive" role="tabpanel">
+
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+                <p class="text-muted mb-0" style="font-size:.9rem;">Archived customers are hidden from active records. Restore to bring them back.</p>
+                <div class="customer-search-wrap">
+                    <i class="bi bi-search customer-search-icon"></i>
+                    <input type="text" class="form-control archcust-search" placeholder="Search archive...">
+                </div>
+            </div>
+
+            <div class="customer-card">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 archcust-table customer-table">
+                        <thead>
+                            <tr>
+                                <th>NAME</th>
+                                <th>EMAIL</th>
+                                <th>PHONE</th>
+                                <th>PROJECTS</th>
+                                <th>DATE ARCHIVED</th>
+                                <th class="text-center">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($archived_customers)): ?>
+                            <tr><td colspan="6" class="text-center text-muted py-4">No archived customers.</td></tr>
+                            <?php else: foreach ($archived_customers as $c): ?>
+                            <tr>
+                                <td>
+                                    <div class="customer-name">
+                                        <span class="customer-avatar"><?= htmlspecialchars($initials($c['name'])) ?></span>
+                                        <span><?= htmlspecialchars($c['name']) ?></span>
+                                    </div>
+                                </td>
+                                <td class="customer-email"><?= htmlspecialchars($c['email'] ?? '—') ?></td>
+                                <td class="customer-phone"><?= htmlspecialchars($c['phone'] ?? '—') ?></td>
+                                <td class="customer-projects"><?= (int) $c['project_count'] ?></td>
+                                <td class="customer-phone"><?= $c['archived_at'] ? date('M d, Y', strtotime($c['archived_at'])) : '—' ?></td>
+                                <td class="text-center">
+                                    <div class="customer-actions">
+                                        <button type="button" class="restore-customer-btn"
+                                           data-id="<?= (int) $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            </div><!-- /#tab-archive -->
             </div><!-- /.tab-content -->
 
         </div>
@@ -405,9 +489,10 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
                 const modal = new bootstrap.Modal(document.getElementById('addCustomerModal'));
                 modal.show();
             }
-            // Open the Messages tab directly (e.g. from a notification link).
-            if (urlParams.get("tab") === "messages") {
-                const t = document.querySelector('[data-bs-target="#tab-messages"]');
+            // Open a specific tab directly (e.g. from a notification link): messages | archive.
+            const tabParam = urlParams.get("tab");
+            if (tabParam === "messages" || tabParam === "archive") {
+                const t = document.querySelector('[data-bs-target="#tab-' + tabParam + '"]');
                 if (t) new bootstrap.Tab(t).show();
             }
         });
@@ -477,6 +562,18 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
     document.getElementById("confirmArchiveBtn").addEventListener("click", function () {
         post('archive_entity.php', { type: 'customer', id: selectedCustomerId, action: 'archive' })
             .then(() => { vsToastFlash('Customer archived.'); location.reload(); }).catch(e => alert(e.message));
+    });
+
+    // RESTORE CUSTOMER (Archive tab)
+    document.querySelectorAll(".restore-customer-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            const id = this.dataset.id, name = this.dataset.name;
+            vsConfirm('Restore "' + name + '"? They will be moved back to active records.', {title:'Restore customer', okText:'Restore'}).then(function(ok){
+                if (!ok) return;
+                post('archive_entity.php', { type: 'customer', id: id, action: 'restore' })
+                    .then(() => { vsToastFlash('Customer restored.'); location.reload(); }).catch(e => alert(e.message));
+            });
+        });
     });
 
     // ===== CONTACT MESSAGES (Messages tab) — open full message in a modal =====

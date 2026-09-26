@@ -79,13 +79,6 @@ if (!isset($active_page)) $active_page = '';
       <span>Settings</span>
     </a>
     <?php endif; ?>
-
-    <?php if ($rc('archive')): ?>
-    <a href="archive.php" class="nav-item <?= $active_page === 'archive' ? 'active' : '' ?>">
-      <i class="bi bi-archive"></i>
-      <span>Archives</span>
-    </a>
-    <?php endif; ?>
   </nav>
 
   <div class="sidebar-footer">

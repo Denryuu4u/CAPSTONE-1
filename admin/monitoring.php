@@ -19,7 +19,7 @@ $monitor_projects = [];
 foreach (db()->query(
     "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status, p.prev_status,
             p.target_completion, p.start_date, p.progress, p.approver, p.description,
-            p.completion_notified_at, p.client_confirmed_at,
+            p.completion_notified_at, p.client_confirmed_at, p.completion_issue_at,
             q.id AS quotation_id, q.quote_code, q.total_amount AS quote_total, q.status AS quote_status
        FROM projects p
        LEFT JOIN customers c ON c.id = p.customer_id
@@ -43,6 +43,7 @@ foreach (db()->query(
         'details'  => $r['description'] ?? '',
         'confirmed'     => $r['client_confirmed_at'] ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
         'awaiting_conf' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
+        'issue'         => !empty($r['completion_issue_at']) ? date('M d, Y', strtotime($r['completion_issue_at'])) : '',
         'quote_id'      => (int) ($r['quotation_id'] ?? 0),
         'quote_code'    => $r['quote_code'] ?? '',
         'quote_total'   => $r['quote_total'] !== null ? peso((float) $r['quote_total']) : '',
@@ -61,7 +62,8 @@ foreach (db()->query("SELECT project_id, material, specification, qty, unit, sta
     ];
 }
 $updatesByProject = [];
-foreach (db()->query("SELECT project_id, author_name, update_text, attachment_path, created_at FROM project_updates ORDER BY created_at DESC, id DESC") as $u) {
+ensure_client_comment_column();
+foreach (db()->query("SELECT project_id, author_name, update_text, attachment_path, created_at, is_client FROM project_updates ORDER BY created_at DESC, id DESC") as $u) {
     $updatesByProject[(string) $u['project_id']][] = [
         'author'   => $u['author_name'] ?: 'Vast Solutions',
         'initials' => strtoupper(mb_substr($u['author_name'] ?: 'V', 0, 1)),
@@ -69,7 +71,14 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
         'text'     => $u['update_text'],
         'image'    => $u['attachment_path'] ? '../' . $u['attachment_path'] : null,
         'attachments' => [],
+        'isClient' => (int) $u['is_client'],
     ];
+}
+
+// Unread client messages per project → drives the red dot on the View icon.
+$unreadMsgs = [];
+foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE is_client = 1 AND client_read_at IS NULL GROUP BY project_id") as $r) {
+    $unreadMsgs[(int) $r['project_id']] = (int) $r['c'];
 }
 ?>
 <!DOCTYPE html>
@@ -246,7 +255,7 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
             </div>
             <div class="monitor-search-wrap">
                 <i class="bi bi-search monitor-search-icon"></i>
-                <input type="text" class="form-control monitor-search" placeholder="Search projects...">
+                <input type="text" class="form-control monitor-search" placeholder="Search projects..." value="<?= htmlspecialchars($_GET['customer'] ?? '') ?>">
             </div>
         </div>
 
@@ -265,11 +274,16 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                             // so a project can't jump straight to Completed from mid-flow.
                             $can_complete = project_status_key($p['status']) === 'final_approval';
                         ?>
-                        <tr data-project="<?= $p['code'] ?>" data-status="<?= project_status_key($p['status']) ?>">
+                        <tr data-project="<?= $p['code'] ?>" data-status="<?= project_status_key($p['status']) ?>"<?= $p['issue'] !== '' ? ' class="monitor-issue-row"' : '' ?>>
                             <td><?= $p['code'] ?></td>
                             <td class="monitor-project"><?= htmlspecialchars($p['project']) ?></td>
                             <td class="monitor-customer"><?= htmlspecialchars($p['customer']) ?></td>
-                            <td><?= project_status_badge($p['status']) ?></td>
+                            <td>
+                                <?= project_status_badge($p['status']) ?>
+                                <?php if ($p['issue'] !== ''): ?>
+                                <span class="monitor-issue-flag" title="Client reported an issue with this completed project"><i class="bi bi-exclamation-triangle-fill"></i> Issue reported</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="monitor-target"><?= htmlspecialchars($p['target']) ?></td>
                             <td class="text-center">
                                 <div class="monitor-actions">
@@ -279,13 +293,7 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                                         <?php endif; ?>
                                     </div>
                                     <div class="action-right">
-                                        <a href="#" class="monitor-action chat-project-btn" title="Chat"
-                                            data-chat-open
-                                            data-chat-id="<?= (int) $p['id'] ?>"
-                                            data-chat-name="<?= htmlspecialchars($p['project']) ?>">
-                                            <i class="bi bi-chat-dots"></i><span>Chat</span>
-                                        </a>
-                                        <a href="#" class="monitor-action view-project-btn" title="View project"
+                                        <a href="#" class="monitor-action view-project-btn<?= !empty($unreadMsgs[$p['id']]) ? ' has-unread' : '' ?>" title="<?= !empty($unreadMsgs[$p['id']]) ? 'New client message' : 'View project' ?>"
                                             data-code="<?= $p['code'] ?>"
                                             data-project="<?= htmlspecialchars($p['project']) ?>"
                                             data-customer="<?= htmlspecialchars($p['customer']) ?>"
@@ -297,6 +305,7 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
                                             data-approver="<?= htmlspecialchars($p['approver']) ?>"
                                             data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
                                             data-awaiting-conf="<?= $p['awaiting_conf'] ?>"
+                                            data-issue="<?= htmlspecialchars($p['issue']) ?>"
                                             data-quote-id="<?= $p['quote_id'] ?>"
                                             data-quote-code="<?= htmlspecialchars($p['quote_code']) ?>"
                                             data-quote-total="<?= htmlspecialchars($p['quote_total']) ?>"
@@ -354,6 +363,19 @@ foreach (db()->query("SELECT project_id, author_name, update_text, attachment_pa
 
             <!-- BODY -->
             <div class="modal-body">
+
+                <!-- Client-reported issue alert (shown only when a completed project is disputed) -->
+                <div id="pvmIssueAlert" style="display:none;margin:16px 26px 0;padding:13px 16px;border:1px solid #fca5a5;background:#fef2f2;border-radius:10px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;">
+                        <i class="bi bi-exclamation-triangle-fill" style="color:#dc2626;font-size:1.1rem;margin-top:1px;"></i>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;color:#b91c1c;font-size:.85rem;">Client reported an issue with this completed project</div>
+                            <div id="pvmIssueMeta" style="font-size:.75rem;color:#7f1d1d;line-height:1.5;margin-top:2px;">
+                                Reported on —. The project has been returned to Final Approval for review — see their message in Project Updates below. Once resolved, mark it <strong>Complete</strong> again to re-submit it for the client's confirmation.
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Detail grid -->
                 <div class="pvm-details-section">
@@ -582,10 +604,13 @@ const SEED_UPDATES = <?= json_encode($updatesByProject, JSON_UNESCAPED_UNICODE) 
 // An off-track status (On Hold, Rejected) yields stepIdx -1: no step is marked active.
 function renderStepTracker(containerId,stepIdx){
     let html='';
+    const lastIdx = PROJECT_STEPS.length - 1;
+    const allDone = stepIdx >= lastIdx; // 'completed' → the final step is done too, not "active"
     PROJECT_STEPS.forEach(function(label,i){
         if(i>0) html+='<div class="pvm-step-connector'+(i<=stepIdx?' done':'')+'"></div>';
-        const cls=i<stepIdx?'done':i===stepIdx?'active':'';
-        const dot=i<stepIdx?'<i class="bi bi-check2" style="font-size:0.62rem"></i>':(i+1);
+        const done = i<stepIdx || (allDone && i===lastIdx);
+        const cls = done?'done':(i===stepIdx?'active':'');
+        const dot = done?'<i class="bi bi-check2" style="font-size:0.62rem"></i>':(i+1);
         html+='<div class="pvm-step '+cls+'">'
             +'<div class="pvm-step-dot">'+dot+'</div>'
             +'<div class="pvm-step-label">'+label+'</div>'
@@ -614,9 +639,11 @@ function renderFeed(key){
         feed.innerHTML=`<div class="pvm-empty-updates"><i class="bi bi-chat-left-dots"></i>No updates yet. Be the first to post one.</div>`;
         return;
     }
+    const esc=function(s){var d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;};
     feed.innerHTML=all.map((u,idx)=>{
         const isLast=idx===all.length-1;
-        const chips=(u.attachments||[]).map((a,ci)=>`<span class="pvm-attachment-chip ${a.cls||CHIPS[ci%CHIPS.length]}">${a.label}</span>`).join('');
+        const chips=(u.attachments||[]).map((a,ci)=>`<span class="pvm-attachment-chip ${a.cls||CHIPS[ci%CHIPS.length]}">${esc(a.label)}</span>`).join('');
+        const tag=u.isClient?'<span class="pvm-client-tag">Client</span>':'';
         return `<div class="pvm-update-item">
             <div class="pvm-update-dot-col">
                 <div class="pvm-update-dot"></div>
@@ -624,11 +651,12 @@ function renderFeed(key){
             </div>
             <div class="pvm-update-content">
                 <div class="pvm-update-meta">
-                    <div class="pvm-update-avatar">${u.initials}</div>
-                    <span class="pvm-update-author">${u.author}</span>
-                    <span class="pvm-update-time">· ${u.time}</span>
+                    <div class="pvm-update-avatar">${esc(u.initials)}</div>
+                    <span class="pvm-update-author">${esc(u.author)}</span>
+                    ${tag}
+                    <span class="pvm-update-time">· ${esc(u.time)}</span>
                 </div>
-                <div class="pvm-update-text">${u.text}</div>
+                <div class="pvm-update-text">${esc(u.text)}</div>
                 ${u.image?`<a href="${u.image}" target="_blank"><img src="${u.image}" alt="attachment" style="max-width:220px;max-height:160px;border-radius:8px;margin-top:6px;border:1px solid #e5e7eb;display:block;object-fit:cover;"></a>`:''}
                 ${chips?`<div class="pvm-attachments">${chips}</div>`:''}
             </div>
@@ -832,13 +860,23 @@ function fillProjectModal(btn){
     // Client confirmation (only meaningful once completed)
     const confWrap=document.getElementById('wrapClientConfirm');
     const confVal=document.getElementById('viewProjectConfirm');
+    const issueAlert=document.getElementById('pvmIssueAlert');
     if(statusKey(d.status)==='completed'){
         confWrap.style.display='';
-        if(d.confirmed){ confVal.innerHTML='<span style="color:#0a7a60;">Confirmed on '+d.confirmed+'</span>'; }
+        if(d.issue){ confVal.innerHTML='<span style="color:#dc2626;font-weight:700;"><i class="bi bi-exclamation-triangle-fill"></i> Issue reported '+d.issue+'</span>'; }
+        else if(d.confirmed){ confVal.innerHTML='<span style="color:#0a7a60;">Confirmed on '+d.confirmed+'</span>'; }
         else if(d.awaitingConf==='1'){ confVal.innerHTML='<span style="color:#d97706;">Awaiting client confirmation</span>'; }
         else { confVal.textContent='—'; }
     } else {
         confWrap.style.display='none';
+    }
+    // Prominent issue alert at the top of the modal.
+    if(d.issue){
+        issueAlert.style.display='';
+        document.getElementById('pvmIssueMeta').innerHTML =
+          'Reported on '+d.issue+'. The project has been returned to Final Approval for review — see their message in Project Updates below. Once resolved, mark it <strong>Complete</strong> again to re-submit it for the client\'s confirmation.';
+    } else {
+        issueAlert.style.display='none';
     }
 
     // Fields
@@ -876,6 +914,12 @@ function fillProjectModal(btn){
     const phaseSel=document.getElementById('pvmPhaseSelect');
     if(phaseSel){ const k=statusKey(d.status); if([...phaseSel.options].some(o=>o.value===k)) phaseSel.value=k; }
     renderFeed(currentUpdatesKey);
+
+    // Opening the project = the admin has seen its client messages → clear the dot.
+    if(currentProjectId && currentRow && currentRow.querySelector('.view-project-btn.has-unread')){
+        fetch('mark_messages_read.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'project_id='+currentProjectId}).catch(()=>{});
+        const v=currentRow.querySelector('.view-project-btn'); if(v) v.classList.remove('has-unread');
+    }
 }
 
 // ── MATERIALS MODAL ──
@@ -1086,6 +1130,5 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
 </div>
 
-<?php include __DIR__ . '/../includes/chat_modal.php'; // project chat (client <-> back office) ?>
 </body>
 </html>

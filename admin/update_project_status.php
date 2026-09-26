@@ -66,8 +66,8 @@ try {
     log_audit('Monitoring', "Updated {$project['project_code']} status to {$label}", $project['project_name']);
 
     if ($isCompleting) {
-        // Open the confirmation window and reset any prior confirmation.
-        $pdo->prepare("UPDATE projects SET completion_notified_at = NOW(), client_confirmed_at = NULL WHERE id = ?")
+        // Open the confirmation window and reset any prior confirmation / dispute.
+        $pdo->prepare("UPDATE projects SET completion_notified_at = NOW(), client_confirmed_at = NULL, completion_issue_at = NULL WHERE id = ?")
             ->execute([$projectId]);
         $clientId = project_client_user_id($projectId);
         if ($clientId) {
