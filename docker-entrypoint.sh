@@ -15,6 +15,12 @@ a2enmod mpm_prefork rewrite >/dev/null 2>&1 || true
 
 echo "[entrypoint] MPM after:  $(ls /etc/apache2/mods-enabled/ | grep -i mpm | tr '\n' ' ')"
 
+# uploads/ is a Railway volume mounted at runtime, owned by root — which hides the
+# build-time chown in the Dockerfile. Hand it to Apache's user on every start, or
+# PHP (www-data) can't save uploaded files.
+mkdir -p /var/www/html/uploads
+chown -R www-data:www-data /var/www/html/uploads
+
 # Railway injects $PORT; make Apache listen on it (default 80 for local runs).
 sed -i "s/^Listen 80/Listen ${PORT:-80}/" /etc/apache2/ports.conf
 sed -i "s/:80>/:${PORT:-80}>/" /etc/apache2/sites-available/000-default.conf

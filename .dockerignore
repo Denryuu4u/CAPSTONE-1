@@ -3,6 +3,10 @@
 .gitignore
 CLAUDE.md
 
+# Schema, seed and setup scripts are run from a developer machine, never
+# served — keep them (and the seeded password hashes) off the web server.
+database/
+
 # Don't bake local uploads into the image (they're ephemeral anyway; use a
 # Railway volume mounted at uploads/ for persistence). Keep the folders.
 uploads/*
