@@ -10,6 +10,8 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/project_status.php';
+// Self-registered clients who haven't requested a quote yet still need a record.
+ensure_client_customers();
 $customers = db()->query(
     "SELECT c.*,
             COALESCE(NULLIF(c.email, ''),   u.email)    AS email,

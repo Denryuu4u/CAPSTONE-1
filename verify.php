@@ -55,6 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (verify_otp($email, $code, 'signup')) {
             db()->prepare("UPDATE users SET email_verified = 1, verified_at = NOW() WHERE id = ?")
                 ->execute([(int) $u['id']]);
+            // Verified clients show up in Customer Profiles right away.
+            ensure_client_customers((int) $u['id']);
             // Sign the client in.
             auth_set_user(['id' => $u['id'], 'full_name' => $u['full_name'], 'role' => $u['role']]);
             $_SESSION['real_login'] = true;

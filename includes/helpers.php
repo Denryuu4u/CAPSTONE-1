@@ -226,6 +226,32 @@ function ensure_revert_codes_table(): void
 }
 
 /**
+ * Give every verified, active client account a customer record, so self-registered
+ * clients appear in Customer Profiles straight away — not only after their first
+ * quote request (which used to be the only place the record was created). Pass a
+ * user id to handle just that account (called on email verification); with no
+ * argument it backfills everyone who's missing one (called by customers.php).
+ */
+function ensure_client_customers(?int $userId = null): void
+{
+    try {
+        $sql = "INSERT INTO customers (user_id, name, contact_person, email, phone, address)
+                SELECT u.id, u.full_name, u.full_name, u.email, NULLIF(u.phone, ''), NULLIF(u.location, '')
+                  FROM users u
+                  LEFT JOIN customers c ON c.user_id = u.id
+                 WHERE u.role = 'Client' AND u.email_verified = 1 AND u.is_archived = 0
+                   AND c.id IS NULL";
+        if ($userId !== null) {
+            db()->prepare($sql . ' AND u.id = ?')->execute([$userId]);
+        } else {
+            db()->exec($sql);
+        }
+    } catch (Throwable $e) {
+        // Non-fatal — a quote request still creates the record as a fallback.
+    }
+}
+
+/**
  * Self-migrate project_updates.is_client — marks timeline entries a client posted
  * (their own message/comment) so both sides can distinguish them from team updates.
  */
