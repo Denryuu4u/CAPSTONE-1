@@ -11,20 +11,18 @@ $active_page = 'settings';
 $uid = current_user()['id'] ?? 0;
 $user = ['full_name' => '', 'email' => '', 'phone' => '', 'avatar' => '', 'location' => ''];
 $accountName = '';
-$address = '';
+$addresses = [];
 if ($uid) {
     $stmt = db()->prepare("SELECT full_name, email, phone, avatar, location FROM users WHERE id = ?");
     $stmt->execute([$uid]);
     $row = $stmt->fetch();
     if ($row) $user = array_merge($user, $row);
 
-    $c = db()->prepare("SELECT name, address FROM customers WHERE user_id = ? ORDER BY id LIMIT 1");
+    $c = db()->prepare("SELECT name FROM customers WHERE user_id = ? ORDER BY id LIMIT 1");
     $c->execute([$uid]);
-    $cust = $c->fetch() ?: [];
-    $accountName = (string) ($cust['name'] ?? '');
-    // The address shown on the quotation lives on the customer record; fall back
-    // to the user's own saved location for clients without a customer row yet.
-    $address = (string) ($cust['address'] ?? '') ?: (string) ($user['location'] ?? '');
+    $accountName = (string) ($c->fetchColumn() ?: '');
+    // Saved installation addresses (default first) — picked per quote request.
+    $addresses = client_addresses((int) $uid);
 }
 $initials  = strtoupper(mb_substr(trim($user['full_name']) ?: 'U', 0, 1));
 $avatarUrl = $user['avatar'] ? (BASE_URL . '/' . $user['avatar']) : '';
@@ -54,6 +52,45 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     @keyframes fieldPulse {
       0%,100% { box-shadow: 0 0 0 3px rgba(245,158,11,.28); }
       50%     { box-shadow: 0 0 0 6px rgba(245,158,11,.15); }
+    }
+
+    /* ── Saved addresses ── */
+    .addr-card { grid-column: 1 / -1; }
+    .addr-list { display: flex; flex-direction: column; gap: .55rem; margin-bottom: .8rem; }
+    .addr-item {
+      display: flex; align-items: flex-start; gap: .75rem;
+      border: 1px solid #e5e7eb; border-radius: 8px; padding: .7rem .8rem; background: #fff;
+    }
+    .addr-item.is-default { border-color: #6ee7d0; background: #f0fdf9; }
+    .addr-item > i { color: var(--teal); font-size: 1rem; margin-top: 1px; }
+    .addr-body { flex: 1; min-width: 0; }
+    .addr-top { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+    .addr-label { font-size: .76rem; font-weight: 600; color: #1f2937; }
+    .addr-badge { font-size: .6rem; font-weight: 700; color: #0a7a60; background: #ccfbef; padding: .1rem .45rem; border-radius: 999px; }
+    .addr-text { font-size: .72rem; color: #4b5563; line-height: 1.45; margin-top: .15rem; word-break: break-word; }
+    .addr-actions { display: flex; gap: .35rem; flex-shrink: 0; }
+    .addr-act {
+      border: 1px solid #e5e7eb; background: #fff; color: #4b5563; border-radius: 6px;
+      font-size: .66rem; font-weight: 600; padding: .25rem .55rem; cursor: pointer; white-space: nowrap;
+    }
+    .addr-act:hover { border-color: var(--teal); color: var(--teal); }
+    .addr-act.danger:hover { border-color: #dc2626; color: #dc2626; }
+    .addr-empty { font-size: .74rem; color: #6b7280; padding: .8rem; border: 1px dashed #d1d5db; border-radius: 8px; text-align: center; }
+    .addr-form { border: 1px solid #e5e7eb; border-radius: 8px; padding: .8rem; background: #f9fafb; margin-bottom: .8rem; }
+    .addr-form-title { font-size: .76rem; font-weight: 600; color: #1f2937; margin-bottom: .6rem; }
+    .addr-optional { font-weight: 400; color: #9ca3af; }
+    .addr-textarea { height: auto; min-height: 54px; padding-top: .4rem; resize: vertical; }
+    .addr-default-check { display: flex; align-items: center; gap: .4rem; font-size: .7rem; color: #374151; margin: .2rem 0 .7rem; cursor: pointer; }
+    .addr-form-actions { display: flex; gap: .5rem; align-items: center; }
+    .addr-cancel-btn { border: 1px solid #e5e7eb; background: #fff; color: #4b5563; font-size: .72rem; font-weight: 600; border-radius: 6px; padding: .38rem .8rem; cursor: pointer; }
+    .addr-add-btn {
+      border: 1px dashed var(--teal); background: #fff; color: var(--teal); font-size: .72rem; font-weight: 600;
+      border-radius: 6px; padding: .45rem .9rem; cursor: pointer; display: inline-flex; align-items: center; gap: .35rem;
+    }
+    .addr-add-btn:hover { background: #f0fdf9; }
+    @media (max-width: 560px) {
+      .addr-item { flex-wrap: wrap; }
+      .addr-actions { width: 100%; justify-content: flex-end; }
     }
   </style>
 </head>
@@ -100,10 +137,6 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
           <div class="mb-2">
             <label class="settings-label">Phone</label>
             <input type="text" name="phone" id="pfPhone" class="settings-input" value="<?= $e($user['phone']) ?>"/>
-          </div>
-          <div class="mb-2">
-            <label class="settings-label">Installation Address</label>
-            <textarea name="address" id="pfAddress" class="settings-input" rows="2" placeholder="Where the cabinetry will be installed — this appears on your quotation."><?= $e($address) ?></textarea>
           </div>
           <?php if ($accountName !== ''): ?>
           <div class="mb-3">
@@ -158,6 +191,35 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
         </form>
       </div>
 
+      <!-- SAVED ADDRESSES -->
+      <div class="settings-card addr-card" id="addressCard">
+        <div class="settings-card-title">Saved Addresses</div>
+        <p class="settings-card-sub">Installation addresses you can choose from when requesting a quote. Your default is preselected.</p>
+
+        <div id="addrList" class="addr-list"></div>
+
+        <div id="addrForm" class="addr-form" style="display:none;">
+          <div class="addr-form-title" id="addrFormTitle">Add address</div>
+          <div class="mb-2">
+            <label class="settings-label" for="addrLabel">Label <span class="addr-optional">(optional)</span></label>
+            <input type="text" id="addrLabel" class="settings-input" maxlength="60" placeholder="e.g. Home, Condo Unit, Office"/>
+          </div>
+          <div class="mb-2">
+            <label class="settings-label" for="addrText">Full address</label>
+            <textarea id="addrText" class="settings-input addr-textarea" rows="2" maxlength="255" placeholder="House/unit no., street, barangay, city, province"></textarea>
+          </div>
+          <label class="addr-default-check" id="addrDefaultWrap">
+            <input type="checkbox" id="addrDefault"/> Set as default
+          </label>
+          <div class="addr-form-actions">
+            <button type="button" class="settings-save-btn" id="addrSaveBtn"><i class="bi bi-check2"></i> <span>Save Address</span></button>
+            <button type="button" class="addr-cancel-btn" id="addrCancelBtn">Cancel</button>
+          </div>
+        </div>
+
+        <button type="button" class="addr-add-btn" id="addrAddBtn"><i class="bi bi-plus-lg"></i> Add address</button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -173,7 +235,6 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
         full_name: document.getElementById('pfName').value,
         email:     document.getElementById('pfEmail').value,
         phone:     document.getElementById('pfPhone').value,
-        address:   document.getElementById('pfAddress').value,
       });
       btn.disabled = true;
       fetch('save_profile.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
@@ -215,16 +276,111 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     });
   });
 
+  // ── Saved addresses ──
+  let ADDRESSES = <?= json_encode($addresses, JSON_UNESCAPED_UNICODE) ?>;
+  const addrList = document.getElementById('addrList');
+  const addrForm = document.getElementById('addrForm');
+  const addrAdd  = document.getElementById('addrAddBtn');
+  let editingId  = 0;
+
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function renderAddresses() {
+    if (!ADDRESSES.length) {
+      addrList.innerHTML = '<div class="addr-empty">No saved addresses yet. Add one to use it when requesting a quote.</div>';
+      return;
+    }
+    addrList.innerHTML = ADDRESSES.map(function (a) {
+      const def = String(a.is_default) === '1';
+      return '<div class="addr-item' + (def ? ' is-default' : '') + '">' +
+        '<i class="bi bi-geo-alt"></i>' +
+        '<div class="addr-body"><div class="addr-top"><span class="addr-label">' + escHtml(a.label || 'Address') + '</span>' +
+          (def ? '<span class="addr-badge">Default</span>' : '') + '</div>' +
+          '<div class="addr-text">' + escHtml(a.address) + '</div></div>' +
+        '<div class="addr-actions">' +
+          (def ? '' : '<button type="button" class="addr-act" data-act="default" data-id="' + a.id + '">Set default</button>') +
+          '<button type="button" class="addr-act" data-act="edit" data-id="' + a.id + '">Edit</button>' +
+          '<button type="button" class="addr-act danger" data-act="delete" data-id="' + a.id + '">Delete</button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function addrPost(data) {
+    return fetch('save_address.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data) })
+      .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Could not save the address.'); return d; })
+      .then(d => { ADDRESSES = d.addresses || []; renderAddresses(); return d; });
+  }
+
+  function openAddrForm(addr) {
+    editingId = addr ? Number(addr.id) : 0;
+    document.getElementById('addrFormTitle').textContent = addr ? 'Edit address' : 'Add address';
+    document.getElementById('addrLabel').value = addr ? (addr.label || '') : '';
+    document.getElementById('addrText').value  = addr ? addr.address : '';
+    // "Set as default" only applies when adding (existing ones use "Set default").
+    document.getElementById('addrDefaultWrap').style.display = (addr || !ADDRESSES.length) ? 'none' : '';
+    document.getElementById('addrDefault').checked = false;
+    addrForm.style.display = '';
+    addrAdd.style.display = 'none';
+    document.getElementById('addrText').focus();
+  }
+  function closeAddrForm() { addrForm.style.display = 'none'; addrAdd.style.display = ''; editingId = 0; }
+
+  addrAdd.addEventListener('click', function () { openAddrForm(null); });
+  document.getElementById('addrCancelBtn').addEventListener('click', closeAddrForm);
+
+  document.getElementById('addrSaveBtn').addEventListener('click', function () {
+    const btn = this;
+    const address = document.getElementById('addrText').value.trim();
+    if (address.length < 5) { vsToast('Enter the full address.', { type: 'error' }); return; }
+    btn.disabled = true;
+    addrPost({
+      action: editingId ? 'update' : 'add',
+      id: editingId,
+      label: document.getElementById('addrLabel').value.trim(),
+      address: address,
+      make_default: document.getElementById('addrDefault').checked ? '1' : '',
+    })
+      .then(() => { vsToast(editingId ? 'Address updated.' : 'Address saved.'); closeAddrForm(); })
+      .catch(err => vsToast(err.message, { type: 'error' }))
+      .finally(() => { btn.disabled = false; });
+  });
+
+  addrList.addEventListener('click', function (e) {
+    const btn = e.target.closest('.addr-act');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const addr = ADDRESSES.find(a => Number(a.id) === id);
+    if (!addr) return;
+    if (btn.dataset.act === 'edit') { openAddrForm(addr); return; }
+    if (btn.dataset.act === 'default') {
+      addrPost({ action: 'default', id: id }).then(() => vsToast('Default address updated.')).catch(err => vsToast(err.message, { type: 'error' }));
+      return;
+    }
+    vsConfirm('Delete this address?\n' + addr.address, { title: 'Delete address', okText: 'Delete', tone: 'danger' }).then(function (ok) {
+      if (!ok) return;
+      addrPost({ action: 'delete', id: id }).then(() => vsToast('Address deleted.')).catch(err => vsToast(err.message, { type: 'error' }));
+    });
+  });
+
+  renderAddresses();
+
   // ── Highlight fields the client came here to complete (Request Quote → Fill now) ──
   (function () {
     const focus = new URLSearchParams(location.search).get('focus');
     if (!focus) return;
-    const map = { phone: 'pfPhone', address: 'pfAddress' };
+    // No saved address yet → open the add-address form for them.
+    if (focus.split(',').map(s => s.trim()).includes('address') && !ADDRESSES.length) {
+      openAddrForm(null);
+      document.getElementById('addrText').classList.add('field-highlight');
+    }
+    const map = { phone: 'pfPhone', address: 'addrText' };
     let first = null;
     focus.split(',').forEach(function (key) {
       const el = document.getElementById(map[key.trim()]);
-      // Only highlight when the field is still empty (nothing entered yet).
-      if (el && el.value.trim() === '') {
+      // Only highlight visible fields that are still empty (nothing entered yet).
+      if (el && el.offsetParent !== null && el.value.trim() === '') {
         el.classList.add('field-highlight');
         if (!first) first = el;
         // Clear the highlight once the client starts typing.

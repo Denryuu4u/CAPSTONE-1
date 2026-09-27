@@ -19,7 +19,7 @@ $monitor_projects = [];
 foreach (db()->query(
     "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status, p.prev_status,
             p.target_completion, p.start_date, p.progress, p.approver, p.description,
-            p.completion_notified_at, p.client_confirmed_at, p.completion_issue_at,
+            p.completion_notified_at, p.client_confirmed_at, p.completion_issue_at, p.installation_address,
             q.id AS quotation_id, q.quote_code, q.total_amount AS quote_total, q.status AS quote_status
        FROM projects p
        LEFT JOIN customers c ON c.id = p.customer_id
@@ -41,6 +41,7 @@ foreach (db()->query(
         'progress' => (int) $r['progress'],
         'approver' => $r['approver'] ?? '',
         'details'  => $r['description'] ?? '',
+        'address'  => $r['installation_address'] ?? '',
         'confirmed'     => $r['client_confirmed_at'] ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
         'awaiting_conf' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
         'issue'         => !empty($r['completion_issue_at']) ? date('M d, Y', strtotime($r['completion_issue_at'])) : '',
@@ -301,6 +302,7 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
                                             data-status="<?= project_status_key($p['status']) ?>"
                                             data-prev-status="<?= htmlspecialchars($p['prev_status']) ?>"
                                             data-details="<?= htmlspecialchars($p['details']) ?>"
+                                            data-address="<?= htmlspecialchars($p['address']) ?>"
                                             data-start="<?= $p['start'] ?>" data-progress="<?= $p['progress'] ?>"
                                             data-approver="<?= htmlspecialchars($p['approver']) ?>"
                                             data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
@@ -420,6 +422,10 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
                                 <i class="bi bi-cash-coin"></i> Open Cost Tracking
                             </button>
                         </div>
+                    </div>
+                    <div style="margin-top:14px;" id="wrapInstallAddress">
+                        <div class="pvm-field-label">Installation Address</div>
+                        <div class="pvm-field-value" id="viewProjectAddress" style="font-weight:500;line-height:1.5;">—</div>
                     </div>
                     <div style="margin-top:14px;">
                         <div class="pvm-field-label">Project Details</div>
@@ -883,6 +889,7 @@ function fillProjectModal(btn){
     document.getElementById('viewProjectCustomer').textContent = d.customer||'—';
     document.getElementById('viewProjectTarget').textContent   = d.target||'—';
     document.getElementById('viewProjectDetails').textContent  = d.details||'—';
+    document.getElementById('viewProjectAddress').textContent  = d.address||'—';
     document.getElementById('viewProjectStart').textContent    = d.start?fmtDate(d.start):'—';
 
     // Approver

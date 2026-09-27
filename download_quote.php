@@ -13,9 +13,11 @@ if ($id <= 0) { http_response_code(400); exit('Invalid quotation.'); }
 
 $pdo = db();
 $stmt = $pdo->prepare(
-    "SELECT q.*, c.name AS customer_name, c.address AS customer_address, c.user_id AS client_user_id
+    "SELECT q.*, c.name AS customer_name, c.address AS customer_address, c.user_id AS client_user_id,
+            COALESCE(NULLIF(q.installation_address, ''), NULLIF(p.installation_address, '')) AS install_address
        FROM quotations q
        LEFT JOIN customers c ON c.id = q.customer_id
+       LEFT JOIN projects  p ON p.id = q.project_id
       WHERE q.id = ?"
 );
 $stmt->execute([$id]);
@@ -87,6 +89,9 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
       <div style="font-weight:700;border-bottom:2px solid #ccc;margin-bottom:8px;padding-bottom:4px;">BILL TO</div>
       <div><?= $e($q['customer_name'] ?? '') ?></div>
       <div class="muted"><?= $e($q['customer_address'] ?? '') ?></div>
+      <?php if (!empty($q['install_address'])): ?>
+      <div style="margin-top:8px;"><strong>Installation address:</strong> <?= $e($q['install_address']) ?></div>
+      <?php endif; ?>
     </div>
   </div>
 

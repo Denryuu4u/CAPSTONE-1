@@ -55,7 +55,7 @@ if (!is_array($items) || !count($items)) q_fail('Add at least one costing line i
 if ($projectId <= 0) q_fail('Missing project.');
 
 // Resolve customer + project name from the project if not supplied.
-$proj = $pdo->prepare("SELECT project_name, customer_id FROM projects WHERE id = ?");
+$proj = $pdo->prepare("SELECT project_name, customer_id, installation_address FROM projects WHERE id = ?");
 $proj->execute([$projectId]);
 $projRow = $proj->fetch();
 if (!$projRow) q_fail('Project not found.');
@@ -96,12 +96,12 @@ try {
            (quote_code, customer_id, request_id, project_id, project_name, date_created, valid_until,
             status, markup_pct, contingency_pct, service_pct, protection_pct,
             labor_cost, substrate, out_of_town_pct, special_works, accessories,
-            material_total, total_amount, notes, created_by)
+            material_total, total_amount, notes, installation_address, created_by)
          VALUES
            (:code,:cust,:req,:proj,:pname,CURDATE(),:valid,
             'Sent',:markup,:cont,:service,:protect,
             :labor,:substrate,:outoftown,:special,:access,
-            :mattot,:total,:notes,:by)"
+            :mattot,:total,:notes,:instaddr,:by)"
     );
     $stmt->execute([
         ':code' => $quoteCode, ':cust' => $customerId, ':req' => $requestId, ':proj' => $projectId,
@@ -110,6 +110,7 @@ try {
         ':labor' => $labor, ':substrate' => $substrate, ':outoftown' => $outOfTownPct,
         ':special' => $special, ':access' => $access,
         ':mattot' => round($materialTotal, 2), ':total' => $total, ':notes' => ($notes ?: null),
+        ':instaddr' => $projRow['installation_address'] ?? null, // where the job is installed
         ':by' => current_user()['id'] ?? null,
     ]);
     $quoteId = (int) $pdo->lastInsertId();

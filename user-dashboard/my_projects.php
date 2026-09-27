@@ -1638,7 +1638,10 @@ function markViewActionResolved(){
   else if(params.get('countered')==='1'){ vsToast('Counter-offer sent. We\'ll review it and send you a revised quotation.'); }
   else if(params.get('counter')==='amount'){ vsToast('Please enter a valid counter-offer amount.', {type:'info'}); }
   else if(params.get('counter')==='err'){ vsToast('That quotation can no longer be countered.', {type:'info'}); }
-  else if(params.get('submitted')==='1'){ vsToast('Quote request submitted successfully.'); }
+  else if(params.get('submitted')==='1'){
+    vsToast('Quote request submitted successfully.');
+    try { sessionStorage.removeItem('vsQuoteDraft'); } catch(e){} // the Request Quote draft is done
+  }
   if(params.get('accepted')||params.get('rejected')||params.get('submitted')){
     history.replaceState({}, document.title, 'my_projects.php');
   }

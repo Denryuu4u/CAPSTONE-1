@@ -178,7 +178,8 @@ $reqBadge = [
                                     'data-category="' . htmlspecialchars($r['category'] ?? '') . '"',
                                     'data-date-submitted="' . date('M d, Y', strtotime($r['date_submitted'])) . '"',
                                     'data-target-completion="' . htmlspecialchars($r['target_completion'] ?? '') . '"',
-                                    'data-address="' . htmlspecialchars($r['customer_address'] ?? '') . '"',
+                                    // The address the client picked for this request (older requests: their profile address).
+                                    'data-address="' . htmlspecialchars(($r['installation_address'] ?? '') ?: ($r['customer_address'] ?? '')) . '"',
                                     'data-material="' . htmlspecialchars($r['material_type'] ?? '') . '"',
                                     'data-dimensions="' . htmlspecialchars($r['dimensions'] ?? '') . '"',
                                     'data-budget="' . (($r['budget'] !== null && $r['budget'] !== '') ? htmlspecialchars(peso($r['budget'])) : '') . '"',
@@ -810,7 +811,7 @@ $reqBadge = [
                     document.getElementById("viewMaterial").textContent = currentRequestData.material || '—';
                     document.getElementById("viewDimensions").textContent = currentRequestData.dimensions || '—';
                     document.getElementById("viewBudget").textContent = currentRequestData.budget || '—';
-                    document.getElementById("viewAddress").textContent = currentRequestData.address;
+                    document.getElementById("viewAddress").textContent = currentRequestData.address || '—';
                     document.getElementById("viewNotes").textContent = currentRequestData.notes;
 
                     // Render uploaded files from data-files JSON.

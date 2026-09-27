@@ -14,28 +14,24 @@ try {
     $galleryImages = db()->query("SELECT file_path, label FROM gallery_images ORDER BY sort_order, id")->fetchAll();
 } catch (Throwable $e) { $galleryImages = []; }
 
-// A quote request needs the client's contact number + installation address so we
-// can prepare and deliver the quotation. Work out what (if anything) is still
-// missing on their profile, to gate the submit and steer them to Settings.
-$__uid = current_user()['id'] ?? 0;
-$profilePhone = $profileAddress = '';
+// A quote request needs the client's contact number + an installation address so
+// we can prepare and deliver the quotation. The address is picked from their saved
+// addresses (default preselected); anything missing is collected in a pop-up on
+// this page, so nothing they've already typed is lost.
+$__uid = (int) (current_user()['id'] ?? 0);
+$profilePhone = $meName = $meEmail = '';
+$addresses = [];
 if ($__uid) {
     try {
-        $st = db()->prepare(
-            "SELECT u.phone, u.location, c.address
-               FROM users u
-               LEFT JOIN customers c ON c.user_id = u.id
-              WHERE u.id = ? ORDER BY c.id LIMIT 1"
-        );
+        $st = db()->prepare("SELECT full_name, email, phone FROM users WHERE id = ?");
         $st->execute([$__uid]);
         $pr = $st->fetch() ?: [];
-        $profilePhone   = trim((string) ($pr['phone'] ?? ''));
-        $profileAddress = trim((string) ($pr['address'] ?? '')) ?: trim((string) ($pr['location'] ?? ''));
+        $profilePhone = trim((string) ($pr['phone'] ?? ''));
+        $meName       = (string) ($pr['full_name'] ?? '');
+        $meEmail      = (string) ($pr['email'] ?? '');
     } catch (Throwable $e) { /* leave blank → will prompt */ }
+    $addresses = client_addresses($__uid);
 }
-$missingFields = [];
-if ($profilePhone === '')   $missingFields[] = 'phone';
-if ($profileAddress === '') $missingFields[] = 'address';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -218,6 +214,20 @@ if ($profileAddress === '') $missingFields[] = 'address';
     .lb-nav:hover { background: rgba(255,255,255,0.28); }
     .lb-prev { left: 16px; }
     .lb-next { right: 16px; }
+
+    /* ── Installation address picker + details pop-up ── */
+    .addr-preview {
+      margin-top: .45rem; font-size: .78rem; color: #0a7a60; line-height: 1.45;
+      background: #f0fdf9; border: 1px solid #ccfbef; border-radius: 8px; padding: .5rem .7rem;
+      word-break: break-word;
+    }
+    .addr-hint { margin-top: .35rem; font-size: .74rem; color: #9ca3af; }
+    .addr-hint a { color: #0D9676; font-weight: 600; text-decoration: none; }
+    .dm-intro { font-size: .85rem; color: #4b5563; line-height: 1.5; margin-bottom: .9rem; }
+    .dm-default { display: flex; align-items: center; gap: .45rem; font-size: .8rem; color: #374151; cursor: pointer; margin: -.2rem 0 .8rem; }
+    .dm-note { font-size: .76rem; color: #0a7a60; background: #f0fdf9; border-radius: 8px; padding: .5rem .7rem; }
+    .dm-save { background: #0D9676; color: #fff; font-weight: 700; }
+    .dm-save:hover { background: #0a7a60; color: #fff; }
   </style>
 </head>
 <body>
@@ -241,7 +251,7 @@ if ($profileAddress === '') $missingFields[] = 'address';
     <?php
       $__err = $_GET['error'] ?? '';
       $__errMsg = [
-        'profile'  => 'Please add your phone number and installation address in Settings before submitting a request.',
+        'profile'  => 'Please add your phone number and choose an installation address before submitting a request.',
         'pastdate' => 'The target completion date cannot be in the past. Please choose today or a later date.',
         'name'     => 'Please enter a project name.',
         'material' => 'Please select a material type.',
@@ -252,9 +262,6 @@ if ($profileAddress === '') $missingFields[] = 'address';
     ?>
     <div style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.85rem;padding:.7rem .9rem;border-radius:8px;margin-bottom:1rem;">
       <?= htmlspecialchars($__errMsg) ?>
-      <?php if ($__err === 'profile'): ?>
-        <a href="settings.php?focus=phone,address" style="color:#0D9676;font-weight:600;">Go to Settings</a>
-      <?php endif; ?>
     </div>
     <?php endif; ?>
 
@@ -354,6 +361,23 @@ if ($profileAddress === '') $missingFields[] = 'address';
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="address_id">Installation Address</label>
+            <select id="address_id" name="address_id" class="form-control">
+              <?php if (!$addresses): ?>
+              <option value="" selected disabled>No saved address yet — add one</option>
+              <?php endif; ?>
+              <?php foreach ($addresses as $a): ?>
+              <option value="<?= (int) $a['id'] ?>" data-address="<?= htmlspecialchars($a['address'], ENT_QUOTES) ?>"<?= (int) $a['is_default'] === 1 ? ' selected' : '' ?>>
+                <?= htmlspecialchars(($a['label'] ?: 'Address') . ' — ' . $a['address']) ?>
+              </option>
+              <?php endforeach; ?>
+              <option value="__new">+ Add a new address…</option>
+            </select>
+            <div class="addr-preview" id="addrPreview" style="display:none;"></div>
+            <div class="addr-hint">Manage your saved addresses in <a href="settings.php">Settings</a>.</div>
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="notes">Additional Notes</label>
             <textarea id="notes" name="notes" class="form-control" placeholder="Describe your requirements, preferred materials, timeline..." maxlength="1000"></textarea>
           </div>
@@ -410,6 +434,41 @@ if ($profileAddress === '') $missingFields[] = 'address';
   </div>
 </div>
 
+<!-- ── Contact details / new address (collected here so the form isn't lost) ── -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none;border-radius:14px;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="dmTitle" style="font-size:1rem;font-weight:700;">Complete your details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="dm-intro" id="dmIntro"></p>
+        <div class="form-group" id="dmPhoneWrap">
+          <label class="form-label" for="dmPhone">Contact Number</label>
+          <input type="tel" id="dmPhone" class="form-control" maxlength="30" placeholder="e.g. 0917 123 4567"/>
+        </div>
+        <div id="dmAddrWrap">
+          <div class="form-group">
+            <label class="form-label" for="dmLabel">Address Label <span style="font-weight:400;color:#9ca3af;">(Optional)</span></label>
+            <input type="text" id="dmLabel" class="form-control" maxlength="60" placeholder="e.g. Home, Condo Unit, Office"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="dmAddress">Installation Address</label>
+            <textarea id="dmAddress" class="form-control" rows="2" maxlength="255" placeholder="House/unit no., street, barangay, city, province"></textarea>
+          </div>
+          <label class="dm-default" id="dmDefaultWrap"><input type="checkbox" id="dmDefault"/> Make this my default address</label>
+        </div>
+        <div class="dm-note"><i class="bi bi-shield-check"></i> Your project details stay as they are — nothing you've entered is lost.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn dm-save" id="dmSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Lightbox Overlay ── -->
 <div id="lightboxOverlay" role="dialog" aria-modal="true">
   <button class="lb-close-btn" id="lbClose" title="Close">&times;</button>
@@ -448,6 +507,13 @@ if ($profileAddress === '') $missingFields[] = 'address';
       item.innerHTML = `<span>📄 ${f.name}</span><button type="button" onclick="removeFile(${i})">✕</button>`;
       fileList.appendChild(item);
     });
+    // The form posts fileInput's files, so mirror the list into it — otherwise
+    // dropped files were never uploaded and removed ones still were.
+    try {
+      const dt = new DataTransfer();
+      selectedFiles.forEach(f => dt.items.add(f));
+      fileInput.files = dt.files;
+    } catch (e) { /* very old browsers: picker-only uploads still work */ }
   }
   function removeFile(i) { selectedFiles.splice(i, 1); renderList(); }
 
@@ -498,6 +564,7 @@ if ($profileAddress === '') $missingFields[] = 'address';
       confirmedRef.label + (confirmedRef.dim ? ' · ' + confirmedRef.dim : '');
     document.getElementById('refPreview').style.display   = 'flex';
     refModal.hide();
+    saveDraft();
   });
 
   // Remove confirmed selection
@@ -507,6 +574,7 @@ if ($profileAddress === '') $missingFields[] = 'address';
     document.getElementById('refPreview').style.display   = 'none';
     document.querySelectorAll('.reference-item').forEach(i => i.classList.remove('selected'));
     document.getElementById('confirmRefBtn').disabled = true;
+    saveDraft();
   });
 
   // ── Lightbox ──
@@ -558,23 +626,165 @@ if ($profileAddress === '') $missingFields[] = 'address';
     }
   });
 
-  // ── Require phone + installation address before submitting ──
-  // If the client hasn't filled these in Settings, block the submit and offer to
-  // take them there (highlighting the empty fields).
-  const MISSING_PROFILE = <?= json_encode(array_values($missingFields)) ?>;
-  if (MISSING_PROFILE.length) {
-    document.getElementById('quoteForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      const labels = MISSING_PROFILE.map(f => f === 'phone' ? 'phone number' : 'installation address');
-      const list = labels.length === 2 ? labels.join(' and ') : labels[0];
-      vsConfirm(
-        'Please add your ' + list + ' in Settings before submitting a request, so we can prepare and deliver your quotation.',
-        { title: 'Complete your details', okText: 'Fill now', cancelText: 'Maybe later' }
-      ).then(function (ok) {
-        if (ok) location.href = 'settings.php?focus=' + MISSING_PROFILE.join(',');
-      });
-    });
+  // ── Installation address picker ──
+  const quoteForm  = document.getElementById('quoteForm');
+  const addrSelect = document.getElementById('address_id');
+  const ME = <?= json_encode(['name' => $meName, 'email' => $meEmail], JSON_UNESCAPED_UNICODE) ?>;
+  let HAS_PHONE = <?= $profilePhone !== '' ? 'true' : 'false' ?>;
+  let lastAddr  = addrSelect.value;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+  function savedAddressCount() {
+    return [...addrSelect.options].filter(o => o.value && o.value !== '__new').length;
+  }
+  function updateAddrPreview() {
+    const o = addrSelect.selectedOptions[0];
+    const p = document.getElementById('addrPreview');
+    const text = o ? (o.dataset.address || '') : '';
+    p.textContent = text ? '📍 ' + text : '';
+    p.style.display = text ? '' : 'none';
+  }
+  function renderAddrOptions(list, selectId) {
+    let html = list.length ? '' : '<option value="" selected disabled>No saved address yet — add one</option>';
+    list.forEach(a => {
+      const sel = selectId ? Number(a.id) === Number(selectId) : String(a.is_default) === '1';
+      html += '<option value="' + a.id + '" data-address="' + esc(a.address) + '"' + (sel ? ' selected' : '') + '>' +
+              esc((a.label || 'Address') + ' — ' + a.address) + '</option>';
+    });
+    html += '<option value="__new">+ Add a new address…</option>';
+    addrSelect.innerHTML = html;
+    lastAddr = addrSelect.value;
+    updateAddrPreview();
+  }
+  addrSelect.addEventListener('change', function () {
+    if (addrSelect.value === '__new') {
+      addrSelect.value = lastAddr;          // keep the previous choice until one is saved
+      updateAddrPreview();
+      openDetails('address', false, true);
+      return;
+    }
+    lastAddr = addrSelect.value;
+    updateAddrPreview();
+  });
+  updateAddrPreview();
+
+  // ── Contact / address pop-up — collected in place, so the form is never lost ──
+  const dmEl = document.getElementById('detailsModal');
+  const dm   = new bootstrap.Modal(dmEl);
+  let dmMode = 'address', dmNeedPhone = false, dmNeedAddr = false;
+
+  function openDetails(mode, needPhone, needAddr) {
+    dmMode = mode; dmNeedPhone = needPhone; dmNeedAddr = needAddr;
+    const missing = [needPhone ? 'contact number' : '', needAddr ? 'installation address' : ''].filter(Boolean).join(' and ');
+    document.getElementById('dmTitle').textContent = mode === 'address' ? 'Add a new address' : 'Complete your details';
+    document.getElementById('dmIntro').textContent = mode === 'address'
+      ? 'Save another installation address to your account. It will be selected for this request.'
+      : 'Please add your ' + missing + ' so we can prepare and deliver your quotation. Then we\'ll submit your request.';
+    document.getElementById('dmPhoneWrap').style.display = needPhone ? '' : 'none';
+    document.getElementById('dmAddrWrap').style.display  = needAddr ? '' : 'none';
+    // "Make default" only matters once there's already an address (the first is always default).
+    document.getElementById('dmDefaultWrap').style.display = savedAddressCount() ? '' : 'none';
+    ['dmPhone', 'dmLabel', 'dmAddress'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('dmDefault').checked = false;
+    document.getElementById('dmSaveBtn').textContent = mode === 'complete' ? 'Save & submit request' : 'Save address';
+    dm.show();
+  }
+  dmEl.addEventListener('shown.bs.modal', function () {
+    const first = document.getElementById(dmNeedPhone ? 'dmPhone' : 'dmAddress');
+    if (first) first.focus();
+  });
+
+  function postForm(url, data) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data) })
+      .then(async r => { const d = await r.json().catch(() => ({ ok: false })); if (!r.ok || !d.ok) throw new Error(d.error || 'Could not save.'); return d; });
+  }
+
+  document.getElementById('dmSaveBtn').addEventListener('click', function () {
+    const btn = this;
+    const phone   = document.getElementById('dmPhone').value.trim();
+    const address = document.getElementById('dmAddress').value.trim();
+    if (dmNeedPhone && phone.replace(/\D/g, '').length < 7) { vsAlert('Please enter a valid contact number.', { title: 'Contact number' }); return; }
+    if (dmNeedAddr && address.length < 5) { vsAlert('Please enter the full installation address.', { title: 'Installation address' }); return; }
+
+    btn.disabled = true;
+    let chain = Promise.resolve();
+    if (dmNeedPhone) {
+      chain = chain.then(() => postForm('save_profile.php', { full_name: ME.name, email: ME.email, phone: phone }))
+                   .then(() => { HAS_PHONE = true; });
+    }
+    if (dmNeedAddr) {
+      chain = chain.then(() => postForm('save_address.php', {
+                      action: 'add', label: document.getElementById('dmLabel').value.trim(), address: address,
+                      make_default: document.getElementById('dmDefault').checked ? '1' : '',
+                    }))
+                   .then(d => renderAddrOptions(d.addresses || [], d.id));
+    }
+    chain.then(() => {
+      dm.hide();
+      saveDraft();
+      if (dmMode === 'complete') {
+        vsToast('Details saved — submitting your request…');
+        if (quoteForm.requestSubmit) quoteForm.requestSubmit(); else quoteForm.submit();
+      } else {
+        vsToast('Address saved and selected.');
+      }
+    })
+    .catch(err => vsToast(err.message, { type: 'error' }))
+    .finally(() => { btn.disabled = false; });
+  });
+
+  // ── Require a contact number + installation address before submitting ──
+  quoteForm.addEventListener('submit', function (e) {
+    const needPhone = !HAS_PHONE;
+    const needAddr  = !addrSelect.value || addrSelect.value === '__new';
+    if (needPhone || needAddr) {
+      e.preventDefault();
+      openDetails('complete', needPhone, needAddr);
+    }
+  });
+
+  // ── Draft: keep what's typed across a refresh, a trip to Settings, or a server error ──
+  // (Cleared on My Projects once the request is submitted. Files can't be kept by
+  // browsers, so only the typed fields, address and reference design are saved.)
+  const DRAFT_KEY    = 'vsQuoteDraft';
+  const DRAFT_FIELDS = ['project_name', 'category', 'material_type', 'dimensions', 'target_completion', 'budget', 'notes'];
+  function saveDraft() {
+    try {
+      const d = {};
+      DRAFT_FIELDS.forEach(id => { d[id] = document.getElementById(id).value; });
+      d.address_id = (addrSelect.value && addrSelect.value !== '__new') ? addrSelect.value : '';
+      d.reference  = confirmedRef;
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    } catch (e) { /* storage unavailable — fine */ }
+  }
+  quoteForm.addEventListener('input', saveDraft);
+  quoteForm.addEventListener('change', saveDraft);
+
+  (function restoreDraft() {
+    let d = null;
+    try { d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) {}
+    if (!d) return;
+    DRAFT_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || d[id] == null || d[id] === '') return;
+      if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === d[id])) return;
+      el.value = d[id];
+    });
+    if (d.address_id && [...addrSelect.options].some(o => o.value === String(d.address_id))) {
+      addrSelect.value = String(d.address_id);
+      lastAddr = addrSelect.value;
+      updateAddrPreview();
+    }
+    if (d.reference && d.reference.value && refImages.some(r => r.value === d.reference.value)) {
+      confirmedRef = d.reference;
+      document.getElementById('referenceDesignInput').value = confirmedRef.value;
+      document.getElementById('refPreviewImg').src          = confirmedRef.src;
+      document.getElementById('refPreviewName').textContent = confirmedRef.label + (confirmedRef.dim ? ' · ' + confirmedRef.dim : '');
+      document.getElementById('refPreview').style.display   = 'flex';
+    }
+  })();
 </script>
 </body>
 </html>

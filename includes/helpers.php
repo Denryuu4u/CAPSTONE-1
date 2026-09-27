@@ -225,6 +225,94 @@ function ensure_revert_codes_table(): void
     }
 }
 
+/* ---------------------------------------------------------------------
+ * Client saved addresses — managed in Settings, picked per quote request
+ * (the chosen one is copied onto the request/project/quotation as its
+ * installation_address, so later edits don't rewrite past projects).
+ * ------------------------------------------------------------------- */
+
+/** Self-migrate the client_addresses table. */
+function ensure_client_addresses_table(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        db()->exec(
+            "CREATE TABLE IF NOT EXISTS client_addresses (
+                id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id    INT UNSIGNED NOT NULL,
+                label      VARCHAR(60)  DEFAULT NULL,
+                address    VARCHAR(255) NOT NULL,
+                is_default TINYINT(1)   NOT NULL DEFAULT 0,
+                created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY ix_caddr_user (user_id),
+                CONSTRAINT fk_caddr_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+    } catch (Throwable $e) {
+        // Non-fatal — the address list simply stays empty.
+    }
+}
+
+/**
+ * A client's saved addresses, default first. The first time a client has none,
+ * their old single address (customers.address / users.location, from before
+ * multiple addresses existed) is carried over as the default, so nothing is lost.
+ */
+function client_addresses(int $userId): array
+{
+    ensure_client_addresses_table();
+    $pdo  = db();
+    $list = function () use ($pdo, $userId): array {
+        $s = $pdo->prepare("SELECT id, label, address, is_default FROM client_addresses WHERE user_id = ? ORDER BY is_default DESC, id");
+        $s->execute([$userId]);
+        return $s->fetchAll();
+    };
+    try {
+        $rows = $list();
+        if (!$rows) {
+            $s = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(c.address), ''), NULLIF(TRIM(u.location), ''))
+                   FROM users u LEFT JOIN customers c ON c.user_id = u.id
+                  WHERE u.id = ? ORDER BY c.id LIMIT 1"
+            );
+            $s->execute([$userId]);
+            $legacy = (string) $s->fetchColumn();
+            if ($legacy !== '') {
+                $pdo->prepare("INSERT INTO client_addresses (user_id, address, is_default) VALUES (?, ?, 1)")
+                    ->execute([$userId, mb_substr($legacy, 0, 255)]);
+                $rows = $list();
+            }
+        }
+        return $rows;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+/**
+ * Keep exactly one default address, and mirror it onto users.location and
+ * customers.address — what Customer Profiles and the quotation bill-to read.
+ * With no addresses left, both are cleared (so the old value isn't re-imported).
+ */
+function sync_client_default_address(int $userId): void
+{
+    $pdo = db();
+    $has = $pdo->prepare("SELECT COUNT(*) FROM client_addresses WHERE user_id = ? AND is_default = 1");
+    $has->execute([$userId]);
+    if (!(int) $has->fetchColumn()) {
+        $pdo->prepare("UPDATE client_addresses SET is_default = 1 WHERE user_id = ? ORDER BY id LIMIT 1")->execute([$userId]);
+    }
+    $d = $pdo->prepare("SELECT address FROM client_addresses WHERE user_id = ? AND is_default = 1 ORDER BY id LIMIT 1");
+    $d->execute([$userId]);
+    $addr = $d->fetchColumn();
+    $addr = ($addr === false || $addr === '') ? null : (string) $addr;
+    $pdo->prepare("UPDATE users SET location = ? WHERE id = ?")->execute([$addr !== null ? mb_substr($addr, 0, 150) : null, $userId]);
+    $pdo->prepare("UPDATE customers SET address = ? WHERE user_id = ?")->execute([$addr, $userId]);
+}
+
 /**
  * Give every verified, active client account a customer record, so self-registered
  * clients appear in Customer Profiles straight away — not only after their first

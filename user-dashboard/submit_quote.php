@@ -62,16 +62,23 @@ if ($projectName === '') {
 // Contact number + installation address are required so the quote can be
 // prepared and delivered. Enforced here on the server too — the client-side
 // prompt in request_quote.php can be bypassed (JS off, stale page, direct POST).
-$prof = $pdo->prepare(
-    "SELECT u.phone, u.location, c.address
-       FROM users u LEFT JOIN customers c ON c.user_id = u.id
-      WHERE u.id = ? ORDER BY c.id LIMIT 1"
-);
+$prof = $pdo->prepare("SELECT phone FROM users WHERE id = ?");
 $prof->execute([$user['id']]);
-$pr = $prof->fetch() ?: [];
-$hasPhone   = trim((string) ($pr['phone'] ?? '')) !== '';
-$hasAddress = trim((string) ($pr['address'] ?? '')) !== '' || trim((string) ($pr['location'] ?? '')) !== '';
-if (!$hasPhone || !$hasAddress) {
+$hasPhone = trim((string) $prof->fetchColumn()) !== '';
+
+// The chosen saved address must be one of this client's; if none was sent (an
+// older page), fall back to their default. It's copied onto the request/project
+// so editing or deleting the saved address later doesn't change this project.
+$savedAddresses = client_addresses((int) $user['id']);
+$addressId      = (int) ($_POST['address_id'] ?? 0);
+$installAddress = null;
+foreach ($savedAddresses as $a) {
+    if ($addressId ? (int) $a['id'] === $addressId : (int) $a['is_default'] === 1) {
+        $installAddress = $a['address'];
+        break;
+    }
+}
+if (!$hasPhone || $installAddress === null) {
     header('Location: request_quote.php?error=profile');
     exit;
 }
@@ -112,12 +119,12 @@ try {
     $stmt = $pdo->prepare(
         "INSERT INTO project_requests
             (request_code, customer_id, submitted_by, project_name, category,
-             material_type, dimensions, budget, target_completion, reference_design, notes, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?, 'Requesting Quotation')"
+             material_type, dimensions, budget, target_completion, reference_design, notes, installation_address, status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'Requesting Quotation')"
     );
     $stmt->execute([
         $reqCode, $customerId, $user['id'], $projectName, $category,
-        $materialType, ($dimensions ?: null), $budget, ($targetDate ?: null), ($reference ?: null), ($notes ?: null),
+        $materialType, ($dimensions ?: null), $budget, ($targetDate ?: null), ($reference ?: null), ($notes ?: null), $installAddress,
     ]);
     $requestId = (int) $pdo->lastInsertId();
 
@@ -147,10 +154,10 @@ try {
     $prjCode = next_code('PRJ');
     $stmt = $pdo->prepare(
         "INSERT INTO projects
-            (project_code, customer_id, request_id, project_name, category, description, target_completion, status, progress)
-         VALUES (?,?,?,?,?,?,?, 'quote_submitted', 0)"
+            (project_code, customer_id, request_id, project_name, category, description, installation_address, target_completion, status, progress)
+         VALUES (?,?,?,?,?,?,?,?, 'quote_submitted', 0)"
     );
-    $stmt->execute([$prjCode, $customerId, $requestId, $projectName, $category, ($notes ?: null), ($targetDate ?: null)]);
+    $stmt->execute([$prjCode, $customerId, $requestId, $projectName, $category, ($notes ?: null), $installAddress, ($targetDate ?: null)]);
     $projectId = (int) $pdo->lastInsertId();
 
     $pdo->commit();
