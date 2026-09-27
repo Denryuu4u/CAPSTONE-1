@@ -50,9 +50,11 @@ function mail_log_otp(string $to, string $code): void
 }
 
 /**
- * Send the OTP email. Falls back to the demo log when SMTP isn't configured
- * (or if the real send fails), so the signup flow is always testable.
- * Always writes to the demo log while DEV_MODE is on.
+ * Send the OTP email. The code is written to the demo log ONLY while DEV_MODE is
+ * on (local testing). In production it is never logged: the log lives under the
+ * public uploads/ folder, and a readable reset code would let anyone take over
+ * any account (including Super Admin) via forgot-password. If mail isn't
+ * configured or a send fails in production, the flow reports it instead.
  *
  * @return array{ok:bool, error:?string, demo:bool}
  */
@@ -61,7 +63,6 @@ function send_otp_email(string $to, string $code, string $name = '', string $pur
     if (DEV_MODE) mail_log_otp($to, $code);
 
     if (!mail_configured()) {
-        if (!DEV_MODE) mail_log_otp($to, $code);
         return ['ok' => true, 'error' => null, 'demo' => true];
     }
 
@@ -89,9 +90,6 @@ function send_otp_email(string $to, string $code, string $name = '', string $pur
         ? brevo_send($c, $to, $subject, $html, $text, $name)
         : smtp_send($c, $to, $subject, $html, $text);
 
-    if (!$res['ok']) {
-        mail_log_otp($to, $code); // keep the flow usable even if the send fails
-    }
     return ['ok' => $res['ok'], 'error' => $res['error'], 'demo' => false];
 }
 

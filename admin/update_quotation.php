@@ -29,6 +29,16 @@ $stmt->execute([$id]);
 $q = $stmt->fetch();
 if (!$q) uq_fail('Quotation not found.', 404);
 
+// Mirror the Quotations page: approve only what the client accepted; reject an
+// accepted quote or a counter-offer. Stops approving a quote the client never
+// accepted, or reviving one that was already rejected.
+$allowedFrom = $action === 'approve' ? ['Accepted'] : ['Accepted', 'Countered'];
+if (!in_array($q['status'], $allowedFrom, true)) {
+    uq_fail($action === 'approve'
+        ? 'Only quotations the client has accepted can be approved.'
+        : 'This quotation can no longer be rejected.', 409);
+}
+
 $projectId = (int) $q['project_id'];
 $admin = current_user();
 

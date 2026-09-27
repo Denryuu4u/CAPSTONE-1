@@ -11,16 +11,21 @@ $uid  = $u['id']   ?? 0;
 $role = $u['role'] ?? '';
 $id   = (int) ($_POST['id'] ?? $_GET['id'] ?? 0);
 
+// Same broadcast buckets as the bell: back-office roles all share 'Admin'. Shared
+// (user_id NULL) rows may only be touched by their own audience — otherwise a
+// client, or a signed-out visitor, could mark the team's alerts read for everyone.
+$roleSet = in_array($role, ['Super Admin', 'Admin', 'Staff'], true)
+    ? ['Admin', 'Super Admin', 'Staff']
+    : ($role !== '' ? [$role] : ['__none__']);
+$ph = implode(',', array_fill(0, count($roleSet), '?'));
+
 try {
     if ($id > 0) {
-        db()->prepare("UPDATE notifications SET is_read = 1, read_at = NOW() WHERE id = ? AND (user_id = ? OR user_id IS NULL)")
-            ->execute([$id, $uid]);
+        db()->prepare(
+            "UPDATE notifications SET is_read = 1, read_at = NOW()
+              WHERE id = ? AND (user_id = ? OR (user_id IS NULL AND target_role IN ($ph)))"
+        )->execute(array_merge([$id, $uid], $roleSet));
     } else {
-        // Same broadcast buckets as the bell: back-office roles all share 'Admin'.
-        $roleSet = in_array($role, ['Super Admin', 'Admin', 'Staff'], true)
-            ? ['Admin', 'Super Admin', 'Staff']
-            : ($role !== '' ? [$role] : ['__none__']);
-        $ph = implode(',', array_fill(0, count($roleSet), '?'));
         db()->prepare(
             "UPDATE notifications SET is_read = 1, read_at = NOW()
               WHERE is_read = 0 AND (user_id = ? OR (user_id IS NULL AND target_role IN ($ph)))"

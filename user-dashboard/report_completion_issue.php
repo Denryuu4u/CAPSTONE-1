@@ -10,7 +10,7 @@
  * POST: project_id, body   →   JSON { ok }
  */
 require_once __DIR__ . '/../includes/helpers.php';
-require_login();
+require_client(true);
 header('Content-Type: application/json; charset=utf-8');
 
 function rci_fail(string $m, int $c = 400): void

@@ -4,6 +4,7 @@
  * Sets the quotation to 'Rejected' and the project to 'rejected'.
  */
 require_once __DIR__ . '/../includes/helpers.php';
+require_client(); // customers only
 
 $quotationId = (int) ($_POST['quotation_id'] ?? $_GET['quotation_id'] ?? 0);
 if ($quotationId <= 0) { header('Location: my_projects.php'); exit; }

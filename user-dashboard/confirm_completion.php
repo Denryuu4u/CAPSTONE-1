@@ -6,6 +6,7 @@
  * Returns JSON { ok } (called via fetch from my_projects.php).
  */
 require_once __DIR__ . '/../includes/helpers.php';
+require_client(true); // customers only
 header('Content-Type: application/json; charset=utf-8');
 
 function cc_fail(string $m, int $c = 400): void

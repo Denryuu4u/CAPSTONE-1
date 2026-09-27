@@ -242,6 +242,28 @@ function require_page(string $pageKey, bool $json = false, string $loginPath = '
     }
 }
 
+/**
+ * Guard a client-portal page or endpoint (user-dashboard/). Guests → login;
+ * back-office accounts → their own dashboard (or a 403 when $json=true), so staff
+ * can't act as a customer — e.g. a quote request from a staff account would
+ * otherwise create a customer record for that staff member. Enforced by role
+ * regardless of DEV_MODE (the DEV switcher sets a real role, like require_page).
+ */
+function require_client(bool $json = false, string $loginPath = '../login.php'): void
+{
+    $guest = empty($_SESSION['user_id']);
+    if (!$guest && current_role() === 'Client') return;
+
+    if ($json) {
+        http_response_code($guest ? 401 : 403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => $guest ? 'Not signed in.' : 'This is only available to customer accounts.']);
+    } else {
+        header('Location: ' . ($guest ? $loginPath : role_home()));
+    }
+    exit;
+}
+
 /** Where a user should land after signing in, based on role. */
 function role_home(?string $role = null): string
 {

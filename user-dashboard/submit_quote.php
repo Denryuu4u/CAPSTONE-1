@@ -5,6 +5,7 @@
  * (status quote_submitted), notifies admins, then returns to my_projects.
  */
 require_once __DIR__ . '/../includes/helpers.php';
+require_client(); // customers only
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: request_quote.php');

@@ -4,7 +4,7 @@
  * POST: current_password, new_password  → JSON {ok} / {ok:false,error}
  */
 require_once __DIR__ . '/../includes/helpers.php';
-require_login();
+require_client(true);
 header('Content-Type: application/json; charset=utf-8');
 
 function cp_fail(string $m, int $c = 400): void

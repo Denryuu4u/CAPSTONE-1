@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/legal.php';
-require_login();
+require_client();
 
 $u = current_user();
 if (!$u || ($u['role'] ?? '') !== 'Client') {

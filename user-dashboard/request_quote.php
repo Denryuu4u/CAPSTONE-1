@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
-require_login(); // enforced only when DEV_MODE is false
+require_client(); // customers only — staff are sent to their own dashboard
 require_once __DIR__ . '/../includes/legal.php';
 require_agreements(); // clients must accept the latest Terms & Privacy first
 require_once __DIR__ . '/../includes/helpers.php'; // company_name() for branding

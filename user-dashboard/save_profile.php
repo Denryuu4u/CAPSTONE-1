@@ -7,7 +7,7 @@
  *   - form fields (full_name/email/phone) → update the profile row.
  */
 require_once __DIR__ . '/../includes/helpers.php';
-require_login();
+require_client(true);
 header('Content-Type: application/json; charset=utf-8');
 
 function sp_fail(string $m, int $c = 400): void

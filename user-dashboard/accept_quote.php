@@ -4,6 +4,7 @@
  * Sets the quotation to 'Accepted' (awaiting admin approval) and notifies admins.
  */
 require_once __DIR__ . '/../includes/helpers.php';
+require_client(); // customers only
 
 $quotationId = (int) ($_POST['quotation_id'] ?? $_GET['quotation_id'] ?? 0);
 $back = $_SERVER['HTTP_REFERER'] ?? 'my_projects.php';

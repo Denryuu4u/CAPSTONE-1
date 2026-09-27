@@ -5,7 +5,7 @@
  * so they can read it in Monitoring. POST: project_id, body
  */
 require_once __DIR__ . '/../includes/helpers.php';
-require_login();
+require_client(true);
 header('Content-Type: application/json; charset=utf-8');
 
 $user = current_user();

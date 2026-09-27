@@ -6,6 +6,7 @@
  * and resend. The client can accept/reject the revised quote afterwards.
  */
 require_once __DIR__ . '/../includes/helpers.php';
+require_client(); // customers only
 ensure_counter_offer_columns();
 
 $quotationId = (int) ($_POST['quotation_id'] ?? 0);
