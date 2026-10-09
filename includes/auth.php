@@ -51,6 +51,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// A restore replaces accounts and passwords too. Expire pre-restore sessions.
+require_once __DIR__ . '/data_lock.php';
+system_data_lock();
+$__epoch = system_restore_epoch();
+if ((!empty($_SESSION['user_id']) || isset($_SESSION['restore_epoch']))
+    && ($_SESSION['restore_epoch'] ?? '') !== $__epoch) {
+    $_SESSION = [];
+    session_regenerate_id(true);
+}
+$_SESSION['restore_epoch'] = $__epoch;
+unset($__epoch);
+
 /**
  * Populate the session from a users row (dev auto-login).
  */

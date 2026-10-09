@@ -5,6 +5,9 @@ uploads/*
 !uploads/gallery/
 uploads/gallery/*
 !uploads/gallery/.gitkeep
+!uploads/.system-backups/
+uploads/.system-backups/*
+!uploads/.system-backups/.htaccess
 
 # OTP demo log (may contain codes)
 uploads/otp_log.txt

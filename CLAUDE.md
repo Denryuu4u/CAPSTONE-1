@@ -61,6 +61,15 @@ Two status fields drive the whole app:
 
 The client portal (`my_projects.php`, `project_detail.php`, `download_quote.php`) shows only the quotation **total** — never the internal material/costing line items. Keep internal breakdowns (summarization, costing, cutlists) inside `admin/` only.
 
+### Manual backup and restore
+
+- Super Admin **Settings → Backup & Restore** is rendered by `admin/backup_settings.php`; there is no separate sidebar page. `admin/backup_action.php` enforces the Super Admin role against both the session and the current active database account, even in DEV_MODE. All actions require POST and a session CSRF token; restore additionally requires the current password and typing `RESTORE`.
+- `includes/backup.php` creates data-only ZIP snapshots with checksummed table records and supported uploaded attachments/images. Backups exclude application code, environment configuration, diagnostic logs, and the backup folder itself. The ZIP format is specific to this application, not an SQL dump.
+- Restores require the same database schema, InnoDB tables, and no custom triggers or views. They validate the complete archive, save a recovery copy, restore rows transactionally, check foreign-key references, and replace uploaded files with rollback on handled failures. No SQL from an uploaded archive is executed. Limits: 512 MiB expanded, 20,000 uploaded files; browser uploads are also subject to PHP's upload/post limits shown in Settings.
+- Copies and staging files live under `uploads/.system-backups/`, on the existing uploads volume. `.htaccess` blocks local access and `apache-errors.conf` blocks the folder in Docker/Railway. Preserve both protections. Copies stay until manually deleted; recommend downloading copies off the server. A usable matching application/database installation is needed to restore; this is not bare-server disaster recovery.
+- `includes/data_lock.php` holds a shared lock for normal app requests and an exclusive lock during backup operations. This coordinates a **single application host**; multiple replicas or external database writers require a separate maintenance procedure. Restore changes a session epoch, invalidating prior sessions. DEV_MODE still deliberately auto-signs in a seeded user, so production must set `DEV_MODE=false`.
+- Run `php tests/backup_test.php` for an isolated round-trip and failure test (creates/drops only a randomly named test database; database creation permission required). `php tests/backup_http_test.php` checks local XAMPP roles, CSRF, password rejection, direct-file protection, and an existing copy's download; it assumes DEV_MODE and never restores the live database.
+
 ### Conventions
 
 - Pages live one level deep and include shared files via `require_once __DIR__ . '/../includes/...'`.

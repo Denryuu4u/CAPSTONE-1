@@ -604,6 +604,8 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
             </script>
             <?php endif; ?>
 
+            <?php if ($isSuperAdmin) include __DIR__ . '/backup_settings.php'; ?>
+
             <div class="settings-save-bar">
                 <a href="#" class="settings-save-btn" id="saveSettingsBtn">
                     <i class="bi bi-floppy"></i>

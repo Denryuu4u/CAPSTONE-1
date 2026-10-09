@@ -14,6 +14,8 @@
 
 function db(): PDO
 {
+    require_once __DIR__ . '/data_lock.php';
+    system_data_lock();
     static $pdo = null;
     if ($pdo instanceof PDO) {
         return $pdo;
