@@ -9,6 +9,12 @@ $pdo = db();
 $f = fn($k) => trim((string) ($_POST[$k] ?? ''));
 $n = fn($k, $d) => is_numeric($_POST[$k] ?? null) ? (float) $_POST[$k] : (float) $d;
 
+foreach (['profile_email', 'email', 'web_email'] as $emailField) {
+    if ($f($emailField) !== '' && !filter_var($f($emailField), FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Enter a valid email address.']); exit;
+    }
+}
+
 try {
     // Company / website / default-costing settings — admin-managed only.
     if (role_can('settings')) {

@@ -21,6 +21,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 
 // Auto-confirm completed projects the client left unconfirmed past the deadline.
 auto_confirm_completions();
+ensure_project_features();
 
 // Build the current client's projects from the database, in the shape the page expects.
 $clientId  = current_user()['id'] ?? 0;
@@ -31,7 +32,7 @@ $materialsByProject = [];
 
 $__rows = db()->prepare(
     "SELECT p.*, c.name AS customer_name,
-            q.id AS quotation_id, q.quote_code, q.status AS quote_status_raw,
+            q.id AS quotation_id, q.design_path, q.quote_code, q.status AS quote_status_raw,
             q.date_created AS quote_issued, q.valid_until AS quote_valid,
             q.total_amount AS quote_total, q.notes AS quote_notes,
             q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id,
@@ -44,7 +45,7 @@ $__rows = db()->prepare(
             ) AS last_activity
        FROM projects p
        JOIN customers c ON c.id = p.customer_id
-       LEFT JOIN quotations q ON q.id = (SELECT id FROM quotations WHERE project_id = p.id ORDER BY id DESC LIMIT 1)
+       LEFT JOIN quotations q ON q.id = (SELECT id FROM quotations WHERE project_id = p.id ORDER BY (status='Approved') DESC, id DESC LIMIT 1)
        LEFT JOIN project_requests r ON r.id = p.request_id
       WHERE c.user_id = ?
       ORDER BY p.created_at DESC, p.id DESC"
@@ -83,9 +84,11 @@ foreach ($__rows->fetchAll() as $r) {
 
     $projects[] = [
         'id' => $pid, 'name' => $r['project_name'], 'category' => $r['category'] ?? '',
+        'paused_status' => $r['paused_status'] ?? $r['prev_status'] ?? '',
         'status' => $r['status'], 'submitted' => date('M d, Y', strtotime($r['created_at'])),
         'updated' => time_ago($r['last_activity'] ?? $r['updated_at']), 'notes' => $r['description'] ?? '',
         'files' => $files, 'activity' => $activity,
+        'has_design' => !empty($r['design_path']),
         'quote_id' => $r['quote_code'] ?? '—', 'quotation_pk' => (int) ($r['quotation_id'] ?? 0),
         'quote_status' => $qstatus ?: 'Pending', 'quote_prepared_for' => $r['customer_name'],
         'quote_issued' => $r['quote_issued'] ? date('Y-m-d', strtotime($r['quote_issued'])) : '',
@@ -639,6 +642,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
   </style>
 </head>
 <body>
+<?php if (isset($_GET['project_error'])): ?><div class="alert alert-warning"><?= htmlspecialchars((string) $_GET['project_error']) ?></div><?php endif; ?>
 
 <?php include 'sidebar.php'; ?>
 
@@ -711,7 +715,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
                 <?php if (!empty($p['quotation_pk'])): $awaiting = awaitingClientDecision($p); ?>
                 <!-- QUOTE — "Verify" while awaiting a decision, else "View Quote" (always available) -->
                 <button class="btn-verify verify-btn<?= $awaiting ? ' has-action' : '' ?>"
-                  data-id="<?= $p['id'] ?>"
+                  data-has-design="<?= !empty($p['has_design']) ? '1' : '0' ?>" data-design-quote="<?= $p['quotation_pk'] ?>" data-id="<?= $p['id'] ?>"
                   data-awaiting="<?= $awaiting ? '1' : '0' ?>"
                   data-quotation-pk="<?= (int) ($p['quotation_pk'] ?? 0) ?>"
                   data-name="<?= htmlspecialchars($p['name']) ?>"
@@ -719,7 +723,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
                   data-category="<?= htmlspecialchars($p['category']) ?>"
                   data-submitted="<?= $p['submitted'] ?>"
                   data-updated="<?= htmlspecialchars($p['updated']) ?>"
-                  data-status="<?= project_status_key($p['status']) ?>"
+                  data-paused-status="<?= htmlspecialchars($p['paused_status'] ?? '') ?>" data-status="<?= project_status_key($p['status']) ?>"
                   data-display-label="<?= htmlspecialchars($stLabel) ?>"
                   data-display-class="<?= htmlspecialchars($stClass) ?>"
                   data-notes="<?= htmlspecialchars($p['notes']) ?>"
@@ -744,11 +748,11 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
 
                 <!-- VIEW — always shown; red dot when a completion confirmation is awaited -->
                 <button class="btn-view view-btn<?= ($p['awaiting_confirm'] ?? '0') === '1' ? ' has-action' : '' ?>"
-                  data-id="<?= $p['id'] ?>"
+                  data-has-design="<?= !empty($p['has_design']) ? '1' : '0' ?>" data-design-quote="<?= $p['quotation_pk'] ?>" data-id="<?= $p['id'] ?>"
                   data-name="<?= htmlspecialchars($p['name']) ?>"
                   data-code="<?= htmlspecialchars($p['code']) ?>"
                   data-issue="<?= htmlspecialchars($p['issue'] ?? '') ?>"
-                  data-status="<?= project_status_key($p['status']) ?>"
+                  data-paused-status="<?= htmlspecialchars($p['paused_status'] ?? '') ?>" data-status="<?= project_status_key($p['status']) ?>"
                   data-display-label="<?= htmlspecialchars($stLabel) ?>"
                   data-display-class="<?= htmlspecialchars($stClass) ?>"
                   data-customer="<?= htmlspecialchars($p['customer']) ?>"
@@ -1269,7 +1273,7 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     document.getElementById('vmCounterComment').value = '';
 
     // Accept/Reject/Counter bar only while the client still needs to decide.
-    const awaiting = d.awaiting === '1';
+    const awaiting = d.awaiting === '1' && statusKey(d.status)!=='on_hold';
     const actionBar = document.querySelector('#verifyModal .vm-action-bar');
     if (actionBar) actionBar.style.display = awaiting ? '' : 'none';
 
@@ -1482,7 +1486,7 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     badge.textContent = d.displayLabel || statusLabel(d.status);
     badge.className   = 'badge-status ' + (d.displayClass || statusClass(d.status));
 
-    renderStepTracker('viewStepTracker', getStepIdx(d.status));
+    renderStepTracker('viewStepTracker', getStepIdx(statusKey(d.status)==='on_hold' ? (d.pausedStatus||d.status) : d.status));
 
     document.getElementById('viewCustomer').textContent = d.customer;
     document.getElementById('viewTarget').textContent   = d.target;
@@ -1504,7 +1508,10 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     currentViewKey  = d.updatesKey || String(currentViewProjectId);
 
     // Messaging closes once the project is completed/rejected.
-    const closed = (statusKey(d.status) === 'completed' || statusKey(d.status) === 'rejected');
+    const closed = ['completed','rejected','on_hold'].includes(statusKey(d.status));
+    let pauseNote=document.getElementById('clientPauseNote');
+    if(!pauseNote){pauseNote=document.createElement('p');pauseNote.id='clientPauseNote';pauseNote.className='alert alert-warning';document.getElementById('viewDetails').parentElement.appendChild(pauseNote);}
+    pauseNote.textContent='This project is paused. Changes are frozen until an administrator resumes it.';pauseNote.hidden=statusKey(d.status)!=='on_hold';
     const vmb = document.getElementById('viewMsgBtn');
     if (vmb) vmb.style.display = closed ? 'none' : '';
     const notice = document.getElementById('viewUpdatesNotice');
@@ -1555,7 +1562,7 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     }
 
     renderFeed(d.updatesKey||'');
-    new bootstrap.Modal(document.getElementById('viewModal')).show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('viewModal')).show();
   });
 });
 
@@ -1619,16 +1626,6 @@ function markViewActionResolved(){
   const btn = document.querySelector('.view-btn[data-id="'+CSS.escape(String(currentViewProjectId))+'"]');
   if(btn) btn.classList.remove('has-action');
 }
-
-// Deep link: my_projects.php?view=<projectId> opens that project's detail modal
-// (used by notifications so the client lands on the project details here).
-(function(){
-  const params = new URLSearchParams(location.search);
-  const viewId = params.get('view');
-  if(!viewId) return;
-  const target = document.querySelector('.view-btn[data-id="'+CSS.escape(viewId)+'"]');
-  if(target){ target.click(); }
-})();
 
 // Toast feedback after a quote decision redirect (?accepted / ?rejected).
 (function(){
@@ -1741,5 +1738,20 @@ document.getElementById('btnViewMaterials').addEventListener('click', function()
   apply();
 })();
 </script>
+<?php include __DIR__ . '/../includes/design_viewer.php'; ?>
+<script>
+// Place a small button beside each view's project/quotation heading.
+function setupDesignButton(anchorId,buttonId,d){
+ const anchor=document.getElementById(anchorId); if(!anchor)return;
+ let button=document.getElementById(buttonId);
+ if(!button){button=document.createElement('button');button.id=buttonId;button.type='button';button.className='btn btn-outline-success btn-sm my-2';button.textContent='View design';anchor.parentElement.appendChild(button);}
+ button.hidden=d.hasDesign!=='1';button.onclick=()=>viewDesign(d.designQuote);
+}
+document.querySelectorAll('.view-btn').forEach(btn=>btn.addEventListener('click',function(){setupDesignButton('viewCode','clientMonitorDesign',this.dataset);}));
+document.querySelectorAll('[data-quote-id]').forEach(btn=>btn.addEventListener('click',function(){setupDesignButton('vmQId','clientQuoteDesign',this.dataset);}));
+const designViewId=new URLSearchParams(location.search).get('view');
+if(designViewId) document.querySelector('.view-btn[data-id='+CSS.escape(designViewId)+']')?.click();
+</script>
+
 </body>
 </html>

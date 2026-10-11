@@ -34,6 +34,8 @@ if (!$q || (int) $q['client_user_id'] !== (int) $user['id'] || $q['status'] !== 
     exit;
 }
 
+require_project_writable((int) $q['project_id'], false);
+
 $amount  = (float) preg_replace('/[^0-9.]/', '', $amountRaw);
 $comment = mb_substr($comment, 0, 1000);
 if ($amount <= 0) { header("Location: {$back}?counter=amount"); exit; }

@@ -18,6 +18,8 @@ function upd_fail(string $msg, int $code = 400): void
     exit;
 }
 
+require_project_writable($projectId);
+
 // Optional image attachment. When a file IS provided but can't be accepted, we
 // report exactly why instead of silently dropping it (which looked like the
 // attach feature was "not working").

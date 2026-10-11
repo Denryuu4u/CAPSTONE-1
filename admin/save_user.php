@@ -14,6 +14,8 @@ $pass   = (string) ($_POST['password'] ?? '');
 
 if ($name === '' || $email === '') { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Name and email are required.']); exit; }
 
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Enter a valid email address.']); exit; }
+
 // Safeguard: don't let a user demote or deactivate their own account.
 $meId = current_user()['id'] ?? 0;
 if ($id > 0 && $id === (int) $meId && ($role !== 'Super Admin' || $status !== 'Active')) {

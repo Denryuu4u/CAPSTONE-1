@@ -52,9 +52,10 @@ foreach (db()->query("SELECT material, category, SUM(qty) AS qty, COUNT(*) AS gr
         'grouped' => (int) $x['grouped'], 'category' => $catLbl[$x['category']] ?? $x['category'],
     ];
 }
-foreach (db()->query("SELECT project_name, material_total, total_amount, special_works, accessories FROM quotations WHERE status IN ('Approved','Accepted') ORDER BY id DESC") as $x) {
+foreach (db()->query("SELECT q.project_name, q.material_total, q.total_amount, q.special_works, q.accessories, p.project_code, c.name AS customer FROM quotations q LEFT JOIN projects p ON p.id=q.project_id LEFT JOIN customers c ON c.id=q.customer_id WHERE q.status IN ('Approved','Accepted') ORDER BY q.id DESC") as $x) {
     $mat = (float) $x['material_total']; $other = (float) $x['special_works'] + (float) $x['accessories'];
     $reportData['costing'][] = [
+        'code' => $x['project_code'] ?? '—', 'customer' => $x['customer'] ?? '—',
         'project' => $x['project_name'], 'materials' => $mat,
         'labor' => round(max(0, (float) $x['total_amount'] - $mat - $other), 2), 'other' => round($other, 2),
     ];
@@ -338,7 +339,7 @@ foreach (db()->query(
         <div class="summary-strip" id="strip-costing" data-tab="costing">
             <div class="sum-card" data-cat=""><div class="sum-card-num" id="sc-co-projects">0</div><div class="sum-card-label">Projects Costed</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-materials" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Materials</div></div>
-            <div class="sum-card"><div class="sum-card-num" id="sc-co-labor" style="font-size:1rem;">₱0</div><div class="sum-card-label">Total Labor</div></div>
+            <div class="sum-card"><div class="sum-card-num" id="sc-co-labor" style="font-size:1rem;">₱0</div><div class="sum-card-label">Labor &amp; Additional Charges</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-grand" style="font-size:1rem;">₱0</div><div class="sum-card-label">Grand Total</div></div>
             <div class="sum-card"><div class="sum-card-num" id="sc-co-avg" style="font-size:1rem;">₱0</div><div class="sum-card-label">Avg Cost / Project</div></div>
         </div>
@@ -438,10 +439,10 @@ foreach (db()->query(
         </div>
 
         <div class="inline-table-wrap" id="tbl-wrap-costing">
-            <div class="inline-table-title">Costing List</div>
+            <div class="inline-table-title">Costing List</div><p class="small text-muted px-3">Quotation-based amounts. Labor &amp; Additional Charges includes labor, markup and remaining charges; Other Cost covers special works and accessories.</p>
             <div class="table-responsive">
                 <table class="inline-tbl">
-                    <thead><tr><th>Project Name</th><th>Materials Cost</th><th>Labor Cost</th><th>Other Cost</th><th>Total Cost</th></tr></thead>
+                    <thead><tr><th>Project Code</th><th>Customer</th><th>Project Name</th><th>Materials Cost</th><th>Labor &amp; Additional Charges</th><th>Other Cost</th><th>Total Cost</th></tr></thead>
                     <tbody id="tbl-costing"></tbody>
                 </table>
             </div>
@@ -798,12 +799,13 @@ function renderCutting(){
 // ════════════════════════════════════════════════════
 //  RENDER — COSTING
 // ════════════════════════════════════════════════════
+function costEsc(value){ const el=document.createElement('span'); el.textContent=value??''; return el.innerHTML; }
 function renderCosting(){
     const rows  = SAMPLE.costing.map(r=>({...r,total:r.materials+r.labor+r.other}));
     const gMat  = rows.reduce((s,r)=>s+r.materials,0);
     const gLab  = rows.reduce((s,r)=>s+r.labor,0);
     const gTot  = rows.reduce((s,r)=>s+r.total,0);
-    const avg   = gTot/rows.length;
+    const avg   = rows.length ? gTot/rows.length : 0;
 
     document.getElementById('sc-co-projects').textContent  = rows.length;
     document.getElementById('sc-co-materials').textContent = peso(gMat);
@@ -820,7 +822,7 @@ function renderCosting(){
             labels:rows.map(r=>shortLabel(r.project)),
             datasets:[
                 {label:'Materials',data:rows.map(r=>r.materials),backgroundColor:C.materials,borderRadius:4,borderSkipped:false,stack:'s'},
-                {label:'Labor',    data:rows.map(r=>r.labor),    backgroundColor:C.labor,    borderRadius:0, stack:'s'},
+                {label:'Labor & Additional Charges', data:rows.map(r=>r.labor),    backgroundColor:C.labor,    borderRadius:0, stack:'s'},
                 {label:'Other',    data:rows.map(r=>r.other),    backgroundColor:C.other,    borderRadius:0, stack:'s'},
             ]
         },
@@ -849,10 +851,10 @@ function renderCosting(){
 
     document.getElementById('tbl-costing').innerHTML = rows.length
         ? rows.map(r=>`<tr>
-            <td><strong>${r.project}</strong></td><td>${peso(r.materials)}</td>
+            <td>${costEsc(r.code)}</td><td>${costEsc(r.customer)}</td><td><strong>${costEsc(r.project)}</strong></td><td>${peso(r.materials)}</td>
             <td>${peso(r.labor)}</td><td>${peso(r.other)}</td>
             <td><strong>${peso(r.total)}</strong></td></tr>`).join('')
-        : '<tr><td colspan="5" class="text-center text-muted py-3">No data.</td></tr>';
+        : '<tr><td colspan="7" class="text-center text-muted py-3">No data.</td></tr>';
     pageState['costing']=1; paginate('costing');
 }
 
@@ -1020,13 +1022,13 @@ function buildCutting(cat){
 
 function buildCosting(){
     const rows=SAMPLE.costing.map(r=>({...r,total:r.materials+r.labor+r.other}));
-    const grand=rows.reduce((s,r)=>s+r.total,0),avg=grand/rows.length;
-    const trs=rows.map(r=>`<tr><td><strong>${r.project}</strong></td><td>${peso(r.materials)}</td><td>${peso(r.labor)}</td><td>${peso(r.other)}</td><td><strong>${peso(r.total)}</strong></td></tr>`).join('');
+    const grand=rows.reduce((s,r)=>s+r.total,0),avg=rows.length?grand/rows.length:0;
+    const trs=rows.map(r=>`<tr><td>${costEsc(r.code)}</td><td>${costEsc(r.customer)}</td><td><strong>${costEsc(r.project)}</strong></td><td>${peso(r.materials)}</td><td>${peso(r.labor)}</td><td>${peso(r.other)}</td><td><strong>${peso(r.total)}</strong></td></tr>`).join('');
     const sum=`<div class="rp-sum-item"><div class="rp-sum-num" style="font-size:.9rem">${peso(grand)}</div><div class="rp-sum-label">Grand Total</div></div>
         <div class="rp-sum-item"><div class="rp-sum-num" style="font-size:.9rem">${peso(avg)}</div><div class="rp-sum-label">Avg Cost / Project</div></div>
         <div class="rp-sum-item"><div class="rp-sum-num">${rows.length}</div><div class="rp-sum-label">Projects Costed</div></div>`;
     return `<div class="rp-doc">${rpHeader('Costing Report')}
-        <table class="rp-table"><thead><tr><th>Project Name</th><th>Materials Cost</th><th>Labor Cost</th><th>Other Cost</th><th>Total Cost</th></tr></thead><tbody>${trs}</tbody></table>
+        <table class="rp-table"><thead><tr><th>Project Code</th><th>Customer</th><th>Project Name</th><th>Materials Cost</th><th>Labor &amp; Additional Charges</th><th>Other Cost</th><th>Total Cost</th></tr></thead><tbody>${trs}</tbody></table>
         <div class="rp-summary"><div class="rp-summary-title">Summary</div><div class="rp-summary-grid">${sum}</div></div>${rpFooter()}</div>`;
 }
 
@@ -1074,7 +1076,7 @@ function toCSV(type){
     if(type==='project')   return ['Project Code,Customer Name,Project Name,Date Submitted,Request Date,Status',...r.map(x=>[x.code,x.customer,x.project,x.submitted,x.request,x.status].join(','))].join('\n');
     if(type==='quotation') return ['Quotation Code,Customer Name,Project Name,Date Created,Status,Est. Amount',...r.map(x=>[x.code,x.customer,x.project,x.created,x.status,x.amount].join(','))].join('\n');
     if(type==='cutting')   return ['Material Name,Category,Total Qty,Line Items',...r.map(x=>[x.material,x.category,x.qty,x.grouped].join(','))].join('\n');
-    if(type==='costing')   return ['Project Name,Materials Cost,Labor Cost,Other Cost,Total Cost',...r.map(x=>[x.project,x.materials,x.labor,x.other,x.materials+x.labor+x.other].join(','))].join('\n');
+    if(type==='costing')   return ['Project Code,Customer,Project Name,Materials Cost,Labor & Additional Charges,Other Cost,Total Cost',...r.map(x=>[x.code,x.customer,x.project,x.materials,x.labor,x.other,x.materials+x.labor+x.other].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(','))].join('\n');
     if(type==='tracking')  return ['Code,Project,Customer,Amount,Cost,Profit/Loss',...r.map(x=>[x.code,x.project,x.customer,x.amount,x.cost,x.profit].join(','))].join('\n');
 }
 function dlCSV(type){

@@ -29,6 +29,8 @@ $progressMap = [
     'final_approval' => 97, 'completed' => 100,
 ];
 
+if ($status === 'on_hold') ups_fail('Use the administrator Pause control to pause this project.', 403);
+require_project_writable($projectId);
 $pdo = db();
 ensure_completion_columns();
 ensure_prev_status_column(); // so the change can be rolled back

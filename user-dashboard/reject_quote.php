@@ -22,6 +22,7 @@ $stmt->execute([$quotationId]);
 $q = $stmt->fetch();
 
 if ($q && in_array($q['status'], ['Sent', 'Accepted'], true) && (int) $q['client_user_id'] === (int) $user['id']) {
+    require_project_writable((int) $q['project_id'], false);
     $pdo->beginTransaction();
     $pdo->prepare("UPDATE quotations SET status = 'Rejected' WHERE id = ?")->execute([$quotationId]);
     if ($q['project_id']) {

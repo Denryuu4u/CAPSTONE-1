@@ -40,6 +40,7 @@ if (!in_array($q['status'], $allowedFrom, true)) {
 }
 
 $projectId = (int) $q['project_id'];
+require_project_writable($projectId);
 $admin = current_user();
 
 try {

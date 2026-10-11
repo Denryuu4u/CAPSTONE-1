@@ -48,6 +48,7 @@ $stmt->execute([$pid, $uid]);
 $p = $stmt->fetch();
 
 if (!$p) rci_fail('No access to this project.', 403);
+require_project_writable($pid);
 if ($p['status'] !== 'completed') rci_fail('This project is not marked completed.');
 if (!empty($p['client_confirmed_at'])) rci_fail('You already confirmed this project as completed.');
 if (!empty($p['completion_issue_at'])) rci_fail('You have already reported an issue for this project. Our team is reviewing it.');

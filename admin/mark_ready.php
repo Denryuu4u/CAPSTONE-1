@@ -30,6 +30,8 @@ if (!$b) mr_fail('Batch not found.', 404);
 if ($projectId <= 0) $projectId = (int) ($b['project_id'] ?? 0);
 if ($projectId <= 0) mr_fail('This summary is not linked to a project. Select an approved project first.');
 
+require_project_writable($projectId);
+
 $proj = $pdo->prepare("SELECT * FROM projects WHERE id = ?");
 $proj->execute([$projectId]);
 $project = $proj->fetch();

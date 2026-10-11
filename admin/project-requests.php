@@ -419,6 +419,7 @@ $reqBadge = [
                             </div>
                         </div>
 
+                        <div class="my-3"><label for="qDesignImage" class="form-label">Initial design (optional)</label><input type="file" id="qDesignImage" class="form-control" accept="image/jpeg,image/png,image/webp"><div class="form-text">JPG, PNG or WebP, up to 8 MB (server limits also apply). The customer can view this image with the quotation.</div></div>
                         <div class="row g-3 mt-1">
                             <div class="col-md-3">
                                 <label class="form-label project-label">Markup %</label>
@@ -972,6 +973,7 @@ $reqBadge = [
                     .catch(e => { err.textContent = e.message; err.style.display = 'block'; document.getElementById('qBomText').textContent = 'Import failed — try again'; });
             });
 
+            document.getElementById('createQuotationModal').addEventListener('hidden.bs.modal',()=>{document.getElementById('qDesignImage').value='';});
             // Send quotation.
             document.getElementById('qSendBtn').addEventListener('click', function () {
                 const err = document.getElementById('qImportError');
@@ -987,7 +989,10 @@ $reqBadge = [
                 if (!document.getElementById('quotationTargetCompletion').value) { err.textContent = 'Set a target completion date.'; err.style.display = 'block'; return; }
 
                 const btn = this; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending…';
-                const body = new URLSearchParams();
+                const body = new FormData();
+                body.append('csrf', <?= json_encode(project_csrf_token()) ?>);
+                const design = document.getElementById('qDesignImage').files[0];
+                if (design) body.append('design_image', design);
                 body.append('project_id', qState.projectId);
                 body.append('customer_id', qState.customerId);
                 body.append('request_id', qState.requestPk);
@@ -998,7 +1003,7 @@ $reqBadge = [
                     const [id, key] = pair.split(':');
                     body.append(key, document.getElementById(id).value || 0);
                 });
-                fetch('create_quotation.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+                fetch('create_quotation.php', { method: 'POST', body })
                     .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
                     .then(d => { vsToastFlash('Quotation ' + d.quote_code + ' sent — ' + pesoFmt(d.total)); location.reload(); })
                     .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-2"></i>Send Quotation'; });

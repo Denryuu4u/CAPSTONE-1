@@ -26,6 +26,7 @@ $own = db()->prepare(
 $own->execute([$pid, $uid]);
 $proj = $own->fetch();
 if (!$proj) { http_response_code(403); echo json_encode(['ok' => false, 'error' => 'No access to this project.']); exit; }
+require_project_writable($pid);
 $projName = $proj['project_name'];
 $projCode = $proj['project_code'];
 

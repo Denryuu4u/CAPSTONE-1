@@ -180,6 +180,7 @@ CREATE TABLE `request_files` (
 --             match includes/project_status.php.
 -- ---------------------------------------------------------------------
 CREATE TABLE `projects` (
+  `paused_status` VARCHAR(40) NULL,
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `project_code`   VARCHAR(30) NOT NULL,               -- PRJ-2026-042
   `customer_id`    INT UNSIGNED DEFAULT NULL,
@@ -216,6 +217,7 @@ CREATE TABLE `projects` (
 --               "Create Cost Quotation" modal in project-requests.php.
 -- ---------------------------------------------------------------------
 CREATE TABLE `quotations` (
+  `design_path` VARCHAR(255) NULL,
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `quote_code`     VARCHAR(30) NOT NULL,               -- QT-2026-042
   `customer_id`    INT UNSIGNED DEFAULT NULL,

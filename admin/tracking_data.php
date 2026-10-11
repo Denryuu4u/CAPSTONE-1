@@ -15,4 +15,6 @@ if ($projectId <= 0) { http_response_code(400); echo json_encode(['ok' => false,
 $data = get_project_tracking($projectId);
 if ($data === null) { http_response_code(404); echo json_encode(['ok' => false, 'error' => 'Project not found.']); exit; }
 
+$st = db()->prepare('SELECT status FROM projects WHERE id=?'); $st->execute([$projectId]);
+$data['paused'] = project_status_key((string) $st->fetchColumn()) === 'on_hold';
 echo json_encode(['ok' => true] + $data, JSON_UNESCAPED_UNICODE);

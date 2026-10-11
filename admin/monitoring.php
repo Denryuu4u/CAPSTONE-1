@@ -12,15 +12,16 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
 
 // Auto-confirm any completed projects the client left unconfirmed past the deadline.
 auto_confirm_completions();
+ensure_project_features();
 ensure_prev_status_column(); // rollback support (self-migrating)
 
 // Live projects (exclude rejected). materials_key / updates_key are the project id.
 $monitor_projects = [];
 foreach (db()->query(
-    "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status, p.prev_status,
+    "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status, p.prev_status, p.paused_status,
             p.target_completion, p.start_date, p.progress, p.approver, p.description,
             p.completion_notified_at, p.client_confirmed_at, p.completion_issue_at, p.installation_address,
-            q.id AS quotation_id, q.quote_code, q.total_amount AS quote_total, q.status AS quote_status
+            q.id AS quotation_id, q.design_path, q.quote_code, q.total_amount AS quote_total, q.status AS quote_status
        FROM projects p
        LEFT JOIN customers c ON c.id = p.customer_id
        LEFT JOIN quotations q ON q.id = (
@@ -36,6 +37,7 @@ foreach (db()->query(
         'customer' => $r['customer'] ?? '—',
         'status'   => $r['status'],
         'prev_status' => $r['prev_status'] ?? '',
+        'paused_status' => $r['paused_status'] ?? $r['prev_status'] ?? '',
         'target'   => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
         'start'    => $r['start_date'] ?? '',
         'progress' => (int) $r['progress'],
@@ -45,6 +47,7 @@ foreach (db()->query(
         'confirmed'     => $r['client_confirmed_at'] ? date('M d, Y', strtotime($r['client_confirmed_at'])) : '',
         'awaiting_conf' => ($r['status'] === 'completed' && empty($r['client_confirmed_at'])) ? '1' : '0',
         'issue'         => !empty($r['completion_issue_at']) ? date('M d, Y', strtotime($r['completion_issue_at'])) : '',
+        'has_design'    => !empty($r['design_path']),
         'quote_id'      => (int) ($r['quotation_id'] ?? 0),
         'quote_code'    => $r['quote_code'] ?? '',
         'quote_total'   => $r['quote_total'] !== null ? peso((float) $r['quote_total']) : '',
@@ -146,6 +149,33 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
 
         /* Body */
         #viewProjectModal .modal-body { padding:0; max-height:72vh; overflow-y:auto; }
+
+        /* Keep project controls and notices aligned at every screen size. */
+        .pvm-hero { position:relative; flex-shrink:0; }
+        .pvm-hero-top { padding-right:32px; }
+        .pvm-hero-actions { width:100%; flex-wrap:wrap; }
+        .pvm-hero-actions .btn-close { position:absolute; top:24px; right:24px; }
+        #viewProjectModal :disabled { opacity:.5; cursor:not-allowed; }
+        .pvm-step-tracker { overflow:visible; padding:4px 0; }
+        .pvm-steps { min-width:0; width:100%; }
+        #viewProjectModal .modal-body { max-height:none; }
+        #pvmPauseNotice { margin:18px 26px 0; padding:12px 14px; border:1px solid #fde68a; border-radius:10px; background:#fffbeb; color:#92400e; font-size:.76rem; line-height:1.5; }
+        #pvmPauseNotice strong { display:block; margin-bottom:2px; font-size:.8rem; }
+        .pvm-design-actions { margin:16px 26px 0; }
+        .pvm-design-actions:has(> [hidden]):not(:has(> :not([hidden]))) { display:none; }
+        #pvmDesignUpload { width:100%; padding:14px; border:1px solid #e5e7eb; border-radius:10px; background:#f9fafb; font-size:.76rem; }
+        #pvmDesignUpload .form-control { font-size:.76rem; }
+        #pvmDesignUpload small { color:#6b7280; font-size:.7rem; }
+        @media(max-width:540px) {
+            .pvm-hero { padding:20px 18px 14px; }
+            .pvm-hero-actions .btn-close { right:18px; top:20px; }
+            .pvm-step-label { font-size:.5rem; overflow-wrap:anywhere; }
+            .pvm-step-dot { width:20px; height:20px; }
+            .pvm-step-connector { min-width:2px; margin-top:10px; }
+            #pvmPauseNotice { margin:14px 18px 0; }
+            .pvm-design-actions { margin:14px 18px 0; }
+            #viewProjectModal .pvm-details-section, #viewProjectModal .pvm-updates-section { padding:18px; }
+        }
 
         /* Detail section */
         .pvm-details-section { padding:18px 26px; border-bottom:1px solid #f0f0f0; }
@@ -300,7 +330,7 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
                                             data-customer="<?= htmlspecialchars($p['customer']) ?>"
                                             data-target="<?= htmlspecialchars($p['target']) ?>"
                                             data-status="<?= project_status_key($p['status']) ?>"
-                                            data-prev-status="<?= htmlspecialchars($p['prev_status']) ?>"
+                                            data-paused-status="<?= htmlspecialchars($p['paused_status']) ?>" data-prev-status="<?= htmlspecialchars($p['prev_status']) ?>"
                                             data-details="<?= htmlspecialchars($p['details']) ?>"
                                             data-address="<?= htmlspecialchars($p['address']) ?>"
                                             data-start="<?= $p['start'] ?>" data-progress="<?= $p['progress'] ?>"
@@ -308,6 +338,7 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
                                             data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
                                             data-awaiting-conf="<?= $p['awaiting_conf'] ?>"
                                             data-issue="<?= htmlspecialchars($p['issue']) ?>"
+                                            data-has-design="<?= $p['has_design'] ? '1' : '0' ?>" data-quote-status="<?= htmlspecialchars($p['quote_status']) ?>"
                                             data-quote-id="<?= $p['quote_id'] ?>"
                                             data-quote-code="<?= htmlspecialchars($p['quote_code']) ?>"
                                             data-quote-total="<?= htmlspecialchars($p['quote_total']) ?>"
@@ -365,6 +396,11 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
 
             <!-- BODY -->
             <div class="modal-body">
+                <div id="pvmPauseNotice" role="status" hidden><strong><i class="bi bi-pause-circle me-1" aria-hidden="true"></i> Project paused</strong>Changes are frozen. An Admin or Super Admin can resume this project.</div>
+                <div class="pvm-design-actions"><button type="button" class="btn-materials" id="pvmDesignView" hidden><i class="bi bi-image" aria-hidden="true"></i> View design</button>
+                <?php if (in_array(current_role(), ['Admin', 'Super Admin'], true)): ?>
+                <div id="pvmDesignUpload" hidden><label for="pvmDesignFile" class="form-label">Send initial design</label><input type="file" class="form-control mb-2" id="pvmDesignFile" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG or WebP, up to 8 MB.</small><button type="button" class="btn btn-success ms-2" id="pvmSendDesign">Send design</button></div>
+                <?php endif; ?></div>
 
                 <!-- Client-reported issue alert (shown only when a completed project is disputed) -->
                 <div id="pvmIssueAlert" style="display:none;margin:16px 26px 0;padding:13px 16px;border:1px solid #fca5a5;background:#fef2f2;border-radius:10px;">
@@ -830,7 +866,18 @@ document.getElementById('pvmUpdateInput').addEventListener('keydown',function(e)
 
 // ── STATE DROPDOWN ──
 document.getElementById('pvmStateSelect').addEventListener('change',function(){
-    this.className='pvm-state-select '+(this.value==='active'?'state-active':'state-paused');
+    const sel=this, state=sel.value;
+    const oldState=currentRow && currentRow.dataset.status==='on_hold'?'paused':'active';
+    sel.value=oldState;
+    vsConfirm(state==='paused'?'Pause this project and freeze all changes?':'Resume this project at its previous phase?', {title:'Project state',okText:state==='paused'?'Pause':'Resume'}).then(async ok=>{
+        if(!ok) return;
+        sel.disabled=true;
+        try {
+            const r=await fetch('set_project_state.php',{method:'POST',body:new URLSearchParams({project_id:currentProjectId,state,csrf:<?= json_encode(project_csrf_token()) ?>})});
+            const result=await r.json(); if(!r.ok||!result.ok) throw new Error(result.error||'Could not change project state.');
+            vsToastFlash(state==='paused'?'Project paused.':'Project resumed.'); location.reload();
+        } catch(e){vsAlert(e.message);sel.disabled=false;}
+    });
 });
 
 // ── FILL MODAL ──
@@ -843,7 +890,16 @@ function fillProjectModal(btn){
 
     // An on-hold project shows as Paused; everything else is Active.
     const paused=statusKey(d.status)==='on_hold';
+    document.getElementById('pvmPauseNotice').hidden=!paused;
+    ['pvmPhaseSelect','pvmPostBtn','pvmAttachBtn','pvmImageInput','pvmUpdateInput','pvmRevertBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=paused;});
+    const viewDesignBtn=document.getElementById('pvmDesignView');
+    viewDesignBtn.hidden=d.hasDesign!=='1';viewDesignBtn.onclick=()=>viewDesign(d.quoteId);
+    const upload=document.getElementById('pvmDesignUpload');
+    if(upload) {upload.hidden=paused||d.hasDesign==='1'||d.quoteStatus!=='Approved';document.getElementById('pvmDesignFile').value='';}
+
     const sel=document.getElementById('pvmStateSelect');
+    sel.disabled=<?= in_array(current_role(), ['Admin','Super Admin'], true) ? 'false' : 'true' ?> || ['completed','rejected'].includes(statusKey(d.status));
+    sel.title='Only Admin and Super Admin can pause or resume a project';
     sel.value=paused?'paused':'active';
     sel.className='pvm-state-select '+(paused?'state-paused':'state-active');
 
@@ -851,8 +907,9 @@ function fillProjectModal(btn){
     const badge=document.getElementById('viewProjectStatus');
     badge.textContent=statusLabel(d.status);
     badge.className='monitor-badge '+statusClass(d.status);
-    renderStepTracker('pvmStepTracker', getStepIdx(d.status));
-    currentPhaseIdx = getStepIdx(d.status);
+    const displayedPhase=paused ? (d.pausedStatus || d.status) : d.status;
+    renderStepTracker('pvmStepTracker', getStepIdx(displayedPhase));
+    currentPhaseIdx = getStepIdx(displayedPhase);
     lockPhaseOptions(currentPhaseIdx);
 
     // Revert target: the recorded previous phase (exact undo) or, failing that,
@@ -919,7 +976,7 @@ function fillProjectModal(btn){
     currentUpdatesKey=d.updatesKey||'';
     currentProjectId=parseInt(d.updatesKey||0)||0;
     const phaseSel=document.getElementById('pvmPhaseSelect');
-    if(phaseSel){ const k=statusKey(d.status); if([...phaseSel.options].some(o=>o.value===k)) phaseSel.value=k; }
+    if(phaseSel){ const k=statusKey(displayedPhase); if([...phaseSel.options].some(o=>o.value===k)) phaseSel.value=k; }
     renderFeed(currentUpdatesKey);
 
     // Opening the project = the admin has seen its client messages → clear the dot.
@@ -1087,6 +1144,8 @@ document.addEventListener('DOMContentLoaded',function(){
       if(!$('trkExpenseBody').children.length) $('trkExpenseBody').appendChild(expenseRow());
       if(!$('trkAssemblyBody').children.length) $('trkAssemblyBody').appendChild(laborRow());
       if(!$('trkInstallBody').children.length) $('trkInstallBody').appendChild(laborRow());
+      modal.querySelectorAll('input, textarea, .trk-add-btn, .trk-del, #trkSaveBtn').forEach(el=>el.disabled=!!d.paused);
+      $('trkSaveBtn').title=d.paused?'Resume the project before editing costs.':'';
       recompute();
     }).catch(e=>alert(e.message));
     new bootstrap.Modal(modal).show();
@@ -1136,6 +1195,19 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
   </div>
 </div>
+
+<?php include __DIR__ . '/../includes/design_viewer.php'; ?>
+<script>
+document.getElementById('pvmSendDesign')?.addEventListener('click',async function(){
+ const file=document.getElementById('pvmDesignFile').files[0];
+ if(!file){vsAlert('Choose a design image first.');return;}
+ const view=currentRow?.querySelector('.view-project-btn'); if(!view)return;
+ const body=new FormData();body.append('design_image',file);body.append('quotation_id',view.dataset.quoteId);body.append('csrf',<?= json_encode(project_csrf_token()) ?>);
+ this.disabled=true;
+ try {const r=await fetch('send_project_design.php',{method:'POST',body});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Could not send design.');vsToastFlash('Design sent to the customer.');location.reload();}
+ catch(e){vsAlert(e.message);}finally{this.disabled=false;}
+});
+</script>
 
 </body>
 </html>

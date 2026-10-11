@@ -15,6 +15,7 @@
  * 'Quotation Sent', notifies the client, logs audit. Returns JSON.
  */
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/quotation_design.php';
 require_page('project_requests', true); // back-office only (blocks clients)
 header('Content-Type: application/json; charset=utf-8');
 
@@ -27,6 +28,10 @@ function q_fail(string $msg, int $code = 400): void
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') q_fail('POST required.', 405);
 
+require_project_csrf();
+ensure_project_features();
+$designPath = null;
+$quoteCommitted = false;
 $pdo        = db();
 $projectId  = (int) ($_POST['project_id'] ?? 0);
 $customerId = (int) ($_POST['customer_id'] ?? 0);
@@ -54,12 +59,15 @@ if (!is_array($items) || !count($items)) q_fail('Add at least one costing line i
 
 if ($projectId <= 0) q_fail('Missing project.');
 
+require_project_writable($projectId);
+
 // Resolve customer + project name from the project if not supplied.
-$proj = $pdo->prepare("SELECT project_name, customer_id, installation_address FROM projects WHERE id = ?");
+$proj = $pdo->prepare("SELECT project_name, customer_id, request_id, installation_address FROM projects WHERE id = ?");
 $proj->execute([$projectId]);
 $projRow = $proj->fetch();
 if (!$projRow) q_fail('Project not found.');
-if ($customerId <= 0) $customerId = (int) $projRow['customer_id'];
+$customerId = (int) $projRow['customer_id'];
+$requestId = $projRow['request_id'] ? (int) $projRow['request_id'] : null;
 $projectName = $projRow['project_name'];
 
 // Recompute totals server-side (never trust the client).
@@ -86,6 +94,7 @@ $total = round($materialTotal + $labor + $markupAmt + $contAmt + $serviceAmt + $
               + $substrate + $outOfTownAmt + $special + $access, 2);
 
 try {
+    $designPath = save_quotation_design_upload($_FILES['design_image'] ?? []);
     $pdo->beginTransaction();
 
     $quoteCode = next_code('QT');
@@ -114,6 +123,7 @@ try {
         ':by' => current_user()['id'] ?? null,
     ]);
     $quoteId = (int) $pdo->lastInsertId();
+    if ($designPath) $pdo->prepare('UPDATE quotations SET design_path=? WHERE id=?')->execute([$designPath, $quoteId]);
 
     $itemStmt = $pdo->prepare(
         "INSERT INTO quotation_items (quotation_id, item, description, qty, unit_cost, line_total, sort_order)
@@ -137,6 +147,7 @@ try {
     }
 
     $pdo->commit();
+    $quoteCommitted = true;
 
     // Notify the client + audit.
     $clientId = project_client_user_id($projectId);
@@ -146,7 +157,7 @@ try {
             'type'         => 'quote_decision',
             'title'        => 'Quotation ready for your review',
             'message'      => "{$projectName} — " . peso($total),
-            'link'         => "my_projects.php",
+            'link'         => "my_projects.php?view={$projectId}",
             'severity'     => 'warning',
             'project_id'   => $projectId,
             'quotation_id' => $quoteId,
@@ -157,5 +168,6 @@ try {
     echo json_encode(['ok' => true, 'quote_code' => $quoteCode, 'total' => $total]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    q_fail('Server error: ' . $e->getMessage(), 500);
+    if (!$quoteCommitted) remove_unsaved_design($designPath);
+    q_fail($e instanceof InvalidArgumentException ? $e->getMessage() : 'The quotation could not be saved. Please try again.', $e instanceof InvalidArgumentException ? 400 : 500);
 }

@@ -26,6 +26,7 @@ $projectId  = (int) ($_POST['project_id'] ?? 0);
 $revertCode = strtoupper(trim((string) ($_POST['revert_code'] ?? '')));
 if ($projectId <= 0) rv_fail('Invalid request.');
 
+require_project_writable($projectId);
 $pdo = db();
 $row = $pdo->prepare("SELECT * FROM projects WHERE id = ?");
 $row->execute([$projectId]);
@@ -65,6 +66,7 @@ $progressMap = [
     'delivery' => 60, 'installation' => 75, 'quality_check' => 85, 'punchlist' => 92,
     'final_approval' => 97, 'completed' => 100,
 ];
+if ($prev === 'on_hold') rv_fail('Use the administrator Pause control instead of reverting to a paused state.', 403);
 $prevLabel = project_status_label($prev);
 $progress  = $progressMap[$prev] ?? (int) $project['progress'];
 

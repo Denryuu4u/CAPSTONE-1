@@ -38,6 +38,7 @@ $p = $stmt->fetch();
 
 if (!$p) cc_fail('Project not found.', 404);
 if ((int) $p['client_user_id'] !== (int) ($user['id'] ?? 0)) cc_fail('Not your project.', 403);
+require_project_writable($projectId);
 if ($p['status'] !== 'completed') cc_fail('This project is not marked completed yet.');
 if (!empty($p['client_confirmed_at'])) { echo json_encode(['ok' => true, 'already' => true]); exit; }
 

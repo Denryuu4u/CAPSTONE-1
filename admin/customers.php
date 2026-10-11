@@ -541,6 +541,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
     });
     const updBtn = document.getElementById("updateCustomerBtn");
     if (updBtn) updBtn.addEventListener("click", function () {
+        if (!document.getElementById("editCustomerEmail").reportValidity()) return;
         vsConfirm('Save these changes to the customer details?', {title:'Update customer', okText:'Save changes'}).then(function(ok){
             if (!ok) return;
             post('save_customer.php', {

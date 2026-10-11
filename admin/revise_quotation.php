@@ -39,6 +39,8 @@ if (!in_array($q['status'], ['Countered', 'Sent', 'Accepted'], true)) {
 
 $projectId = (int) $q['project_id'];
 
+require_project_writable($projectId);
+
 try {
     $pdo->beginTransaction();
     $pdo->prepare(

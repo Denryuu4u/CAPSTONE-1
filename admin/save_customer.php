@@ -23,6 +23,7 @@ $industry = trim((string) ($_POST['industry'] ?? ''));
 $password = (string) ($_POST['password'] ?? '');
 
 if ($name === '') sc_fail('Name is required.');
+if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) sc_fail('Enter a valid email address.');
 
 $pdo = db();
 try {

@@ -18,7 +18,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_page('summarization', true); // back-office only
 header('Content-Type: application/json; charset=utf-8');
 
-require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/cutlist_processor.php';
 
 function fail(string $message, int $code = 400): void
@@ -55,6 +55,7 @@ try {
     // Optional project association.
     $projectId   = isset($_POST['project_id']) && $_POST['project_id'] !== ''
         ? (int) $_POST['project_id'] : null;
+    require_project_writable((int) $projectId);
     $projectName = isset($_POST['project_name']) ? trim((string) $_POST['project_name']) : null;
     if ($projectName === '' || $projectName === '-- Select Project --') {
         $projectName = null;

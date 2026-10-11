@@ -430,6 +430,9 @@ $archivedUsers = db()->query(
                 });
             });
             document.getElementById("updateUserBtn").addEventListener("click", function() {
+                const emailInput = document.getElementById("editUserEmail");
+                emailInput.required = true;
+                if (!emailInput.reportValidity()) return;
                 const last = val('editUserLastName');
                 const password = val('editUserPassword');
                 if (password && password.length < 8) { vsAlert('A new password must be at least 8 characters (or leave it blank to keep the current one).', {title:'Check password'}); return; }

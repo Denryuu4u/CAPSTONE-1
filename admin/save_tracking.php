@@ -33,6 +33,8 @@ $notes     = trim((string) ($_POST['notes'] ?? ''));
 
 if ($projectId <= 0) st_fail('Missing project.');
 
+require_project_writable($projectId);
+
 $proj = $pdo->prepare("SELECT project_code, project_name FROM projects WHERE id = ?");
 $proj->execute([$projectId]);
 $projRow = $proj->fetch();

@@ -6,3 +6,9 @@ ErrorDocument 400 /CAPSTONE-1/error.php
 ErrorDocument 403 /CAPSTONE-1/error.php
 ErrorDocument 404 /CAPSTONE-1/error.php
 ErrorDocument 500 /CAPSTONE-1/error.php
+
+# Design images are served only through the authenticated PHP endpoint.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^uploads/project-designs/ - [F,L]
+</IfModule>
