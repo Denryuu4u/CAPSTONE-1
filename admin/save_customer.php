@@ -28,8 +28,8 @@ if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) sc_fail('Enter 
 $pdo = db();
 try {
     if ($id > 0) {
-        $pdo->prepare("UPDATE customers SET name=?, contact_person=?, email=?, phone=?, address=?, industry=? WHERE id=?")
-            ->execute([$name, $contact ?: null, $email ?: null, $phone ?: null, $address ?: null, $industry ?: null, $id]);
+        $pdo->prepare("UPDATE customers SET name=?, contact_person=?, phone=?, address=?, industry=? WHERE id=?")
+            ->execute([$name, $contact ?: null, $phone ?: null, $address ?: null, $industry ?: null, $id]);
         log_audit('Customers', "Edited customer #{$id}", $name);
         echo json_encode(['ok' => true, 'id' => $id]);
         exit;

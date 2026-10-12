@@ -48,12 +48,10 @@ try {
         $pdo->prepare(
             "UPDATE users SET
                 full_name = ?,
-                email = COALESCE(NULLIF(?, ''), email),
                 phone = NULLIF(?, '')
               WHERE id = ?"
         )->execute([
             $f('profile_name'),
-            $f('profile_email'),
             $f('profile_phone'),
             (int) $me['id'],
         ]);

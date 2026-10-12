@@ -394,7 +394,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 
                         <div class="col-md-6">
                             <label class="form-label edit-customer-label">Email</label>
-                            <input type="email" class="form-control edit-customer-input" id="editCustomerEmail" placeholder="Enter email">
+                            <input type="email" class="form-control edit-customer-input" id="editCustomerEmail" readonly aria-readonly="true" title="Email cannot be changed" style="background-color:#f3f4f6;color:#6b7280;cursor:not-allowed;" placeholder="Enter email">
                         </div>
 
                         <div class="col-md-6">

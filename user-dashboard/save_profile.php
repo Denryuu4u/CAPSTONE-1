@@ -75,12 +75,12 @@ try {
     $dupe->execute([$email, $uid]);
     if ($dupe->fetch()) sp_fail('That email is already in use by another account.');
 
-    $pdo->prepare("UPDATE users SET full_name = ?, email = ?, phone = NULLIF(?, '') WHERE id = ?")
-        ->execute([$name, $email, $phone, $uid]);
+    $pdo->prepare("UPDATE users SET full_name = ?, phone = NULLIF(?, '') WHERE id = ?")
+        ->execute([$name, $phone, $uid]);
 
     // Keep the client's customer record's contact details in sync, if one is linked.
-    $pdo->prepare("UPDATE customers SET email = ?, phone = NULLIF(?, '') WHERE user_id = ?")
-        ->execute([$email, $phone, $uid]);
+    $pdo->prepare("UPDATE customers SET phone = NULLIF(?, '') WHERE user_id = ?")
+        ->execute([$phone, $uid]);
 
     if (isset($_SESSION['full_name'])) $_SESSION['full_name'] = $name;
     log_audit('Settings', 'Updated profile information');

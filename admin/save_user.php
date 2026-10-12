@@ -27,11 +27,11 @@ if ($id > 0 && $id === (int) $meId && ($role !== 'Super Admin' || $status !== 'A
 try {
     if ($id > 0) {
         if ($pass !== '') {
-            db()->prepare("UPDATE users SET full_name=?, email=?, phone=?, role=?, status=?, password_hash=? WHERE id=?")
-                ->execute([$name, $email, $phone ?: null, $role, $status, password_hash($pass, PASSWORD_BCRYPT), $id]);
+            db()->prepare("UPDATE users SET full_name=?, phone=?, role=?, status=?, password_hash=? WHERE id=?")
+                ->execute([$name, $phone ?: null, $role, $status, password_hash($pass, PASSWORD_BCRYPT), $id]);
         } else {
-            db()->prepare("UPDATE users SET full_name=?, email=?, phone=?, role=?, status=? WHERE id=?")
-                ->execute([$name, $email, $phone ?: null, $role, $status, $id]);
+            db()->prepare("UPDATE users SET full_name=?, phone=?, role=?, status=? WHERE id=?")
+                ->execute([$name, $phone ?: null, $role, $status, $id]);
         }
         log_audit('User Management', "Edited user #{$id}", "{$name} ({$role})");
     } else {

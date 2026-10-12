@@ -308,7 +308,7 @@ $archivedUsers = db()->query(
 
                         <div class="col-md-6">
                             <label class="add-customer-label">Email</label>
-                            <input type="email" class="form-control add-customer-input" id="editUserEmail">
+                            <input type="email" class="form-control add-customer-input" id="editUserEmail" readonly aria-readonly="true" title="Email cannot be changed" style="background-color:#f3f4f6;color:#6b7280;cursor:not-allowed;">
                         </div>
 
                         <div class="col-md-6">

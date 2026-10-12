@@ -136,7 +136,7 @@ $galleryImages = db()->query("SELECT id, file_path, label FROM gallery_images OR
 
                         <div class="mb-2">
                             <label class="settings-label">Email</label>
-                            <input type="email" class="settings-input" id="setProfileEmail" value="<?= $mv('email') ?>">
+                            <input type="email" class="settings-input" id="setProfileEmail" readonly aria-readonly="true" title="Email cannot be changed" style="background-color:#f3f4f6;color:#6b7280;cursor:not-allowed;" value="<?= $mv('email') ?>">
                         </div>
 
                         <div>

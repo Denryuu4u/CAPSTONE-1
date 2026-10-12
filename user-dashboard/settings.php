@@ -132,7 +132,7 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
           </div>
           <div class="mb-2">
             <label class="settings-label">Email</label>
-            <input type="email" name="email" id="pfEmail" class="settings-input" value="<?= $e($user['email']) ?>" required/>
+            <input type="email" name="email" id="pfEmail" readonly aria-readonly="true" title="Email cannot be changed" style="background-color:#f3f4f6;color:#6b7280;cursor:not-allowed;" class="settings-input" value="<?= $e($user['email']) ?>" required/>
           </div>
           <div class="mb-2">
             <label class="settings-label">Phone</label>
