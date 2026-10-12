@@ -57,6 +57,8 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   td { padding: 12px 10px; border-top: 1px solid #eee; font-size: 14px; }
   .total-row td { font-weight: 800; font-size: 16px; background: #dfe8dc; }
   .terms { font-size: 12px; color: #444; line-height: 1.6; }
+  .terms ol { margin: 6px 0 0; padding-left: 20px; }
+  .terms li { padding-left: 2px; margin-bottom: 4px; break-inside: avoid; }
   .print-btn { position: fixed; top: 16px; right: 16px; background: #2e4a45; color: #fff;
     border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; }
   @media print { .print-btn { display: none; } body { background: #fff; } .sheet { border: none; margin: 0; } }
@@ -120,11 +122,16 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   </div>
 
   <div class="pad terms" style="padding-top:0;">
-    <b>Terms and Conditions:</b><br>
-    1. 50% downpayment upon acceptance, 25% upon delivery/installation, 15% after installation, 10% after punchlist and turnover.<br>
-    2. All prices are VAT exclusive. &nbsp; 3. Cancellation not allowed once production has started.<br>
-    4. Change orders subject to separate quotation. &nbsp; 5. Production lead time 5–6 weeks.<br>
-    6. This quote is valid for 30 days. &nbsp; 7. Six-month warranty (excludes water damage / wear and tear).
+    <b>Terms and Conditions:</b>
+    <ol>
+      <li>50% downpayment upon acceptance, 25% upon delivery/installation, 15% after installation, 10% after punchlist and turnover.</li>
+      <li>All prices are VAT exclusive.</li>
+      <li>Cancellation not allowed once production has started.</li>
+      <li>Change orders subject to separate quotation.</li>
+      <li>Production lead time 5–6 weeks.</li>
+      <li>This quote is valid for 30 days.</li>
+      <li>Six-month warranty (excludes water damage / wear and tear).</li>
+    </ol>
   </div>
   <div class="bar"></div>
 </div>
