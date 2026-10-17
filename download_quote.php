@@ -12,12 +12,14 @@ $id = (int) ($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(400); exit('Invalid quotation.'); }
 
 $pdo = db();
+ensure_request_quantity();
 $stmt = $pdo->prepare(
-    "SELECT q.*, c.name AS customer_name, c.address AS customer_address, c.user_id AS client_user_id,
+    "SELECT q.*, c.name AS customer_name, c.address AS customer_address, c.user_id AS client_user_id, r.unit_quantity,
             COALESCE(NULLIF(q.installation_address, ''), NULLIF(p.installation_address, '')) AS install_address
        FROM quotations q
        LEFT JOIN customers c ON c.id = q.customer_id
        LEFT JOIN projects  p ON p.id = q.project_id
+       LEFT JOIN project_requests r ON r.id = p.request_id
       WHERE q.id = ?"
 );
 $stmt->execute([$id]);
@@ -106,6 +108,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <tr>
           <td>
             <b><?= $e($q['project_name']) ?></b><br>
+            <span class="muted">Quantity: <?= (int) ($q['unit_quantity'] ?? 1) ?> identical unit(s). Amount covers the entire project.</span><br>
             <span class="muted">Custom cabinetry works — design, fabrication, and installation as specified.</span>
           </td>
           <td style="text-align:right;"><?= peso($q['total_amount']) ?></td>
@@ -116,9 +119,6 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         </tr>
       </tbody>
     </table>
-    <?php if (!empty($q['notes'])): ?>
-      <p class="muted" style="margin-top:10px;"><b>Notes:</b> <?= $e($q['notes']) ?></p>
-    <?php endif; ?>
   </div>
 
   <div class="pad terms" style="padding-top:0;">

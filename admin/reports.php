@@ -1213,6 +1213,7 @@ function paginate(tab){
     const cat=(tab in cardFilter)?cardFilter[tab]:'';
     const dataRows=Array.prototype.slice.call(tbody.querySelectorAll('tr')).filter(tr=>!tr.querySelector('td[colspan]'));
     const eligible=dataRows.filter(tr=>!cat || tr.dataset.cat===cat);
+    tbody.closest('table').getPrintRows=()=>eligible.slice();
     dataRows.forEach(tr=>{ if(eligible.indexOf(tr)===-1) tr.style.display='none'; });
     const pages=Math.max(1,Math.ceil(eligible.length/RP_PAGE_SIZE));
     let pg=pageState[tab]||1; if(pg>pages)pg=pages; if(pg<1)pg=1; pageState[tab]=pg;

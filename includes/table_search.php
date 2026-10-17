@@ -46,6 +46,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function cellDateISO(tr, col) {
       var cell = tr.children[col];
       if (!cell) return '';
+      // Deadline badges add words to displayed dates; prefer the original ISO value.
+      if (cell.hasAttribute('data-date')) return cell.getAttribute('data-date') || '';
       var t = (cell.textContent || '').trim();
       if (!t || t === '—') return '';
       var d = new Date(t);
@@ -65,6 +67,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var pageSize = parseInt(table.getAttribute('data-page-size'), 10) || 10;
     var colCount = table.querySelectorAll('thead th').length || 1;
     var page = 1, filtered = dataRows.slice();
+    // Printing includes every search/filter match, not only the current page.
+    table.getPrintRows = function () { return filtered.slice(); };
 
     // "No results" row.
     var noRow = document.createElement('tr');

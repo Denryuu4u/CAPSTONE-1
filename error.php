@@ -8,7 +8,8 @@
  *
  * Optional query params: msg (shown to the user), title, code (HTTP-ish label).
  */
-require_once __DIR__ . '/includes/auth.php';
+// Error pages must remain available when the database or authentication fails.
+require_once __DIR__ . '/includes/error_handling.php';
 
 // When Apache serves this as an ErrorDocument (404/403/500…), it sets
 // REDIRECT_STATUS and no query string — fall back to status-appropriate copy.
@@ -31,7 +32,7 @@ if ($title === '') $title = 'Something went wrong';
 if ($msg === '')   $msg   = 'The request could not be completed. Please try again, or contact support if it keeps happening.';
 
 // Where "home" goes depends on who's viewing.
-$home = function_exists('role_home') ? role_home() : (BASE_URL . '/index.php');
+$home = app_error_base_url() . '/index.php';
 $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 ?>
 <!DOCTYPE html>
@@ -65,7 +66,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
     <p class="err-msg"><?= $e($msg) ?></p>
     <div class="err-actions">
       <a href="#" class="err-btn err-btn-ghost" onclick="history.back();return false;"><i class="bi bi-arrow-left"></i> Go Back</a>
-      <a href="<?= $e($home) ?>" class="err-btn err-btn-primary"><i class="bi bi-house-door"></i> Dashboard</a>
+      <a href="<?= $e($home) ?>" class="err-btn err-btn-primary"><i class="bi bi-house-door"></i> Home</a>
     </div>
   </div>
 </body>

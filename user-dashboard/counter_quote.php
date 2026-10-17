@@ -7,6 +7,7 @@
  */
 require_once __DIR__ . '/../includes/helpers.php';
 require_client(); // customers only
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: my_projects.php'); exit; }
 ensure_counter_offer_columns();
 
 $quotationId = (int) ($_POST['quotation_id'] ?? 0);
@@ -35,16 +36,31 @@ if (!$q || (int) $q['client_user_id'] !== (int) $user['id'] || $q['status'] !== 
 }
 
 require_project_writable((int) $q['project_id'], false);
+// A revision may have changed the price while we waited for the project lock.
+$stmt->execute([$quotationId]); $q = $stmt->fetch();
+if (!$q || (int) $q['client_user_id'] !== (int) $user['id'] || $q['status'] !== 'Sent') {
+    header("Location: {$back}?counter=err"); exit;
+}
 
-$amount  = (float) preg_replace('/[^0-9.]/', '', $amountRaw);
+$amountText = str_replace(',', '', $amountRaw);
+if (!preg_match('/^\d+(?:\.\d{1,2})?$/D', $amountText)) { header("Location: {$back}?counter=amount"); exit; }
+$amount = (float) $amountText;
+$quoteCents = (int) round((float) $q['total_amount'] * 100);
+if (!is_finite($amount) || $amount <= 0 || $amount >= (float) $q['total_amount']) { header("Location: {$back}?counter=limit"); exit; }
+$amountCents = (int) round($amount * 100);
+if ($amountCents >= $quoteCents || $quoteCents - $amountCents > MAX_COUNTER_REDUCTION_CENTS) {
+    header("Location: {$back}?counter=limit"); exit;
+}
 $comment = mb_substr($comment, 0, 1000);
 if ($amount <= 0) { header("Location: {$back}?counter=amount"); exit; }
 
-$pdo->prepare(
+$update = $pdo->prepare(
     "UPDATE quotations
         SET status = 'Countered', counter_amount = ?, counter_comment = NULLIF(?, ''), counter_at = NOW()
-      WHERE id = ?"
-)->execute([$amount, $comment, $quotationId]);
+      WHERE id = ? AND status = 'Sent' AND total_amount = ?"
+);
+$update->execute([$amount, $comment, $quotationId, $q['total_amount']]);
+if ($update->rowCount() !== 1) { header("Location: {$back}?counter=err"); exit; }
 
 if ($q['project_id']) {
     add_project_update(

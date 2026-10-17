@@ -92,6 +92,13 @@ if (!in_array('material_type', $pcols, true)) {
 $adminName = current_user()['full_name'] ?? (function_exists('company_name') ? company_name() : 'Vast Solutions');
 
 try {
+    $capacityCustomer = $pdo->prepare('SELECT user_id FROM customers WHERE id=?');
+    $capacityCustomer->execute([$customerId]); $capacityUser = $capacityCustomer->fetchColumn();
+    if ($capacityUser === false) sp_fail('Customer not found.', 404);
+    lock_customer_requests((int) $capacityUser, $customerId);
+    if (customer_request_counts((int) $capacityUser, $customerId)['ongoing'] >= CUSTOMER_ONGOING_PROJECT_LIMIT) {
+        sp_fail('This customer already has 5 ongoing projects, including paused projects. Complete an existing project first.', 409);
+    }
     $pdo->beginTransaction();
 
     // 1) Project shell. Walk-in orders are handled in person, so the quote is
@@ -159,5 +166,5 @@ try {
     echo json_encode(['ok' => true, 'project_code' => $prjCode, 'quote_code' => $quoteCode, 'total' => $total]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    sp_fail('Server error: ' . $e->getMessage(), 500);
+    sp_fail(app_error_message($e), 500);
 }

@@ -62,5 +62,5 @@ try {
 
     echo json_encode(['ok' => true, 'job_name' => $parsed['job_name'], 'items' => $parsed['items']]);
 } catch (Throwable $e) {
-    mt_fail('Could not read the file: ' . $e->getMessage(), 500);
+    mt_fail(app_error_message($e, 'We could not read this file. Check the format and try again.'), 500);
 }

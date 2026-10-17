@@ -101,6 +101,10 @@ try {
     feature_check($send($admin,$token,$image)[0]===409,'Paused projects block design changes');
     feature_check($state($admin,$token,'active')[0]===200,'Resume remains available with a design');
     $create=['project_id'=>2,'customer_id'=>2,'target_completion'=>'2027-01-01','items'=>json_encode([['description'=>'Cabinet','qty'=>1,'unit_cost'=>1000]]),'csrf'=>$token,'design_image'=>new CURLFile($image,'image/png','design.png')];
+    $justification = "The price includes premium moisture-resistant boards and soft-close hardware.\nDelivery & installation are included in the quoted total.";
+    $create['notes'] = $justification;
+    $longNotes = $create; $longNotes['notes'] = str_repeat('x', 4001);
+    feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$longNotes)[0]===400,'Overlong justification is rejected before saving');
     $badCreate=$create; $badCreate['design_image']=new CURLFile($bad,'image/png','fake.png');
     $quoteCount=(int)$pdo->query('SELECT COUNT(*) FROM quotations')->fetchColumn();
     feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$badCreate)[0]===400,'Invalid design rejects the entire quotation');
@@ -108,6 +112,7 @@ try {
     [$status,$json]=feature_http($admin,$base.'/admin/create_quotation.php',$create);$result=json_decode($json,true);
     feature_check($status===200 && !empty($result['ok']),'Quotation and image are sent together');
     $q=$pdo->query('SELECT * FROM quotations ORDER BY id DESC LIMIT 1')->fetch();$savedFiles[]=$q['design_path'];
+    feature_check($q['notes']===$justification,'Price justification is saved exactly, including line breaks');
     feature_check((int)$q['customer_id']===1 && !empty($q['design_path']),'Quotation derives ownership from the project');
     feature_check(feature_http($admin,$base.'/design_image.php?quotation_id='.$q['id'])[0]===200,'Back office can view design');
     $client=curl_init();curl_setopt($client,CURLOPT_COOKIEFILE,'');
@@ -116,6 +121,10 @@ try {
     feature_check($status===200 && $bytes===file_get_contents($image),'Owning client receives exact design image');
     feature_check(feature_http($client,$base.'/design_image.php?quotation_id=3')[0]===404,'Client cannot view another customer design');
     [$status,$html]=feature_http($client,$base.'/user-dashboard/my_projects.php');
+    feature_check($status===200 && substr_count($html,'data-quote-notes="'.htmlspecialchars($justification,ENT_QUOTES,'UTF-8').'"')===2,'Customer monitoring and quotation review both receive escaped justification');
+    feature_check(strpos($html,'Notes/Price justification')!==false && strpos($html,'id="viewQuoteNotes"')!==false,'Customer has a visible justification section in both views');
+    [$printStatus,$printHtml]=feature_http($client,$base.'/download_quote.php?id='.$q['id']);
+    feature_check($printStatus===200 && strpos($printHtml,'Notes/Price justification')===false && strpos($printHtml,htmlspecialchars($justification,ENT_QUOTES,'UTF-8'))===false,'Printable quotation excludes the justification');
     feature_check($status===200 && strpos($html,'View design')!==false && strpos($html,'uploads/project-designs/')===false,'Client sees design button without private storage paths');
     [$status,$html]=feature_http($admin,$base.'/admin/reports.php');
     feature_check($status===200 && strpos($html,'Labor &amp; Additional Charges')!==false && strpos($html,'PRJ-TEST-001')!==false && strpos($html,'Demo Customer')!==false,'Costing report contains identifiers and accurate label');
@@ -133,6 +142,42 @@ try {
     unlink($service->path($copy));
     $pdo->exec("INSERT INTO projects (id,project_code,customer_id,project_name,status,progress) VALUES (5,'PRJ-TEST-005',1,'Legacy Approved Cabinet','approved',10)");
     $pdo->exec("INSERT INTO quotations (quote_code,customer_id,project_id,project_name,date_created,status,total_amount) VALUES ('QT-TEST-005',1,5,'Legacy Approved Cabinet',CURDATE(),'Approved',1830)");
+    // Calendar-day urgency uses Manila time, including the exact seven-day boundary.
+    $today = new DateTimeImmutable('today', new DateTimeZone('Asia/Manila'));
+    $dateUpdate = $pdo->prepare('UPDATE projects SET target_completion=? WHERE id=?');
+    foreach ([1=>'+7 days',2=>'+2 days',5=>'-2 days'] as $pid=>$offset) $dateUpdate->execute([$today->modify($offset)->format('Y-m-d'),$pid]);
+    $dateInsert = $pdo->prepare('INSERT INTO projects (id,project_code,customer_id,project_name,status,target_completion) VALUES (?,?,?,?,?,?)');
+    foreach ([[6,'Due Today Cabinet','approved','today'],[7,'Next Week Cabinet','approved','+8 days'],[8,'Finished Cabinet','completed','-5 days'],[9,'Paused Cabinet','on_hold','+4 days'],[10,'Rejected Cabinet','rejected','-10 days']] as [$pid,$name,$phase,$offset]) {
+        $dateInsert->execute([$pid,'PRJ-TEST-'.str_pad((string)$pid,3,'0',STR_PAD_LEFT),1,$name,$phase,$today->modify($offset)->format('Y-m-d')]);
+    }
+    [$status,$deadlineHtml]=feature_http($admin,$base.'/admin/monitoring.php');
+    $rowTag = static function (int $pid) use ($deadlineHtml): string {
+        preg_match('/<tr data-project="PRJ-TEST-'.str_pad((string)$pid,3,'0',STR_PAD_LEFT).'"[^>]*>/', $deadlineHtml, $match);
+        return $match[0] ?? '';
+    };
+    $positions = array_map(fn($pid)=>strpos($deadlineHtml,'<tr data-project="PRJ-TEST-'.str_pad((string)$pid,3,'0',STR_PAD_LEFT).'"'),[5,6,2,9,1,7,4,8]);
+    $sortedPositions=$positions;sort($sortedPositions);
+    feature_check($status===200 && !in_array(false,$positions,true) && $positions===$sortedPositions,'Monitoring orders unfinished targets earliest first, undated after dated, completed last');
+    feature_check(strpos($rowTag(1),'deadline-soon')!==false && strpos($rowTag(7),'deadline-soon')===false,'Exactly seven days is highlighted; eight days is not');
+    feature_check(strpos($rowTag(6),'deadline-soon')!==false && strpos($deadlineHtml,'Due today')!==false,'Projects due today are highlighted');
+    feature_check(strpos($rowTag(5),'deadline-overdue')!==false && strpos($deadlineHtml,'2 days overdue')!==false,'Overdue projects have a clear warning');
+    feature_check(strpos($rowTag(8),'deadline-overdue')===false && strpos($rowTag(4),'deadline-soon')===false,'Completed and undated projects do not receive urgency warnings');
+    feature_check(strpos($rowTag(9),'deadline-soon')!==false && $rowTag(10)==='','Paused project deadlines remain visible; rejected projects stay excluded');
+    $pdo->exec("INSERT INTO quotations (id,quote_code,customer_id,project_id,project_name,date_created,status,total_amount) VALUES (100,'QT-COUNTER-100',1,4,'Requested Cabinet',CURDATE(),'Sent',10000)");
+    $counter = fn($amount)=>feature_http($client,$base.'/user-dashboard/counter_quote.php',['quotation_id'=>100,'counter_amount'=>$amount]);
+    $updatesBefore = (int)$pdo->query('SELECT COUNT(*) FROM project_updates')->fetchColumn();
+    foreach (['7999.99','10000','10000.01','-8000','8000.001','invalid'] as $badCounter) {
+        [$counterStatus,$counterBody]=$counter($badCounter);
+        feature_check($counterStatus===302 && $pdo->query('SELECT status FROM quotations WHERE id=100')->fetchColumn()==='Sent','Invalid counter-offer '.$badCounter.' leaves quotation unchanged');
+    }
+    feature_check((int)$pdo->query('SELECT COUNT(*) FROM project_updates')->fetchColumn()===$updatesBefore,'Rejected counter-offers add no project updates');
+    feature_check($counter('8000')[0]===302 && (float)$pdo->query('SELECT counter_amount FROM quotations WHERE id=100')->fetchColumn()===8000.0,'Exactly 2000 less is accepted');
+    $pdo->exec("UPDATE quotations SET status='Sent',counter_amount=NULL,counter_comment=NULL,counter_at=NULL WHERE id=100");
+    feature_check($counter('9999.99')[0]===302 && (float)$pdo->query('SELECT counter_amount FROM quotations WHERE id=100')->fetchColumn()===9999.99,'A smaller reduction is accepted');
+    $pdo->exec("UPDATE quotations SET status='Sent',total_amount=1830,counter_amount=NULL,counter_at=NULL WHERE id=100");
+    feature_check($counter('0.01')[0]===302 && (float)$pdo->query('SELECT counter_amount FROM quotations WHERE id=100')->fetchColumn()===0.01,'Quotes below 2000 still require a positive offer');
+    // Leave a normal pending quotation available for the browser preview.
+    $pdo->exec("UPDATE quotations SET status='Sent',total_amount=10000,counter_amount=NULL,counter_at=NULL WHERE id=100");
     if (in_array('--serve',$argv,true)) { echo 'READY FOR UI: ',$base,PHP_EOL; fflush(STDOUT); fgets(STDIN); }
 } finally {
     if (is_resource($server)) { proc_terminate($server); foreach($pipes as $pipe) if(is_resource($pipe))fclose($pipe);proc_close($server); }

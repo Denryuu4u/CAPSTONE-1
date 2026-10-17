@@ -57,5 +57,6 @@ try {
     exit;
 } catch (PDOException $e) {
     if ($e->getCode() === '23000') $back('That email is already registered. Try signing in.');
+    app_log_error($e);
     $back('Something went wrong. Please try again.');
 }

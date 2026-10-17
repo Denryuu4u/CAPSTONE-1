@@ -135,6 +135,7 @@ CREATE TABLE `project_requests` (
   `category`         VARCHAR(80)  DEFAULT NULL,        -- Wardrobe, Kitchen Cabinets, ...
   `material_type`    VARCHAR(80)  DEFAULT NULL,        -- Plywood, MDF, Aluminum, ...
   `dimensions`       VARCHAR(120) DEFAULT NULL,        -- optional W x H x D, e.g. "2400 x 720 x 600 mm"
+  `unit_quantity`    TINYINT UNSIGNED NOT NULL DEFAULT 1, -- 1–10 identical units per request
   `budget`           DECIMAL(12,2) DEFAULT NULL,
   `installation_address` VARCHAR(255) DEFAULT NULL,
   `target_completion` DATE DEFAULT NULL,

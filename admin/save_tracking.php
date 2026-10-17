@@ -100,5 +100,5 @@ try {
     echo json_encode(['ok' => true, 'totals' => $totals]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    st_fail('Server error: ' . $e->getMessage(), 500);
+    st_fail(app_error_message($e), 500);
 }

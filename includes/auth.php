@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/error_handling.php';
 /**
  * Central authentication + session bootstrap.
  *
@@ -99,7 +100,8 @@ if (DEV_MODE && empty($_SESSION['real_login'])) {
                 $_SESSION['dev_active'] = $want;
             }
         } catch (Throwable $e) {
-            // DB unavailable — leave the session as-is; pages fall back to defaults.
+            // Show the friendly failure response instead of misleading access errors.
+            throw $e;
         }
     }
 }
@@ -120,7 +122,8 @@ if (!empty($_SESSION['real_login']) && !empty($_SESSION['user_id'])) {
             exit;
         }
     } catch (Throwable $e) {
-        // DB unavailable — don't lock everyone out over a transient error.
+        // Keep the session intact, but do not continue without verifying the account.
+        throw $e;
     }
 }
 

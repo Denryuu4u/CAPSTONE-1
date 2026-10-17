@@ -41,5 +41,6 @@ try {
     ]);
     echo json_encode(['sig' => $sig]);
 } catch (Throwable $e) {
+    app_log_error($e);
     echo json_encode(['sig' => '']); // on error, don't trigger reloads
 }

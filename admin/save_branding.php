@@ -31,5 +31,5 @@ try {
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['ok' => false, 'error' => app_error_message($e)]);
 }

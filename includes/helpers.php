@@ -7,6 +7,7 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/project_controls.php';
+require_once __DIR__ . '/quote_request_limits.php';
 
 /**
  * Generate the next human code for a given prefix, e.g. REQ-2026-001.
@@ -525,6 +526,8 @@ function ensure_company_branding(): array
  * Safe to call repeatedly (checks before altering), so features work on
  * Railway without a manual migration.
  */
+const MAX_COUNTER_REDUCTION_CENTS = 200000; // ₱2,000 maximum discount per quotation
+
 function ensure_counter_offer_columns(): void
 {
     static $done = false;

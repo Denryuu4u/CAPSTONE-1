@@ -45,5 +45,5 @@ try {
     log_audit('Settings', 'Updated company logo');
     echo json_encode(['ok' => true, 'logo' => BASE_URL . '/' . $relPath]);
 } catch (Throwable $e) {
-    logo_fail('Server error: ' . $e->getMessage(), 500);
+    logo_fail(app_error_message($e), 500);
 }

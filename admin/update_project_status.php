@@ -31,6 +31,7 @@ $progressMap = [
 
 if ($status === 'on_hold') ups_fail('Use the administrator Pause control to pause this project.', 403);
 require_project_writable($projectId);
+enforce_project_capacity($projectId, $status);
 $pdo = db();
 ensure_completion_columns();
 ensure_prev_status_column(); // so the change can be rolled back
@@ -87,5 +88,5 @@ try {
 
     echo json_encode(['ok' => true, 'status' => $status, 'label' => $label, 'completing' => $isCompleting]);
 } catch (Throwable $e) {
-    ups_fail('Server error: ' . $e->getMessage(), 500);
+    ups_fail(app_error_message($e), 500);
 }

@@ -41,6 +41,7 @@ if (!in_array($q['status'], $allowedFrom, true)) {
 
 $projectId = (int) $q['project_id'];
 require_project_writable($projectId);
+enforce_project_capacity($projectId, $action === 'approve' ? 'approved' : 'rejected');
 $admin = current_user();
 
 try {
@@ -77,5 +78,5 @@ try {
     echo json_encode(['ok' => true, 'status' => $action === 'approve' ? 'Approved' : 'Rejected']);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    uq_fail('Server error: ' . $e->getMessage(), 500);
+    uq_fail(app_error_message($e), 500);
 }

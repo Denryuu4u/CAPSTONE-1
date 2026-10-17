@@ -74,5 +74,5 @@ try {
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     if ($e->getCode() === '23000') sc_fail('That email is already in use.', 409);
-    sc_fail('Server error: ' . $e->getMessage(), 500);
+    sc_fail(app_error_message($e), 500);
 }

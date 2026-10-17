@@ -13,5 +13,5 @@ try {
         ->execute([$pid]);
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
-    echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['ok' => false, 'error' => app_error_message($e)]);
 }

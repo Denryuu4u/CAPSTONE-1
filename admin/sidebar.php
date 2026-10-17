@@ -116,3 +116,4 @@ if (!isset($active_page)) $active_page = '';
 
 <?php include __DIR__ . '/../includes/ui_modal.php'; // shared alert/confirm modal ?>
 <?php include __DIR__ . '/../includes/table_search.php'; // shared list-page search ?>
+<script src="<?= htmlspecialchars(BASE_URL, ENT_QUOTES) ?>/admin/table-print.js" defer></script>

@@ -7,6 +7,7 @@ require_page($active_page); // role gate
 $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
+ensure_request_quantity();
 
 // All quote requests, newest first, with customer + linked project.
 $requests = db()->query(
@@ -182,6 +183,7 @@ $reqBadge = [
                                     'data-address="' . htmlspecialchars(($r['installation_address'] ?? '') ?: ($r['customer_address'] ?? '')) . '"',
                                     'data-material="' . htmlspecialchars($r['material_type'] ?? '') . '"',
                                     'data-dimensions="' . htmlspecialchars($r['dimensions'] ?? '') . '"',
+                                    'data-unit-quantity="' . (int) ($r['unit_quantity'] ?? 1) . '"',
                                     'data-budget="' . (($r['budget'] !== null && $r['budget'] !== '') ? htmlspecialchars(peso($r['budget'])) : '') . '"',
                                     'data-notes="' . htmlspecialchars($r['notes'] ?? '') . '"',
                                     'data-can-quote="' . ($r['status'] === 'Requesting Quotation' ? '1' : '0') . '"',
@@ -195,7 +197,7 @@ $reqBadge = [
                             <tr class="<?= $canQuote ? 'req-priority' : '' ?>">
                                 <td><?= htmlspecialchars($r['request_code']) ?></td>
                                 <td><?= htmlspecialchars($r['customer_name'] ?? '—') ?></td>
-                                <td><?= htmlspecialchars($r['project_name']) ?></td>
+                                <td><?= htmlspecialchars($r['project_name']) ?><?php if ((int) ($r['unit_quantity'] ?? 1) > 1): ?><small class="d-block text-muted">Batch: <?= (int) $r['unit_quantity'] ?> identical units</small><?php endif; ?></td>
                                 <td><?= date('M d, Y', strtotime($r['date_submitted'])) ?></td>
                                 <td><span class="badge rounded-pill <?= $badge ?>"><?= htmlspecialchars($r['status']) ?></span></td>
                                 <td class="text-center">
@@ -272,6 +274,10 @@ $reqBadge = [
                             <div class="request-detail-label">Dimensions</div>
                             <div class="request-detail-value" id="viewDimensions">—</div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="request-detail-label">Requested Quantity</div>
+                            <div class="request-detail-value" id="viewUnitQuantity">1 unit</div>
+                        </div>
 
                         <div class="col-md-6">
                             <div class="request-detail-label">Estimated Budget</div>
@@ -335,6 +341,7 @@ $reqBadge = [
                             <div class="col-md-6">
                                 <label class="form-label project-label">Project Name</label>
                                 <input type="text" class="form-control project-input" id="quotationProject" readonly>
+                                <small class="text-muted" id="quotationUnitQuantity">1 unit</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label project-label">Project Code</label>
@@ -366,8 +373,13 @@ $reqBadge = [
                         </div>
 
                         <div class="mt-3">
-                            <label class="form-label project-label">Notes</label>
-                            <textarea class="form-control project-input" rows="3" id="quotationNotes" readonly></textarea>
+                            <label for="quotationRequestNotes" class="form-label project-label">Customer request notes</label>
+                            <textarea class="form-control project-input" rows="2" id="quotationRequestNotes" readonly></textarea>
+                        </div>
+                        <div class="mt-3">
+                            <label for="quotationNotes" class="form-label project-label">Notes/Price justification</label>
+                            <textarea class="form-control project-input" rows="3" id="quotationNotes" maxlength="4000" aria-describedby="quotationNotesHelp" placeholder="Explain the quoted price, materials, extra work or why the total exceeds the customer's budget."></textarea>
+                            <div class="form-text" id="quotationNotesHelp">Optional. The customer will see this note in monitoring and when reviewing the quotation before accepting.</div>
                         </div>
                     </div>
 
@@ -780,6 +792,7 @@ $reqBadge = [
                         address: this.dataset.address,
                         material: this.dataset.material,
                         dimensions: this.dataset.dimensions,
+                        unitQuantity: this.dataset.unitQuantity,
                         budget: this.dataset.budget,
                         notes: this.dataset.notes,
                         canQuote: this.dataset.canQuote,
@@ -811,6 +824,7 @@ $reqBadge = [
                     document.getElementById("viewTargetCompletion").textContent = currentRequestData.targetCompletion || '—';
                     document.getElementById("viewMaterial").textContent = currentRequestData.material || '—';
                     document.getElementById("viewDimensions").textContent = currentRequestData.dimensions || '—';
+                    document.getElementById('viewUnitQuantity').textContent = (currentRequestData.unitQuantity || '1') + ' identical unit(s)';
                     document.getElementById("viewBudget").textContent = currentRequestData.budget || '—';
                     document.getElementById("viewAddress").textContent = currentRequestData.address || '—';
                     document.getElementById("viewNotes").textContent = currentRequestData.notes;
@@ -859,11 +873,13 @@ $reqBadge = [
             function fillQuotationModal(data) {
                 document.getElementById("quotationCustomer").value = data.customer || "";
                 document.getElementById("quotationProject").value = data.project || "";
+                document.getElementById('quotationUnitQuantity').textContent = 'Requested quantity: ' + (data.unitQuantity || '1') + ' identical unit(s). Prepare the quotation for the entire batch.';
                 document.getElementById("quotationCategory").value = data.category || "";
                 document.getElementById("quotationDateSubmitted").value = data.dateSubmitted || "";
                 document.getElementById("quotationTargetCompletion").value = data.targetCompletion || "<?= date('Y-m-d', strtotime('+2 months')) ?>";
                 document.getElementById("quotationAddress").value = data.address || "";
-                document.getElementById("quotationNotes").value = data.notes || "";
+                document.getElementById('quotationRequestNotes').value = data.notes || '';
+                document.getElementById('quotationNotes').value = '';
 
                 qState.projectId  = parseInt(data.projectId || 0);
                 qState.customerId = parseInt(data.customerId || 0);
@@ -987,6 +1003,7 @@ $reqBadge = [
                 if (!items.length) { err.textContent = 'Add at least one line item before sending.'; err.style.display = 'block'; return; }
                 if (!qState.projectId) { err.textContent = 'No project linked to this request.'; err.style.display = 'block'; return; }
                 if (!document.getElementById('quotationTargetCompletion').value) { err.textContent = 'Set a target completion date.'; err.style.display = 'block'; return; }
+                if (!document.getElementById('quotationNotes').reportValidity()) return;
 
                 const btn = this; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending…';
                 const body = new FormData();
@@ -998,6 +1015,7 @@ $reqBadge = [
                 body.append('request_id', qState.requestPk);
                 body.append('target_completion', document.getElementById('quotationTargetCompletion').value || '');
                 body.append('items', JSON.stringify(items));
+                body.append('notes', document.getElementById('quotationNotes').value.trim());
                 ['qMarkup:markup_pct','qContingency:contingency_pct','qService:service_pct','qProtection:protection_pct',
                  'qSubstrate:substrate','qOutOfTown:out_of_town_pct','qSpecial:special_works','qAccess:accessories'].forEach(pair => {
                     const [id, key] = pair.split(':');

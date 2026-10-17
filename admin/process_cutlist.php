@@ -124,5 +124,5 @@ try {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    fail('Server error while processing the file: ' . $e->getMessage(), 500);
+    fail(app_error_message($e), 500);
 }

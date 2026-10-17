@@ -7,7 +7,7 @@ $backupToken = htmlspecialchars($_SESSION['backup_csrf'], ENT_QUOTES);
 $backupCopies = [];
 $backupError = '';
 try { $backupCopies = system_backup()->copies(); }
-catch (Throwable $ex) { $backupError = $ex->getMessage(); }
+catch (Throwable $ex) { $backupError = app_error_message($ex, 'Saved copies are temporarily unavailable. Please try again later.'); }
 $backupSize = function ($bytes) { return $bytes >= 1048576 ? number_format($bytes / 1048576, 1) . ' MB' : number_format($bytes / 1024, 1) . ' KB'; };
 ?>
 <section class="settings-card mt-3" id="backupRestoreCard" aria-labelledby="backupTitle">

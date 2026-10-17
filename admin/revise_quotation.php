@@ -40,6 +40,11 @@ if (!in_array($q['status'], ['Countered', 'Sent', 'Accepted'], true)) {
 $projectId = (int) $q['project_id'];
 
 require_project_writable($projectId);
+// A revision reopens only rejected projects; other phases stay unchanged.
+if ($projectId) {
+    $stage = $pdo->prepare('SELECT status FROM projects WHERE id=?'); $stage->execute([$projectId]);
+    if ($stage->fetchColumn() === 'rejected') enforce_project_capacity($projectId, 'quote_submitted');
+}
 
 try {
     $pdo->beginTransaction();
@@ -72,5 +77,5 @@ try {
     echo json_encode(['ok' => true, 'total' => peso($newTotal)]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    rv_fail('Server error: ' . $e->getMessage(), 500);
+    rv_fail(app_error_message($e), 500);
 }

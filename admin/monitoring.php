@@ -17,6 +17,7 @@ ensure_prev_status_column(); // rollback support (self-migrating)
 
 // Live projects (exclude rejected). materials_key / updates_key are the project id.
 $monitor_projects = [];
+$monitorToday = new DateTimeImmutable('today'); // auth.php pins PHP to Asia/Manila
 foreach (db()->query(
     "SELECT p.id, p.project_code, p.project_name, c.name AS customer, p.status, p.prev_status, p.paused_status,
             p.target_completion, p.start_date, p.progress, p.approver, p.description,
@@ -28,8 +29,22 @@ foreach (db()->query(
             SELECT id FROM quotations qq WHERE qq.project_id = p.id
              ORDER BY (qq.status='Approved') DESC, qq.id DESC LIMIT 1)
       WHERE p.status <> 'rejected'
-      ORDER BY p.created_at DESC, p.id DESC"
+      ORDER BY (p.status = 'completed') ASC,
+               (p.target_completion IS NULL) ASC, p.target_completion ASC,
+               p.id DESC"
 ) as $r) {
+    $deadlineKind = $deadlineLabel = '';
+    if ($r['target_completion'] && !in_array(project_status_key($r['status']), ['completed', 'rejected'], true)) {
+        $targetDate = new DateTimeImmutable($r['target_completion']);
+        $days = (int) $monitorToday->diff($targetDate)->format('%r%a');
+        if ($days < 0) {
+            $deadlineKind = 'overdue';
+            $deadlineLabel = abs($days) . (abs($days) === 1 ? ' day overdue' : ' days overdue');
+        } elseif ($days <= 7) {
+            $deadlineKind = 'soon';
+            $deadlineLabel = $days === 0 ? 'Due today' : ($days === 1 ? 'Due tomorrow' : 'Due in ' . $days . ' days');
+        }
+    }
     $monitor_projects[] = [
         'id'       => (int) $r['id'],
         'code'     => $r['project_code'],
@@ -39,6 +54,8 @@ foreach (db()->query(
         'prev_status' => $r['prev_status'] ?? '',
         'paused_status' => $r['paused_status'] ?? $r['prev_status'] ?? '',
         'target'   => $r['target_completion'] ? date('M d, Y', strtotime($r['target_completion'])) : '—',
+        'target_iso' => $r['target_completion'] ?? '',
+        'deadline_kind' => $deadlineKind, 'deadline_label' => $deadlineLabel,
         'start'    => $r['start_date'] ?? '',
         'progress' => (int) $r['progress'],
         'approver' => $r['approver'] ?? '',
@@ -102,6 +119,13 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
         #materialsModal   { z-index: 1065; }
         #viewProjectModal .modal-dialog { max-width: 760px; }
         #viewProjectModal .modal-content { border-radius: 14px; border: none; overflow: hidden; }
+        .monitor-table tr.deadline-soon > td { background:#fffbeb; }
+        .monitor-table tr.deadline-overdue > td { background:#fff1f2; }
+        .monitor-table tr.deadline-soon > td:first-child { box-shadow:inset 3px 0 #f59e0b; }
+        .monitor-table tr.deadline-overdue > td:first-child { box-shadow:inset 3px 0 #e11d48; }
+        .monitor-deadline { display:block; width:fit-content; margin-top:5px; padding:3px 7px; border-radius:6px; font-size:.65rem; font-weight:600; line-height:1.4; }
+        .monitor-deadline.soon { background:#fef3c7; color:#92400e; }
+        .monitor-deadline.overdue { background:#ffe4e6; color:#9f1239; }
 
         /* Hero header */
         .pvm-hero { background:#fff; padding:22px 26px 16px; border-bottom:1px solid #e5e7eb; }
@@ -290,6 +314,7 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
             </div>
         </div>
 
+        <p class="small text-muted mb-2">Nearest target dates appear first. <span style="color:#92400e;">Amber: due within 7 days.</span> <span style="color:#9f1239;">Red: overdue.</span> Completed projects appear last.</p>
         <div class="monitor-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0 monitor-table">
@@ -305,7 +330,7 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
                             // so a project can't jump straight to Completed from mid-flow.
                             $can_complete = project_status_key($p['status']) === 'final_approval';
                         ?>
-                        <tr data-project="<?= $p['code'] ?>" data-status="<?= project_status_key($p['status']) ?>"<?= $p['issue'] !== '' ? ' class="monitor-issue-row"' : '' ?>>
+                        <tr data-project="<?= $p['code'] ?>" data-status="<?= project_status_key($p['status']) ?>" class="<?= $p['issue'] !== '' ? 'monitor-issue-row ' : '' ?><?= $p['deadline_kind'] !== '' ? 'deadline-' . $p['deadline_kind'] : '' ?>">
                             <td><?= $p['code'] ?></td>
                             <td class="monitor-project"><?= htmlspecialchars($p['project']) ?></td>
                             <td class="monitor-customer"><?= htmlspecialchars($p['customer']) ?></td>
@@ -315,7 +340,7 @@ foreach (db()->query("SELECT project_id, COUNT(*) c FROM project_updates WHERE i
                                 <span class="monitor-issue-flag" title="Client reported an issue with this completed project"><i class="bi bi-exclamation-triangle-fill"></i> Issue reported</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="monitor-target"><?= htmlspecialchars($p['target']) ?></td>
+                            <td class="monitor-target" data-date="<?= htmlspecialchars($p['target_iso']) ?>"><?= htmlspecialchars($p['target']) ?><?php if ($p['deadline_label'] !== ''): ?><span class="monitor-deadline <?= $p['deadline_kind'] ?>"><?= htmlspecialchars($p['deadline_label']) ?></span><?php endif; ?></td>
                             <td class="text-center">
                                 <div class="monitor-actions">
                                     <div class="action-left">

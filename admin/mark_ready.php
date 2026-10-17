@@ -31,6 +31,7 @@ if ($projectId <= 0) $projectId = (int) ($b['project_id'] ?? 0);
 if ($projectId <= 0) mr_fail('This summary is not linked to a project. Select an approved project first.');
 
 require_project_writable($projectId);
+enforce_project_capacity($projectId, 'production');
 
 $proj = $pdo->prepare("SELECT * FROM projects WHERE id = ?");
 $proj->execute([$projectId]);
@@ -83,5 +84,5 @@ try {
     echo json_encode(['ok' => true, 'project_code' => $project['project_code']]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    mr_fail('Server error: ' . $e->getMessage(), 500);
+    mr_fail(app_error_message($e), 500);
 }

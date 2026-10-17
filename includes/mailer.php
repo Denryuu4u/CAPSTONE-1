@@ -90,7 +90,10 @@ function send_otp_email(string $to, string $code, string $name = '', string $pur
         ? brevo_send($c, $to, $subject, $html, $text, $name)
         : smtp_send($c, $to, $subject, $html, $text);
 
-    return ['ok' => $res['ok'], 'error' => $res['error'], 'demo' => false];
+    if (!$res['ok']) {
+        app_log_error(new RuntimeException((string) ($res['error'] ?? 'Email delivery failed.')));
+    }
+    return ['ok' => $res['ok'], 'error' => $res['ok'] ? null : 'We could not send the email right now. Please try again later.', 'demo' => false];
 }
 
 /**
@@ -225,7 +228,7 @@ function smtp_send(array $c, string $to, string $subject, string $html, string $
         fclose($fp);
         return ['ok' => true, 'error' => null];
     } catch (Throwable $e) {
-        @fclose($fp);
+        if (is_resource($fp)) fclose($fp);
         return ['ok' => false, 'error' => $e->getMessage()];
     }
 }

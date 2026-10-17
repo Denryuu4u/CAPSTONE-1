@@ -14,6 +14,16 @@ ensure_project_features();
 ensure_prev_status_column();
 lock_project($id);
 $pdo = db();
+// Acquire capacity before starting the transaction so the count is current even
+// when another project for this customer has just changed phase.
+$capacityRow = $pdo->prepare('SELECT status, paused_status, prev_status FROM projects WHERE id=?');
+$capacityRow->execute([$id]); $capacityProject = $capacityRow->fetch();
+if ($capacityProject) {
+    $capacityTarget = $capacityProject['status'];
+    if ($state === 'paused' && !in_array(project_status_key($capacityTarget), ['completed', 'rejected'], true)) $capacityTarget = 'on_hold';
+    elseif ($state === 'active' && project_status_key($capacityTarget) === 'on_hold') $capacityTarget = $capacityProject['paused_status'] ?: $capacityProject['prev_status'] ?: $capacityTarget;
+    enforce_project_capacity($id, $capacityTarget);
+}
 try {
     $pdo->beginTransaction();
     $st = $pdo->prepare('SELECT * FROM projects WHERE id = ? FOR UPDATE'); $st->execute([$id]); $p = $st->fetch();
@@ -40,5 +50,5 @@ try {
     header('Content-Type: application/json'); echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    project_control_fail('The project state could not be saved. Please try again.', 500);
+    project_control_fail(app_error_message($e, 'The project state could not be saved. Please try again.'), 500);
 }

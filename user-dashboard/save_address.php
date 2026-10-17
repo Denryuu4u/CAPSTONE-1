@@ -85,5 +85,5 @@ try {
     log_audit('Settings', 'Saved addresses: ' . $action);
     echo json_encode(['ok' => true, 'id' => $id, 'addresses' => client_addresses($uid)]);
 } catch (Throwable $e) {
-    sa_fail('Server error: ' . $e->getMessage(), 500);
+    sa_fail(app_error_message($e), 500);
 }

@@ -87,5 +87,5 @@ try {
 
     echo json_encode(['ok' => true, 'reported' => date('M d, Y')]);
 } catch (Throwable $e) {
-    rci_fail('Server error: ' . $e->getMessage(), 500);
+    rci_fail(app_error_message($e), 500);
 }

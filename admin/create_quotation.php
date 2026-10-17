@@ -36,7 +36,10 @@ $pdo        = db();
 $projectId  = (int) ($_POST['project_id'] ?? 0);
 $customerId = (int) ($_POST['customer_id'] ?? 0);
 $requestId  = ($_POST['request_id'] ?? '') !== '' ? (int) $_POST['request_id'] : null;
-$notes      = trim((string) ($_POST['notes'] ?? ''));
+$notesInput = $_POST['notes'] ?? '';
+if (!is_string($notesInput)) q_fail('Enter text for Notes/Price justification.');
+$notes = trim($notesInput);
+if (mb_strlen($notes) > 4000) q_fail('Notes/Price justification must be 4,000 characters or fewer.');
 
 // Target completion date (YYYY-MM-DD) — required.
 $targetDate = trim((string) ($_POST['target_completion'] ?? ''));
@@ -118,7 +121,7 @@ try {
         ':markup' => $markup, ':cont' => $conting, ':service' => $service, ':protect' => $protect,
         ':labor' => $labor, ':substrate' => $substrate, ':outoftown' => $outOfTownPct,
         ':special' => $special, ':access' => $access,
-        ':mattot' => round($materialTotal, 2), ':total' => $total, ':notes' => ($notes ?: null),
+        ':mattot' => round($materialTotal, 2), ':total' => $total, ':notes' => ($notes !== '' ? $notes : null),
         ':instaddr' => $projRow['installation_address'] ?? null, // where the job is installed
         ':by' => current_user()['id'] ?? null,
     ]);
@@ -169,5 +172,5 @@ try {
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     if (!$quoteCommitted) remove_unsaved_design($designPath);
-    q_fail($e instanceof InvalidArgumentException ? $e->getMessage() : 'The quotation could not be saved. Please try again.', $e instanceof InvalidArgumentException ? 400 : 500);
+    q_fail($e instanceof InvalidArgumentException ? $e->getMessage() : app_error_message($e, 'The quotation could not be saved. Please try again.'), $e instanceof InvalidArgumentException ? 400 : 500);
 }

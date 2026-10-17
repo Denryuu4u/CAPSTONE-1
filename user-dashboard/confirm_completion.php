@@ -60,5 +60,5 @@ try {
 
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
-    cc_fail('Server error: ' . $e->getMessage(), 500);
+    cc_fail(app_error_message($e), 500);
 }

@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $user = current_user();
 $pdo  = db();
+ensure_request_quantity();
 
 /** Resolve (or create) the customer record for the current client user. */
 function resolve_customer(PDO $pdo, array $user): int
@@ -53,6 +54,8 @@ $notes        = trim($_POST['notes']          ?? '');
 $reference    = trim($_POST['reference_design'] ?? '');
 $budgetRaw    = trim($_POST['budget']         ?? '');
 $budget       = ($budgetRaw !== '') ? (float) preg_replace('/[^0-9.]/', '', $budgetRaw) : null;
+$unitQuantity = filter_var($_POST['unit_quantity'] ?? '1', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => REQUEST_UNIT_LIMIT]]);
+if ($unitQuantity === false) { header('Location: request_quote.php?error=quantity'); exit; }
 
 if ($projectName === '') {
     header('Location: request_quote.php?error=name');
@@ -109,22 +112,25 @@ $budget = (float) $budgetClean;
 $dimensions = mb_substr($dimensions, 0, 150);
 $notes      = mb_substr($notes, 0, 1000);
 
-$customerId = resolve_customer($pdo, $user);
-
 try {
+    // Serialize by account before resolving a customer or creating any files.
+    lock_customer_requests((int) $user['id']);
+    $limitError = customer_submission_limit(customer_request_counts((int) $user['id']));
+    if ($limitError) { header('Location: request_quote.php?error=' . $limitError); exit; }
     $pdo->beginTransaction();
+    $customerId = resolve_customer($pdo, $user);
 
     // 1) Project request
     $reqCode = next_code('REQ');
     $stmt = $pdo->prepare(
         "INSERT INTO project_requests
             (request_code, customer_id, submitted_by, project_name, category,
-             material_type, dimensions, budget, target_completion, reference_design, notes, installation_address, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'Requesting Quotation')"
+             material_type, dimensions, budget, target_completion, reference_design, notes, installation_address, unit_quantity, status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'Requesting Quotation')"
     );
     $stmt->execute([
         $reqCode, $customerId, $user['id'], $projectName, $category,
-        $materialType, ($dimensions ?: null), $budget, ($targetDate ?: null), ($reference ?: null), ($notes ?: null), $installAddress,
+        $materialType, ($dimensions ?: null), $budget, ($targetDate ?: null), ($reference ?: null), ($notes ?: null), $installAddress, $unitQuantity,
     ]);
     $requestId = (int) $pdo->lastInsertId();
 
@@ -157,7 +163,8 @@ try {
             (project_code, customer_id, request_id, project_name, category, description, installation_address, target_completion, status, progress)
          VALUES (?,?,?,?,?,?,?,?, 'quote_submitted', 0)"
     );
-    $stmt->execute([$prjCode, $customerId, $requestId, $projectName, $category, ($notes ?: null), $installAddress, ($targetDate ?: null)]);
+    $batchDescription = 'Requested quantity: ' . $unitQuantity . ' identical unit(s).' . ($notes !== '' ? "\n" . $notes : '');
+    $stmt->execute([$prjCode, $customerId, $requestId, $projectName, $category, $batchDescription, $installAddress, ($targetDate ?: null)]);
     $projectId = (int) $pdo->lastInsertId();
 
     $pdo->commit();
@@ -178,6 +185,7 @@ try {
     exit;
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
+    app_log_error($e);
     header('Location: request_quote.php?error=server');
     exit;
 }

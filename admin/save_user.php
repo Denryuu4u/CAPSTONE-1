@@ -45,5 +45,5 @@ try {
     echo json_encode(['ok' => true, 'id' => $id]);
 } catch (PDOException $e) {
     if ($e->getCode() === '23000') { http_response_code(409); echo json_encode(['ok' => false, 'error' => 'That email is already in use.']); exit; }
-    http_response_code(500); echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    http_response_code(500); echo json_encode(['ok' => false, 'error' => app_error_message($e)]);
 }

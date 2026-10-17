@@ -102,5 +102,5 @@ try {
 
     fail('Unknown action.');
 } catch (Throwable $e) {
-    fail('Server error: ' . $e->getMessage(), 500);
+    fail(app_error_message($e), 500);
 }

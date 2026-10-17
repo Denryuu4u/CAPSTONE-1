@@ -22,6 +22,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 // Auto-confirm completed projects the client left unconfirmed past the deadline.
 auto_confirm_completions();
 ensure_project_features();
+ensure_request_quantity();
 
 // Build the current client's projects from the database, in the shape the page expects.
 $clientId  = current_user()['id'] ?? 0;
@@ -35,7 +36,7 @@ $__rows = db()->prepare(
             q.id AS quotation_id, q.design_path, q.quote_code, q.status AS quote_status_raw,
             q.date_created AS quote_issued, q.valid_until AS quote_valid,
             q.total_amount AS quote_total, q.notes AS quote_notes,
-            q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id,
+            q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id, r.unit_quantity,
             -- 'Last Updated' = most recent activity: the project row, its quotation,
             -- or its latest timeline update (quote accept/approve only touch quotations).
             GREATEST(
@@ -80,7 +81,8 @@ foreach ($__rows->fetchAll() as $r) {
     $qstatus    = $r['quote_status_raw'] ? ($statusMap[$r['quote_status_raw']] ?? $r['quote_status_raw']) : '';
     $qtot       = (float) ($r['quote_total'] ?? 0);
     // Client sees only the final total (one summary line), not the internal materials.
-    $quoteItems = $r['quotation_id'] ? [['desc' => 'Custom cabinetry works — ' . $r['project_name'], 'qty' => 1, 'unit' => $qtot, 'amount' => $qtot]] : [];
+    $unitQuantity = (int) ($r['unit_quantity'] ?? 1);
+    $quoteItems = $r['quotation_id'] ? [['desc' => 'Custom cabinetry works — ' . $r['project_name'] . ' (' . $unitQuantity . ' identical unit(s), entire project)', 'qty' => 1, 'unit' => $qtot, 'amount' => $qtot]] : [];
 
     $projects[] = [
         'id' => $pid, 'name' => $r['project_name'], 'category' => $r['category'] ?? '',
@@ -761,6 +763,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
                   data-progress="<?= $p['progress'] ?>"
                   data-approver="<?= htmlspecialchars($p['approver']) ?>"
                   data-details="<?= htmlspecialchars($p['details']) ?>"
+                  data-quote-notes="<?= htmlspecialchars($p['quote_notes'], ENT_QUOTES, 'UTF-8') ?>"
                   data-awaiting-confirm="<?= $p['awaiting_confirm'] ?>"
                   data-confirmed="<?= htmlspecialchars($p['confirmed']) ?>"
                   data-materials-key="<?= $p['materials_key'] ?>"
@@ -850,6 +853,12 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
           <button class="vm-download-btn" id="vmDownloadBtn">
             <i class="bi bi-download"></i> Download PDF
           </button>
+        </div>
+
+        <!-- Separate customer explanation; excluded from the quotation document. -->
+        <div class="vm-paper-notes" id="vmPaperNotesWrap" style="margin:0 0 14px;padding:16px;border:1px solid #cde9e0;background:#f0fdf9;">
+          <div class="vm-paper-notes-label" style="color:#0a7a60;">Notes/Price justification</div>
+          <div id="vmPaperNotes" style="white-space:pre-wrap;overflow-wrap:anywhere;">—</div>
         </div>
 
         <!-- ── VAST Sales Quotation Document ── -->
@@ -944,12 +953,6 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
             </div>
           </div>
 
-          <!-- Notes (conditionally shown) -->
-          <div class="vm-paper-notes" id="vmPaperNotesWrap" style="margin:0 26px 14px;">
-            <div class="vm-paper-notes-label">Notes</div>
-            <div id="vmPaperNotes">—</div>
-          </div>
-
           <!-- Conforme -->
           <div style="padding:10px 26px 22px;">
             <div style="font-size:.65rem;font-style:italic;color:#6b7280;margin-bottom:28px;">Conforme:</div>
@@ -991,7 +994,8 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
           <div class="vm-counter-title">Make a counter-offer</div>
           <div class="vm-counter-field">
             <label for="vmCounterAmount">Your proposed amount (₱)</label>
-            <input type="number" min="1" step="0.01" id="vmCounterAmount" placeholder="0.00">
+            <input type="number" min="0.01" step="0.01" id="vmCounterAmount" placeholder="0.00" aria-describedby="vmCounterLimit" required>
+            <small id="vmCounterLimit" style="display:block;margin-top:6px;color:#64748b;">You may request up to ₱2,000 less than the quoted total.</small>
           </div>
           <div class="vm-counter-field">
             <label for="vmCounterComment">Comment <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
@@ -1086,6 +1090,10 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
           <div style="margin-top:12px;">
             <div class="pvm-field-label">Project Details</div>
             <div class="pvm-field-value" id="viewDetails" style="font-weight:400;color:#4b5563;line-height:1.6;font-size:0.78rem;">—</div>
+          </div>
+          <div id="viewQuoteNotesWrap" hidden style="margin-top:14px;padding:14px;border:1px solid #cde9e0;border-radius:10px;background:#f0fdf9;">
+            <div class="pvm-field-label" style="color:#0a7a60;">Notes/Price justification</div>
+            <div class="pvm-field-value" id="viewQuoteNotes" style="white-space:pre-wrap;overflow-wrap:anywhere;font-weight:400;line-height:1.6;">—</div>
           </div>
         </div>
 
@@ -1205,6 +1213,8 @@ function peso(n){ return '₱'+Number(n).toLocaleString('en-PH',{minimumFraction
 // ══ VERIFY MODAL ═══════════════════════════════════
 let currentVerifyId = null;
 let currentQuotationPk = 0;
+let currentQuoteCents = 0;
+const maxCounterReductionCents = <?= MAX_COUNTER_REDUCTION_CENTS ?>;
 
 document.querySelectorAll('.verify-btn').forEach(btn => {
   btn.addEventListener('click', function(){
@@ -1269,7 +1279,15 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     if (counterPanel) counterPanel.style.display = 'none';
     if (actionBtns)   actionBtns.style.display = '';
     if (actionHint)   actionHint.style.display = '';
-    document.getElementById('vmCounterAmount').value  = d.quoteTotalRaw || '';
+    currentQuoteCents = Math.round(Number(d.quoteTotalRaw || 0) * 100);
+    const counterInput = document.getElementById('vmCounterAmount');
+    const minimumCounter = Math.max(1, currentQuoteCents - maxCounterReductionCents);
+    counterInput.min = (minimumCounter / 100).toFixed(2);
+    counterInput.max = (Math.max(0, currentQuoteCents - 1) / 100).toFixed(2);
+    counterInput.value = currentQuoteCents > 1 ? (minimumCounter / 100).toFixed(2) : '';
+    document.getElementById('vmCounterLimit').textContent = currentQuoteCents > 1
+      ? 'Maximum reduction: ₱2,000. Enter ' + peso(minimumCounter / 100) + ' to ' + peso((currentQuoteCents - 1) / 100) + '.'
+      : 'This quotation is too small for a lower positive counter-offer.';
     document.getElementById('vmCounterComment').value = '';
 
     // Accept/Reject/Counter bar only while the client still needs to decide.
@@ -1330,6 +1348,11 @@ document.getElementById('btnCounterSend').addEventListener('click', function(){
   const amt = parseFloat(document.getElementById('vmCounterAmount').value)||0;
   const cmt = document.getElementById('vmCounterComment').value.trim();
   if(amt<=0){ vsAlert('Please enter a valid counter-offer amount.'); return; }
+  const offerCents = Math.round(amt * 100);
+  if(offerCents >= currentQuoteCents || currentQuoteCents - offerCents > maxCounterReductionCents){
+    vsAlert('Your counter-offer must be lower than the quoted total by no more than ₱2,000.'); return;
+  }
+  if(!document.getElementById('vmCounterAmount').reportValidity()) return;
   const f=document.createElement('form'); f.method='POST'; f.action='counter_quote.php';
   const add=(n,v)=>{const i=document.createElement('input');i.type='hidden';i.name=n;i.value=v;f.appendChild(i);};
   add('quotation_id', currentQuotationPk);
@@ -1491,6 +1514,8 @@ document.querySelectorAll('.view-btn').forEach(btn=>{
     document.getElementById('viewCustomer').textContent = d.customer;
     document.getElementById('viewTarget').textContent   = d.target;
     document.getElementById('viewDetails').textContent  = d.details;
+    document.getElementById('viewQuoteNotes').textContent = d.quoteNotes || '';
+    document.getElementById('viewQuoteNotesWrap').hidden = !(d.quoteNotes || '').trim();
     document.getElementById('viewStart').textContent    = d.start ? fmtDate(d.start) : '—';
 
     const wApp = document.getElementById('viewWrapApprover');
@@ -1634,6 +1659,7 @@ function markViewActionResolved(){
   else if(params.get('rejected')==='1'){ vsToast('Quote rejected.', {type:'info'}); }
   else if(params.get('countered')==='1'){ vsToast('Counter-offer sent. We\'ll review it and send you a revised quotation.'); }
   else if(params.get('counter')==='amount'){ vsToast('Please enter a valid counter-offer amount.', {type:'info'}); }
+  else if(params.get('counter')==='limit'){ vsToast('Your counter-offer must be lower than the quoted total by no more than ₱2,000.', {type:'info'}); }
   else if(params.get('counter')==='err'){ vsToast('That quotation can no longer be countered.', {type:'info'}); }
   else if(params.get('submitted')==='1'){
     vsToast('Quote request submitted successfully.');

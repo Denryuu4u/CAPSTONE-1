@@ -55,7 +55,7 @@ if (!empty($_FILES['avatar']['name'])) {
         log_audit('Settings', 'Updated profile photo');
         echo json_encode(['ok' => true, 'avatar' => BASE_URL . '/' . $relPath]);
     } catch (Throwable $e) {
-        sp_fail('Server error: ' . $e->getMessage(), 500);
+        sp_fail(app_error_message($e), 500);
     }
     exit;
 }
@@ -86,5 +86,5 @@ try {
     log_audit('Settings', 'Updated profile information');
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
-    sp_fail('Server error: ' . $e->getMessage(), 500);
+    sp_fail(app_error_message($e), 500);
 }

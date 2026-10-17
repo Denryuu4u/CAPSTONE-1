@@ -67,6 +67,7 @@ $progressMap = [
     'final_approval' => 97, 'completed' => 100,
 ];
 if ($prev === 'on_hold') rv_fail('Use the administrator Pause control instead of reverting to a paused state.', 403);
+enforce_project_capacity($projectId, $prev);
 $prevLabel = project_status_label($prev);
 $progress  = $progressMap[$prev] ?? (int) $project['progress'];
 
@@ -93,5 +94,5 @@ try {
 
     echo json_encode(['ok' => true, 'status' => $prev, 'label' => $prevLabel]);
 } catch (Throwable $e) {
-    rv_fail('Server error: ' . $e->getMessage(), 500);
+    rv_fail(app_error_message($e), 500);
 }

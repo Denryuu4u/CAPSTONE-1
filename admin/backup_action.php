@@ -85,9 +85,9 @@ try {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => true, 'message' => $message, 'restored' => $action === 'restore', 'redirect' => BASE_URL . '/login.php']);
 } catch (Throwable $e) {
-    error_log('[Backup & Restore] ' . $e->getMessage());
-    log_audit('Backup & Restore', 'Backup operation failed', $action);
-    $message = ($e instanceof RuntimeException && !($e instanceof PDOException))
-        ? $e->getMessage() : 'The backup operation could not be completed. Check the server log and available storage before trying again.';
-    backup_error($message);
+    $message = app_error_message($e, 'The backup or restore could not be completed. Please try again or contact the administrator.');
+    // A database failure must not cause a second exception while auditing it.
+    try { log_audit('Backup & Restore', 'Backup operation failed', $action); }
+    catch (Throwable $auditError) { app_log_error($auditError); }
+    backup_error($message, $e instanceof PDOException ? 500 : 400);
 }

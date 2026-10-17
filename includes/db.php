@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/error_handling.php';
 /**
  * Shared PDO connection to the `vast_solutions` database.
  *

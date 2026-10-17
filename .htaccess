@@ -7,8 +7,15 @@ ErrorDocument 403 /CAPSTONE-1/error.php
 ErrorDocument 404 /CAPSTONE-1/error.php
 ErrorDocument 500 /CAPSTONE-1/error.php
 
+<IfModule php_module>
+    php_flag display_errors Off
+    php_flag display_startup_errors Off
+    php_flag log_errors On
+</IfModule>
+
 # Design images are served only through the authenticated PHP endpoint.
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^uploads/project-designs/ - [F,L]
 </IfModule>
+SetEnv DEV_MODE true

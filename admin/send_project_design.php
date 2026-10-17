@@ -26,5 +26,5 @@ try {
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     remove_unsaved_design($path);
-    project_control_fail($e instanceof InvalidArgumentException ? $e->getMessage() : 'The design could not be saved. Please try again.', $e instanceof InvalidArgumentException ? 400 : 500);
+    project_control_fail($e instanceof InvalidArgumentException ? $e->getMessage() : app_error_message($e, 'The design could not be saved. Please try again.'), $e instanceof InvalidArgumentException ? 400 : 500);
 }

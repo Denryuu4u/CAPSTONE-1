@@ -39,5 +39,5 @@ try {
     log_audit('Settings', 'Changed account password');
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
-    cp_fail('Server error: ' . $e->getMessage(), 500);
+    cp_fail(app_error_message($e), 500);
 }

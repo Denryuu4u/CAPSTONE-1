@@ -6,6 +6,9 @@ require_agreements(); // clients must accept the latest Terms & Privacy first
 require_once __DIR__ . '/../includes/helpers.php'; // company_name() for branding
 
 $active_page = 'request_quote';
+ensure_request_quantity();
+$requestCounts = customer_request_counts((int) current_user()['id']);
+$requestLimitReached = customer_submission_limit($requestCounts) !== null;
 
 // Design gallery (managed in admin Settings → Design Gallery).
 require_once __DIR__ . '/../includes/db.php';
@@ -248,6 +251,18 @@ if ($__uid) {
 
   <div class="page-content">
     <h1 class="page-title">Request a Quote</h1>
+    <div class="section-card" style="padding:16px 20px;margin-bottom:18px;" role="status">
+      <strong>Your request allowance</strong>
+      <div style="margin-top:6px;font-size:.85rem;color:#475569;">
+        Pending requests: <?= $requestCounts['pending'] ?> / <?= CUSTOMER_PENDING_REQUEST_LIMIT ?>
+        <span aria-hidden="true"> · </span>
+        Ongoing projects: <?= $requestCounts['ongoing'] ?> / <?= CUSTOMER_ONGOING_PROJECT_LIMIT ?>
+      </div>
+      <p style="margin:6px 0 0;font-size:.8rem;color:#64748b;">Pending includes requests awaiting a quote or quotation approval. Paused projects count as ongoing. Each batch uses one project slot.</p>
+      <?php if ($requestLimitReached): ?>
+      <p style="margin:8px 0 0;color:#b45309;font-size:.85rem;">You have reached a limit. You can submit another request once an existing request is resolved or an ongoing project is completed.</p>
+      <?php endif; ?>
+    </div>
     <?php
       $__err = $_GET['error'] ?? '';
       $__errMsg = [
@@ -256,6 +271,9 @@ if ($__uid) {
         'name'     => 'Please enter a project name.',
         'material' => 'Please select a material type.',
         'budget'   => 'Please enter a valid estimated budget (a positive amount).',
+        'quantity' => 'Choose a whole-number quantity from 1 to 10 identical units.',
+        'pendinglimit' => 'You already have 5 pending requests. Please wait for an existing request to be approved or closed before submitting another.',
+        'ongoinglimit' => 'You already have 5 ongoing projects, including paused projects. Please wait for a project to be completed before submitting another request.',
         'server'   => 'Something went wrong submitting your request. Please try again.',
       ][$__err] ?? '';
       if ($__errMsg):
@@ -317,6 +335,17 @@ if ($__uid) {
           <div class="form-group">
             <label class="form-label" for="project_name">Project Name</label>
             <input type="text" id="project_name" name="project_name" class="form-control" placeholder="e.g. Kitchen Cabinets - Unit 4B" required/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="unit_quantity">Project Quantity</label>
+            <select id="unit_quantity" name="unit_quantity" class="form-control" aria-describedby="quantityHelp" required>
+              <option value="1">Single project — 1 unit</option>
+              <?php for ($quantity = 2; $quantity <= REQUEST_UNIT_LIMIT; $quantity++): ?>
+              <option value="<?= $quantity ?>">Batch project — <?= $quantity ?> identical units</option>
+              <?php endfor; ?>
+            </select>
+            <small id="quantityHelp" style="display:block;color:#64748b;margin-top:6px;">Request up to 10 units of the same design, material and dimensions, such as 10 identical cabinets. Your estimated budget is for the entire batch.</small>
           </div>
 
           <div class="form-group">
@@ -382,7 +411,7 @@ if ($__uid) {
             <textarea id="notes" name="notes" class="form-control" placeholder="Describe your requirements, preferred materials, timeline..." maxlength="1000"></textarea>
           </div>
 
-          <button type="submit" class="btn-submit">Submit Quotation Request</button>
+          <button type="submit" class="btn-submit" <?= $requestLimitReached ? 'disabled style="opacity:.55;cursor:not-allowed;"' : '' ?>>Submit Quotation Request</button>
         </div>
 
       </div>
@@ -749,7 +778,7 @@ if ($__uid) {
   // (Cleared on My Projects once the request is submitted. Files can't be kept by
   // browsers, so only the typed fields, address and reference design are saved.)
   const DRAFT_KEY    = 'vsQuoteDraft';
-  const DRAFT_FIELDS = ['project_name', 'category', 'material_type', 'dimensions', 'target_completion', 'budget', 'notes'];
+  const DRAFT_FIELDS = ['project_name', 'unit_quantity', 'category', 'material_type', 'dimensions', 'target_completion', 'budget', 'notes'];
   function saveDraft() {
     try {
       const d = {};
