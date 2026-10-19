@@ -53,6 +53,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 <html lang="en">
 
 <head>
+    <script src="../assets/connection.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Customer Profiles – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>

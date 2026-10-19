@@ -39,6 +39,7 @@ if ($__uid) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="../assets/connection.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Request a Quote – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>

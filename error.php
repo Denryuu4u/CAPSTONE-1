@@ -38,6 +38,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="assets/connection.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $e($title) ?> – Vast Solutions</title>

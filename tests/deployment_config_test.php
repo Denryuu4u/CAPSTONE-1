@@ -18,6 +18,8 @@ $root=str_replace('\\','/',dirname(__DIR__));
 $temp=str_replace('\\','/',sys_get_temp_dir()).'/vast-deploy-'.bin2hex(random_bytes(6));
 mkdir($temp);mkdir($temp.'/site');mkdir($temp.'/site/includes');
 copy($root.'/error.php',$temp.'/site/error.php');copy($root.'/includes/error_handling.php',$temp.'/site/includes/error_handling.php');
+mkdir($temp.'/site/assets');
+foreach (['assets/connection.js','connection-worker.js','connection-check.php'] as $asset) copy($root.'/'.$asset,$temp.'/site/'.$asset);
 file_put_contents($temp.'/site/.htaccess',"SetEnv DEV_MODE true\nErrorDocument 404 \"LOCAL OVERRIDE MUST NOT APPLY\"\n");
 $auth=var_export($root.'/includes/auth.php',true);
 file_put_contents($temp.'/site/probe.php',"<?php session_name('VAST_DEPLOY_TEST'); require $auth; header('Content-Type: application/json'); echo json_encode(['dev'=>DEV_MODE,'user'=>current_user()]);");
@@ -78,6 +80,14 @@ try {
     if(!is_resource($server))throw new RuntimeException('Cannot start test Apache.');
     for($i=0;$i<50;$i++){$s=@fsockopen(explode(':',$addr)[0],(int)explode(':',$addr)[1]);if($s){fclose($s);break;}usleep(100000);}
     $base='http://'.$addr;
+    foreach (['','/CAPSTONE-1'] as $prefix) {
+        [$status,$body]=deploy_http($ch,$base.$prefix.'/connection-check.php');
+        deploy_check($status===204 && $body==='','Connection probe works without authentication at '.$prefix.'/');
+        [$status,$body]=deploy_http($ch,$base.$prefix.'/assets/connection.js');
+        deploy_check($status===200 && strpos($body,'You are offline.')!==false,'Connection script is served at '.$prefix.'/');
+        [$status,$body]=deploy_http($ch,$base.$prefix.'/connection-worker.js');
+        deploy_check($status===200 && strpos($body,'Connection problem')!==false,'Offline navigation worker is served at '.$prefix.'/');
+    }
     [$status,$body]=deploy_http($ch,$base.'/admin1/project-requests.php');
     deploy_check($status===404 && strpos($body,'Page not found')!==false && strpos($body,'Additionally, a 404')===false,'Root-hosted missing route uses the custom 404 without recursion');
     deploy_check(strpos($body,'href="/index.php"')!==false,'Hosted error page links to the domain root');

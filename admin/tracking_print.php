@@ -28,6 +28,7 @@ $laborRows = function (string $phase) use ($d, $fmtDate) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="../assets/connection.js"></script>
 <meta charset="UTF-8">
 <title>Project Tracking — <?= htmlspecialchars($d['project']['code']) ?></title>
 <style>

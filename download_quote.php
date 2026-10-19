@@ -41,6 +41,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="assets/connection.js"></script>
 <meta charset="UTF-8">
 <title>Quotation <?= $e($q['quote_code']) ?></title>
 <style>

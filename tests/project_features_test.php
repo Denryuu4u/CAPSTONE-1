@@ -25,7 +25,7 @@ function feature_actor(string $base, string $role): array {
 }
 $pdo = db(); $source = $pdo->query('SELECT DATABASE()')->fetchColumn();
 $test = 'vast_features_test_' . bin2hex(random_bytes(6));
-$root = dirname(__DIR__); $server = null; $created = false; $savedFiles = [];
+$root = dirname(__DIR__); $server = null; $created = false; $savedFiles = []; $requestAssetFiles = [];
 $temp = sys_get_temp_dir() . '/vast-features-' . bin2hex(random_bytes(6)); mkdir($temp);
 try {
     $pdo->exec('CREATE DATABASE `' . $test . '` CHARACTER SET utf8mb4'); $created = true;
@@ -178,6 +178,75 @@ try {
     feature_check($counter('0.01')[0]===302 && (float)$pdo->query('SELECT counter_amount FROM quotations WHERE id=100')->fetchColumn()===0.01,'Quotes below 2000 still require a positive offer');
     // Leave a normal pending quotation available for the browser preview.
     $pdo->exec("UPDATE quotations SET status='Sent',total_amount=10000,counter_amount=NULL,counter_at=NULL WHERE id=100");
+    // Material import explains wrong extensions, disguised XLS files and invalid contents.
+    foreach ([['wrong.pdf','Incorrect file type'],['wrong.xls','Incorrect file.']] as [$fileName,$message]) {
+        [$status,$json]=feature_http($admin,$base.'/admin/import_material_totals.php',['totals_file'=>new CURLFile($bad,'application/octet-stream',$fileName)]);
+        feature_check($status===400 && strpos(json_decode($json,true)['error']??'',$message)!==false,'Wrong upload '.$fileName.' returns a helpful file selection message');
+    }
+    $csv=$temp.'/materials.csv'; file_put_contents($csv,"Material,Qty,Unit,Cost\nBoard,2,pieces,500\n");
+    [$status,$json]=feature_http($admin,$base.'/admin/import_material_totals.php',['totals_file'=>new CURLFile($csv,'text/csv','materials.csv')]);
+    $imported=json_decode($json,true);
+    feature_check($status===200 && !empty($imported['ok']) && $imported['items'][0]['unit_cost']==250,'Valid material totals CSV still imports correctly');
+    file_put_contents($csv,"Not a material totals export\n");
+    [$status,$json]=feature_http($admin,$base.'/admin/import_material_totals.php',['totals_file'=>new CURLFile($csv,'text/csv','materials.csv')]);
+    feature_check($status===400 && strpos(json_decode($json,true)['error']??'','No material totals were found')!==false,'CSV without material rows explains the required format');
+    file_put_contents($csv,'');
+    [$status,$json]=feature_http($admin,$base.'/admin/import_material_totals.php',['totals_file'=>new CURLFile($csv,'text/csv','empty.csv')]);
+    feature_check($status===400 && strpos(json_decode($json,true)['error']??'','empty')!==false,'Empty file produces a helpful message');
+    // Budget checks use the saved request and recomputed total, before any writes.
+    $pdo->exec("INSERT INTO project_requests (id,request_code,customer_id,submitted_by,project_name,budget) VALUES (3,'REQ-BUDGET-003',1,4,'Budget Test Cabinet',1000)");
+    $pdo->exec("INSERT INTO projects (id,project_code,customer_id,request_id,project_name,status) VALUES (11,'PRJ-BUDGET-011',1,3,'Budget Test Cabinet','quote_submitted')");
+    $budgetQuote = ['project_id'=>11,'target_completion'=>'2027-01-01','csrf'=>$token,'items'=>json_encode([['description'=>'Cabinet','qty'=>1,'unit_cost'=>1000]])];
+    $budgetCount = (int)$pdo->query('SELECT COUNT(*) FROM quotations')->fetchColumn();
+    foreach (['', '   '] as $emptyNotes) {
+        [$status,$json]=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['notes'=>$emptyNotes,'budget'=>999999,'confirm_over_budget'=>'1']);
+        feature_check($status===422 && (json_decode($json,true)['field']??'')==='notes','Over-budget quotation requires nonblank justification even with a spoofed budget or confirmation');
+    }
+    [$status,$json]=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170]);
+    feature_check($status===422,'Exactly 5000 above budget requires justification');
+    [$status,$json]=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170.01,'notes'=>'Premium materials']);
+    feature_check($status===409 && !empty(json_decode($json,true)['confirm_over_budget']),'More than 5000 above budget asks Send anyway, even with notes');
+    feature_check((int)$pdo->query('SELECT COUNT(*) FROM quotations')->fetchColumn()===$budgetCount && $pdo->query('SELECT status FROM project_requests WHERE id=3')->fetchColumn()==='Requesting Quotation','Budget validation and unconfirmed warnings save no quotation or request changes');
+    feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170,'notes'=>'Premium materials'])[0]===200,'Exactly 5000 over budget sends with justification');
+    feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170.01,'confirm_over_budget'=>'1'])[0]===200,'More than 5000 over budget sends only after explicit confirmation');
+    foreach ([1829.99,1830,2000,null,0] as $savedBudget) {
+        $pdo->prepare('UPDATE project_requests SET budget=? WHERE id=3')->execute([$savedBudget]);
+        $status=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote)[0];
+        feature_check($status===($savedBudget===1829.99?422:200),'Budget boundary '.var_export($savedBudget,true).' handled correctly');
+    }
+    $pdo->exec('UPDATE project_requests SET budget=1000 WHERE id=1');
+    // Request sample references are independent of uploaded design attachments.
+    $suffix = bin2hex(random_bytes(6));
+    $requestAssetFiles = ['uploads/gallery/g_feature_'.$suffix.'.png', 'uploads/req1_feature_'.$suffix.'.png'];
+    if (!is_dir($root.'/uploads/gallery')) mkdir($root.'/uploads/gallery',0755,true);
+    foreach ($requestAssetFiles as $path) copy($image,$root.'/'.$path);
+    $pdo->prepare('INSERT INTO gallery_images (file_path,label) VALUES (?,?)')->execute([$requestAssetFiles[0],'Sample cabinet']);
+    $pdo->prepare('UPDATE project_requests SET reference_design=? WHERE id=1')->execute([basename($requestAssetFiles[0])]);
+    $pdo->prepare('INSERT INTO request_files (request_id,file_name,file_path,file_type,file_size) VALUES (1,?,?,?,?)')->execute(['Customer design <draft>.png',$requestAssetFiles[1],'png',filesize($image)]);
+    $fileId = (int)$pdo->lastInsertId();
+    $assetUrl = $base.'/request_design.php?request_id=1';
+    foreach ([$admin,$staff,$super,$client] as $actor) {
+        [$status,$bytes]=feature_http($actor,$assetUrl);
+        feature_check($status===200 && $bytes===file_get_contents($image),'Authorized viewer receives selected gallery sample');
+        [$status,$bytes]=feature_http($actor,$assetUrl.'&file_id='.$fileId);
+        feature_check($status===200 && $bytes===file_get_contents($image),'Authorized viewer receives uploaded request image');
+    }
+    [$status,$html]=feature_http($admin,$base.'/admin/project-requests.php');
+    feature_check($status===200 && strpos($html,'Selected Sample Design')!==false && strpos($html,'Uploaded Design Files')!==false && strpos($html,basename($requestAssetFiles[0]))!==false,'Request Details includes separate sample and uploaded design sections');
+    feature_check(strpos($html,'&lt;draft&gt;')!==false && strpos($html,'uploads/req1_feature_')===false,'Uploaded file labels are escaped and storage paths are hidden');
+    $pdo->exec("INSERT INTO project_requests (id,request_code,customer_id,submitted_by,project_name) VALUES (2,'REQ-TEST-002',2,1,'Other customer request')");
+    feature_check(feature_http($client,$base.'/request_design.php?request_id=2&file_id='.$fileId)[0]===404,'Customer cannot view another customer request');
+    feature_check(feature_http($admin,$base.'/request_design.php?request_id=2&file_id='.$fileId)[0]===404,'Attachment must belong to the requested record');
+    feature_check(feature_http($admin,$assetUrl.'&file_id=999999')[0]===404,'Missing upload returns a simple unavailable message');
+    $pdo->exec("UPDATE project_requests SET reference_design='../../includes/auth.php' WHERE id=1");
+    feature_check(feature_http($admin,$assetUrl)[0]===404,'Reference paths cannot escape the sample directory');
+    $pdo->exec("UPDATE project_requests SET reference_design='cabinet_image1.jpg' WHERE id=1");
+    [$status,$bytes]=feature_http($admin,$assetUrl);
+    feature_check($status===200 && $bytes===file_get_contents($root.'/cabinet_image/cabinet_image1.jpg'),'Older requests retain access to bundled sample designs');
+    $pdo->prepare('UPDATE request_files SET file_path=? WHERE id=?')->execute(['uploads/../includes/auth.php',$fileId]);
+    feature_check(feature_http($admin,$assetUrl.'&file_id='.$fileId)[0]===404,'Attachment paths cannot escape uploads');
+    $pdo->prepare('UPDATE request_files SET file_path=? WHERE id=?')->execute([$requestAssetFiles[1],$fileId]);
+    $pdo->prepare('UPDATE project_requests SET reference_design=? WHERE id=1')->execute([basename($requestAssetFiles[0])]);
     if (in_array('--serve',$argv,true)) { echo 'READY FOR UI: ',$base,PHP_EOL; fflush(STDOUT); fgets(STDIN); }
 } finally {
     if (is_resource($server)) { proc_terminate($server); foreach($pipes as $pipe) if(is_resource($pipe))fclose($pipe);proc_close($server); }
@@ -188,5 +257,6 @@ try {
         if (preg_match('/^vast_features_test_[a-f0-9]{12}$/D',$test)) $pdo->exec('DROP DATABASE `' . $test . '`');
     }
     foreach(array_unique($savedFiles) as $path) if(preg_match('~^uploads/project-designs/[a-f0-9]{40}\.(png|jpg|webp)$~D',(string)$path)) @unlink($root.'/'.$path);
+    foreach($requestAssetFiles as $path) if(preg_match('~^uploads/(gallery/g_feature_|req1_feature_)[a-f0-9]{12}\.png$~D',$path)) @unlink($root.'/'.$path);
     echo 'Fixture database and uploaded test images removed.',PHP_EOL;
 }

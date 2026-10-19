@@ -27,7 +27,7 @@ usort($requests, fn($a, $b) =>
 
 // Uploaded files grouped by request.
 $filesByReq = [];
-foreach (db()->query("SELECT request_id, file_name, file_path FROM request_files") as $f) {
+foreach (db()->query("SELECT id, request_id, file_name, file_path FROM request_files") as $f) {
     $filesByReq[$f['request_id']][] = $f;
 }
 
@@ -76,6 +76,7 @@ $reqBadge = [
 <html lang="en">
 
 <head>
+    <script src="../assets/connection.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Project Requests – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
@@ -167,7 +168,9 @@ $reqBadge = [
                             <?php else: foreach ($requests as $r):
                                 $files = $filesByReq[$r['id']] ?? [];
                                 $filesJson = htmlspecialchars(json_encode(array_map(fn($f) => [
-                                    'name' => $f['file_name'], 'path' => '../' . $f['file_path'],
+                                    'name' => $f['file_name'],
+                                    'path' => '../request_design.php?request_id=' . (int)$r['id'] . '&file_id=' . (int)$f['id'],
+                                    'image' => in_array(strtolower(pathinfo($f['file_path'], PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png'], true),
                                 ], $files)), ENT_QUOTES);
                                 $attrs = [
                                     'data-request-id="' . htmlspecialchars($r['request_code']) . '"',
@@ -185,7 +188,9 @@ $reqBadge = [
                                     'data-dimensions="' . htmlspecialchars($r['dimensions'] ?? '') . '"',
                                     'data-unit-quantity="' . (int) ($r['unit_quantity'] ?? 1) . '"',
                                     'data-budget="' . (($r['budget'] !== null && $r['budget'] !== '') ? htmlspecialchars(peso($r['budget'])) : '') . '"',
+                                    'data-budget-value="' . htmlspecialchars($r['budget'] ?? '', ENT_QUOTES) . '"',
                                     'data-notes="' . htmlspecialchars($r['notes'] ?? '') . '"',
+                                    'data-reference="' . htmlspecialchars($r['reference_design'] ?? '', ENT_QUOTES) . '"',
                                     'data-can-quote="' . ($r['status'] === 'Requesting Quotation' ? '1' : '0') . '"',
                                     'data-quotation-id="' . (int) ($r['quotation_id'] ?? 0) . '"',
                                     "data-files='" . $filesJson . "'",
@@ -295,7 +300,12 @@ $reqBadge = [
                         </div>
 
                         <div class="col-12">
-                            <div class="request-files-title">Uploaded Files</div>
+                            <div class="request-files-title">Selected Sample Design</div>
+                            <div class="request-file-list" id="viewReferenceDesign"></div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="request-files-title">Uploaded Design Files</div>
                             <div class="request-file-list" id="viewFileList"></div>
                         </div>
                     </div>
@@ -380,6 +390,7 @@ $reqBadge = [
                             <label for="quotationNotes" class="form-label project-label">Notes/Price justification</label>
                             <textarea class="form-control project-input" rows="3" id="quotationNotes" maxlength="4000" aria-describedby="quotationNotesHelp" placeholder="Explain the quoted price, materials, extra work or why the total exceeds the customer's budget."></textarea>
                             <div class="form-text" id="quotationNotesHelp">Optional. The customer will see this note in monitoring and when reviewing the quotation before accepting.</div>
+                            <div class="alert alert-warning mt-3 mb-0" id="quotationBudgetStatus" role="status" hidden></div>
                         </div>
                     </div>
 
@@ -592,7 +603,7 @@ $reqBadge = [
                         <h6 class="project-section-title">Material Totals Import <span class="text-muted" style="font-weight:400;font-size:.78rem;">(Cabinet Vision .xls)</span></h6>
 
                         <label for="cpBomFile" class="bom-upload-box">
-                            <input type="file" id="cpBomFile" accept=".xls" hidden>
+                            <input type="file" id="cpBomFile" accept=".xls,.csv" hidden>
                             <div class="bom-upload-icon">
                                 <i class="bi bi-upload"></i>
                             </div>
@@ -794,6 +805,7 @@ $reqBadge = [
                         dimensions: this.dataset.dimensions,
                         unitQuantity: this.dataset.unitQuantity,
                         budget: this.dataset.budget,
+                        budgetValue: this.dataset.budgetValue,
                         notes: this.dataset.notes,
                         canQuote: this.dataset.canQuote,
                         quotationId: this.dataset.quotationId
@@ -829,21 +841,56 @@ $reqBadge = [
                     document.getElementById("viewAddress").textContent = currentRequestData.address || '—';
                     document.getElementById("viewNotes").textContent = currentRequestData.notes;
 
-                    // Render uploaded files from data-files JSON.
+                    // Build file controls with textContent so uploaded names stay plain text.
+                    function renderDesign(container, name, path, isImage) {
+                        const section = document.createElement('div');
+                        section.className = 'border rounded p-3 mb-2 w-100';
+                        const row = document.createElement('div');
+                        row.className = 'd-flex align-items-center justify-content-between gap-3 flex-wrap';
+                        const label = document.createElement('span');
+                        label.textContent = name;
+                        label.style.overflowWrap = 'anywhere';
+                        row.append(label);
+                        if (isImage) {
+                            const button = document.createElement('button');
+                            button.type = 'button'; button.className = 'btn btn-outline-success btn-sm';
+                            button.textContent = 'View image'; button.setAttribute('aria-expanded', 'false');
+                            const preview = document.createElement('div'); preview.hidden = true;
+                            const image = document.createElement('img');
+                            image.alt = name; image.className = 'mt-3 rounded w-100';
+                            image.style.cssText = 'max-height:300px;object-fit:contain;background:#f8fafc';
+                            const error = document.createElement('p'); error.hidden = true;
+                            error.className = 'text-muted mt-3 mb-0';
+                            error.textContent = 'This image is no longer available. Please ask the customer to send it again.';
+                            image.addEventListener('error', () => { image.hidden = true; error.hidden = false; });
+                            preview.append(image, error);
+                            button.addEventListener('click', () => {
+                                preview.hidden = !preview.hidden;
+                                button.textContent = preview.hidden ? 'View image' : 'Hide image';
+                                button.setAttribute('aria-expanded', String(!preview.hidden));
+                                if (!image.getAttribute('src')) image.src = path;
+                            });
+                            row.append(button); section.append(row, preview);
+                        } else section.append(row);
+                        const link = document.createElement('a');
+                        link.href = path; link.target = '_blank'; link.rel = 'noopener';
+                        link.className = 'small d-inline-block mt-2';
+                        link.textContent = isImage ? 'Open original image' : 'Open / download file';
+                        section.append(link); container.append(section);
+                    }
+                    const reference = document.getElementById('viewReferenceDesign');
+                    reference.replaceChildren();
+                    if (this.dataset.reference) {
+                        renderDesign(reference, 'Customer’s selected sample design', '../request_design.php?request_id=' + encodeURIComponent(this.dataset.requestPk), true);
+                    } else reference.textContent = 'No sample design selected.';
                     const fileList = document.getElementById("viewFileList");
+                    fileList.replaceChildren();
                     let files = [];
                     try { files = JSON.parse(this.dataset.files || "[]"); } catch (e) {}
                     if (!files.length) {
-                        fileList.innerHTML = '<div class="text-muted" style="font-size:.8rem;">No files uploaded.</div>';
+                        fileList.textContent = 'No design files uploaded.';
                     } else {
-                        fileList.innerHTML = files.map(f => `
-                            <a href="${f.path}" target="_blank" class="request-file-item">
-                                <div class="request-file-left">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                    <span>${f.name}</span>
-                                </div>
-                                <i class="bi bi-download"></i>
-                            </a>`).join('');
+                        files.forEach(f => renderDesign(fileList, f.name, f.path, f.image));
                     }
                 });
             });
@@ -868,7 +915,7 @@ $reqBadge = [
             });
 
             // Holds the ids for the quotation currently being built.
-            const qState = { projectId: 0, customerId: 0, requestPk: '' };
+            const qState = { projectId: 0, customerId: 0, requestPk: '', budget: 0 };
 
             function fillQuotationModal(data) {
                 document.getElementById("quotationCustomer").value = data.customer || "";
@@ -884,6 +931,8 @@ $reqBadge = [
                 qState.projectId  = parseInt(data.projectId || 0);
                 qState.customerId = parseInt(data.customerId || 0);
                 qState.requestPk  = data.requestPk || '';
+                qState.budget = Number(data.budgetValue) || 0;
+                document.getElementById('quotationNotes').setCustomValidity('');
 
                 // Reset costing preview for the new quotation.
                 document.getElementById("qCostBody").innerHTML =
@@ -915,7 +964,7 @@ $reqBadge = [
                 costRows().forEach(row => {
                     const q = parseFloat(row.querySelector('.qc-qty').value) || 0;
                     const c = parseFloat(row.querySelector('.qc-cost').value) || 0;
-                    const line = q * c;
+                    const line = Math.round(q * c * 100) / 100;
                     row.querySelector('.qc-total').textContent = pesoFmt(line);
                     material += line;
                 });
@@ -926,7 +975,7 @@ $reqBadge = [
                 const access    = num('qAccess');
                 const substrate = num('qSubstrate');
                 const oot       = pct('qOutOfTown'); // out of town is a % of material
-                const labor = material * 0.5; // labor is 50% of the material total
+                const labor = Math.round(material * 0.5 * 100) / 100; // match saved labor rounding
                 const mkA = material * mk / 100, coA = material * co / 100, svA = material * sv / 100, prA = material * pr / 100;
                 const ootA = material * oot / 100;
                 const total = material + labor + mkA + coA + svA + prA + substrate + ootA + special + access;
@@ -943,6 +992,16 @@ $reqBadge = [
                 document.getElementById('qSumSpecialLine').textContent = pesoFmt(special);
                 document.getElementById('qSumAccessLine').textContent = pesoFmt(access);
                 document.getElementById('qSumTotal').textContent = pesoFmt(total);
+                const excess = qState.budget > 0 ? Math.round(total * 100) - Math.round(qState.budget * 100) : 0;
+                const notes = document.getElementById('quotationNotes');
+                notes.setCustomValidity('');
+                notes.required = excess > 0 && excess <= 500000;
+                const warning = document.getElementById('quotationBudgetStatus');
+                warning.hidden = excess <= 0;
+                warning.textContent = excess > 500000
+                    ? 'This quotation is way above the customer budget by ' + pesoFmt(excess / 100) + '. You will be asked to confirm before sending.'
+                    : 'This quotation is ' + pesoFmt(excess / 100) + ' above the customer budget. Notes/Price justification is required.';
+                document.getElementById('quotationNotesHelp').textContent = (notes.required ? 'Required. ' : 'Optional. ') + 'The customer will see this note in monitoring and when reviewing the quotation before accepting.';
             }
 
             function renderCostRows(items) {
@@ -971,6 +1030,27 @@ $reqBadge = [
                 recomputeCosting();
             });
 
+            // Keep invalid files and network failures understandable in both costing forms.
+            async function importCostingFile(file) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!['xls', 'csv'].includes(ext)) throw new Error('Incorrect file type. Please select a Cabinet Vision material totals file (.xls) or a material totals CSV file.');
+                if (!file.size) throw new Error('This file is empty. Please select a valid material totals file.');
+                if (ext === 'xls') {
+                    const signature = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+                    if (file.size < 512 || [208,207,17,224,161,177,26,225].some((byte, index) => signature[index] !== byte)) {
+                        throw new Error('Incorrect file. Please select a Cabinet Vision material totals export (.xls). Renaming another file to .xls will not work.');
+                    }
+                }
+                const fd = new FormData(); fd.append('totals_file', file);
+                let response;
+                try { response = await fetch('import_material_totals.php', {method:'POST', body:fd}); }
+                catch (error) { throw new Error('The file could not be uploaded. Please check your connection and try again.'); }
+                const data = await response.json().catch(() => null);
+                if (!response.ok || !data?.ok) throw new Error(data?.error || (response.status === 413
+                    ? 'This file is too large. Please select a smaller material totals file.'
+                    : 'The file could not be imported. Please select the correct material totals file and try again.'));
+                return data;
+            }
             // Import a material totals file.
             document.getElementById('quotationBomFile').addEventListener('change', function () {
                 if (!this.files.length) return;
@@ -978,15 +1058,12 @@ $reqBadge = [
                 const err = document.getElementById('qImportError');
                 err.style.display = 'none';
                 document.getElementById('qBomText').textContent = 'Reading ' + file.name + '…';
-                const fd = new FormData();
-                fd.append('totals_file', file);
-                fetch('import_material_totals.php', { method: 'POST', body: fd })
-                    .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Import failed'); return d; })
+                importCostingFile(file)
                     .then(d => {
                         document.getElementById('qBomText').textContent = file.name + ' — ' + d.items.length + ' items imported';
                         renderCostRows(d.items);
                     })
-                    .catch(e => { err.textContent = e.message; err.style.display = 'block'; document.getElementById('qBomText').textContent = 'Import failed — try again'; });
+                    .catch(e => { err.textContent = e.message; err.style.display = 'block'; document.getElementById('qBomText').textContent = 'Choose another material totals file'; this.value = ''; });
             });
 
             document.getElementById('createQuotationModal').addEventListener('hidden.bs.modal',()=>{document.getElementById('qDesignImage').value='';});
@@ -1003,7 +1080,12 @@ $reqBadge = [
                 if (!items.length) { err.textContent = 'Add at least one line item before sending.'; err.style.display = 'block'; return; }
                 if (!qState.projectId) { err.textContent = 'No project linked to this request.'; err.style.display = 'block'; return; }
                 if (!document.getElementById('quotationTargetCompletion').value) { err.textContent = 'Set a target completion date.'; err.style.display = 'block'; return; }
-                if (!document.getElementById('quotationNotes').reportValidity()) return;
+                const notes = document.getElementById('quotationNotes');
+                notes.setCustomValidity(notes.required && !notes.value.trim() ? 'Enter Notes/Price justification before sending this quotation.' : '');
+                if (!notes.checkValidity()) {
+                    notes.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    notes.focus(); notes.reportValidity(); return;
+                }
 
                 const btn = this; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending…';
                 const body = new FormData();
@@ -1021,11 +1103,33 @@ $reqBadge = [
                     const [id, key] = pair.split(':');
                     body.append(key, document.getElementById(id).value || 0);
                 });
-                fetch('create_quotation.php', { method: 'POST', body })
-                    .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Failed'); return d; })
-                    .then(d => { vsToastFlash('Quotation ' + d.quote_code + ' sent — ' + pesoFmt(d.total)); location.reload(); })
+                async function sendQuotation() {
+                    const response = await fetch('create_quotation.php', { method: 'POST', body });
+                    const data = await response.json().catch(() => ({ok:false, error:'The quotation could not be sent. Please try again.'}));
+                    if (data.confirm_over_budget && !body.has('confirm_over_budget')) {
+                        if (!window.confirm(data.error)) return null;
+                        body.append('confirm_over_budget', '1');
+                        return sendQuotation();
+                    }
+                    if (!response.ok || !data.ok) {
+                        if (data.field === 'notes') {
+                            notes.required = true;
+                            notes.setCustomValidity(data.error);
+                            notes.scrollIntoView({behavior:'smooth', block:'center'});
+                            notes.focus(); notes.reportValidity();
+                        }
+                        throw new Error(data.error || 'The quotation could not be sent. Please try again.');
+                    }
+                    return data;
+                }
+                sendQuotation()
+                    .then(d => {
+                        if (!d) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-2"></i>Send Quotation'; return; }
+                        vsToastFlash('Quotation ' + d.quote_code + ' sent — ' + pesoFmt(d.total)); location.reload();
+                    })
                     .catch(e => { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-2"></i>Send Quotation'; });
             });
+            document.getElementById('quotationNotes').addEventListener('input', function () { this.setCustomValidity(''); });
 
             // Download Costing (preview) — exports the current costing table as a CSV (opens in Excel).
             document.getElementById('qDownloadCostingBtn').addEventListener('click', function () {
@@ -1127,11 +1231,9 @@ $reqBadge = [
                 const file = this.files[0];
                 const err = document.getElementById('cpImportError'); err.style.display = 'none';
                 document.getElementById('cpBomText').textContent = 'Reading ' + file.name + '…';
-                const fd = new FormData(); fd.append('totals_file', file);
-                fetch('import_material_totals.php', { method: 'POST', body: fd })
-                    .then(async r => { const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' })); if (!r.ok || !d.ok) throw new Error(d.error || 'Import failed'); return d; })
+                importCostingFile(file)
                     .then(d => { document.getElementById('cpBomText').textContent = file.name + ' — ' + d.items.length + ' items imported'; cpRenderRows(d.items); })
-                    .catch(e => { err.textContent = e.message; err.style.display = 'block'; document.getElementById('cpBomText').textContent = 'Import failed — try again'; });
+                    .catch(e => { err.textContent = e.message; err.style.display = 'block'; document.getElementById('cpBomText').textContent = 'Choose another material totals file'; this.value = ''; });
             });
 
             // Save the walk-in project + quotation.

@@ -32,6 +32,7 @@ $updatedExisting = count($pending) < count(legal_docs()); // some already accept
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="../assets/connection.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Review our policies – <?= htmlspecialchars($company) ?></title>

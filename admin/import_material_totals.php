@@ -19,14 +19,19 @@ function mt_fail(string $msg, int $code = 400): void
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') mt_fail('POST required.', 405);
-if (!isset($_FILES['totals_file']) || $_FILES['totals_file']['error'] !== UPLOAD_ERR_OK) {
-    mt_fail('No file uploaded.');
-}
+if (!isset($_FILES['totals_file'])) mt_fail('Please select a Cabinet Vision material totals file (.xls) or a material totals CSV file.');
+$uploadError = $_FILES['totals_file']['error'] ?? UPLOAD_ERR_NO_FILE;
+if (in_array($uploadError, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) mt_fail('This file is too large. Please select a smaller material totals file.', 413);
+if ($uploadError !== UPLOAD_ERR_OK) mt_fail('The file could not be uploaded. Please select it again and retry.');
 
 $name = $_FILES['totals_file']['name'];
 $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+if (!in_array($ext, ['xls', 'csv'], true)) mt_fail('Incorrect file type. Please select a Cabinet Vision material totals file (.xls) or a material totals CSV file.');
 $data = file_get_contents($_FILES['totals_file']['tmp_name']);
-if ($data === false || $data === '') mt_fail('File is empty or unreadable.');
+if ($data === false || $data === '') mt_fail('This file is empty or cannot be read. Please select a valid material totals file.');
+if ($ext === 'xls' && (strlen($data) < 512 || substr($data, 0, 8) !== "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1")) {
+    mt_fail('Incorrect file. Please select a Cabinet Vision material totals export (.xls). Renaming another file to .xls will not work.');
+}
 
 try {
     if ($ext === 'csv') {
@@ -51,7 +56,7 @@ try {
     }
 
     if (empty($parsed['items'])) {
-        mt_fail('No material rows found. Is this a Cabinet Vision material-totals export?');
+        mt_fail('No material totals were found in this file. Please select a Cabinet Vision material totals export (.xls) or a CSV with Material, Qty, Unit and Cost columns.');
     }
 
     // Add a pre-filled unit cost (cost / qty) for the editable preview.
@@ -62,5 +67,5 @@ try {
 
     echo json_encode(['ok' => true, 'job_name' => $parsed['job_name'], 'items' => $parsed['items']]);
 } catch (Throwable $e) {
-    mt_fail(app_error_message($e, 'We could not read this file. Check the format and try again.'), 500);
+    mt_fail(app_error_message($e, 'This file could not be read as material totals. Please select the correct Cabinet Vision export (.xls) or material totals CSV file.'), 400);
 }

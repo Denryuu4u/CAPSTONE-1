@@ -269,6 +269,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="../assets/connection.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Projects – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>

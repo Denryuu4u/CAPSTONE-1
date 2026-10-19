@@ -19,10 +19,10 @@ require_once __DIR__ . '/../includes/quotation_design.php';
 require_page('project_requests', true); // back-office only (blocks clients)
 header('Content-Type: application/json; charset=utf-8');
 
-function q_fail(string $msg, int $code = 400): void
+function q_fail(string $msg, int $code = 400, array $details = []): void
 {
     http_response_code($code);
-    echo json_encode(['ok' => false, 'error' => $msg]);
+    echo json_encode(['ok' => false, 'error' => $msg] + $details);
     exit;
 }
 
@@ -95,6 +95,22 @@ $protectAmt = $materialTotal * $protect / 100;
 $outOfTownAmt = $materialTotal * $outOfTownPct / 100;  // out of town is a % of material
 $total = round($materialTotal + $labor + $markupAmt + $contAmt + $serviceAmt + $protectAmt
               + $substrate + $outOfTownAmt + $special + $access, 2);
+
+// Use the linked request's saved budget, never an amount supplied by the browser.
+if ($requestId) {
+    $budgetQuery = $pdo->prepare('SELECT budget FROM project_requests WHERE id=?');
+    $budgetQuery->execute([$requestId]);
+    $budget = $budgetQuery->fetchColumn();
+    if ($budget !== false && $budget !== null && $budget !== '' && (float)$budget > 0) {
+        $excessCents = (int)round($total * 100) - (int)round((float)$budget * 100);
+        if ($excessCents > 0 && $excessCents <= 500000 && $notes === '') {
+            q_fail('This quotation is ' . peso($excessCents / 100) . ' above the customer budget. Enter Notes/Price justification before sending.', 422, ['field' => 'notes']);
+        }
+        if ($excessCents > 500000 && ($_POST['confirm_over_budget'] ?? '') !== '1') {
+            q_fail('The created cost quotation is way above the customer budget (' . peso($excessCents / 100) . ' over budget). Send anyway?', 409, ['confirm_over_budget' => true]);
+        }
+    }
+}
 
 try {
     $designPath = save_quotation_design_upload($_FILES['design_image'] ?? []);

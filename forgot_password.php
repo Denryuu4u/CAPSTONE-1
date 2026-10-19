@@ -45,6 +45,7 @@ $be = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="assets/connection.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Forgot Password – <?= $be($brandName) ?></title>
