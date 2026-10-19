@@ -3,6 +3,9 @@
 # the document root, so the app lives at "/" (pair with BASE_URL="" on Railway).
 FROM php:8.2-apache
 
+# Require real sign-in by default; Railway serves the app at the domain root.
+ENV DEV_MODE=false BASE_URL=""
+
 # System libs + PHP extensions the app needs:
 #   pdo_mysql -> db() PDO connection
 #   mbstring  -> mb_encode_mimeheader() in includes/mailer.php (needs libonig-dev)

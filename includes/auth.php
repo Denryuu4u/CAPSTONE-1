@@ -17,21 +17,20 @@ require_once __DIR__ . '/error_handling.php';
  *
  * Toggle it with the DEV_MODE environment variable (set it on your host, e.g.
  * Railway → Variables → DEV_MODE=false, to disable auto-login in production).
- * When the env var is unset it defaults to true for local XAMPP development.
- * Accepts: false / 0 / off / no  (case-insensitive) to turn it off.
+ * Defaults to false. Enable explicitly with DEV_MODE=true for local testing.
  */
 
 // The business runs in the Philippines — pin PHP's clock to Manila so greetings,
 // time_ago(), and any date() output match local time regardless of server locale.
 date_default_timezone_set('Asia/Manila');
 
-// Resolve DEV_MODE from the environment: unset -> true (local dev default);
-// false / 0 / off / no (case-insensitive) -> false (e.g. production on Railway).
+// Missing or unrecognized DEV_MODE settings never enable automatic sign-in.
+// Explicit true / 1 / on / yes enables local development mode.
 $__devEnv = getenv('DEV_MODE');
-$__devOff = $__devEnv !== false
-    && in_array(strtolower(trim($__devEnv)), ['false', '0', 'off', 'no'], true);
-define('DEV_MODE', !$__devOff);
-unset($__devEnv, $__devOff);
+$__devOn = $__devEnv !== false
+    && in_array(strtolower(trim($__devEnv)), ['true', '1', 'on', 'yes'], true);
+define('DEV_MODE', $__devOn);
+unset($__devEnv, $__devOn);
 
 // Base URL path the app is served under, no trailing slash. Local XAMPP serves
 // it at /CAPSTONE-1; when hosting at a domain root (e.g. Railway) set BASE_URL=""
@@ -50,6 +49,13 @@ require_once __DIR__ . '/db.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
+}
+
+// Turning development mode off must revoke sessions created by its auto-login.
+// Keep genuine password-based sign-ins intact.
+if (!DEV_MODE && !empty($_SESSION['dev_active']) && empty($_SESSION['real_login'])) {
+    $_SESSION = [];
+    session_regenerate_id(true);
 }
 
 // A restore replaces accounts and passwords too. Expire pre-restore sessions.

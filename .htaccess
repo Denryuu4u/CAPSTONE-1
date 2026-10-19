@@ -18,4 +18,4 @@ ErrorDocument 500 /CAPSTONE-1/error.php
     RewriteEngine On
     RewriteRule ^uploads/project-designs/ - [F,L]
 </IfModule>
-SetEnv DEV_MODE true
+# DEV_MODE is configured by the environment, never enabled in this tracked file.

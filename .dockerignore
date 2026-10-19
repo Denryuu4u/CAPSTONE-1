@@ -3,6 +3,9 @@
 .gitignore
 CLAUDE.md
 
+# Local XAMPP paths/settings must not override production Apache configuration.
+/.htaccess
+
 # Schema, seed and setup scripts are run from a developer machine, never
 # served — keep them (and the seeded password hashes) off the web server.
 database/
