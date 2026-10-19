@@ -45,5 +45,10 @@ function db(): PDO
         PDO::ATTR_EMULATE_PREPARES   => false,
     ]);
 
+    // DATETIME defaults, NOW() and ON UPDATE timestamps must use the same
+    // Philippine business time as PHP (auth.php). Railway may default to UTC.
+    // A fixed offset also works without MySQL's optional timezone tables.
+    $pdo->exec("SET SESSION time_zone = '+08:00'");
+
     return $pdo;
 }
