@@ -206,9 +206,13 @@ try {
     feature_check($status===422,'Exactly 5000 above budget requires justification');
     [$status,$json]=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170.01,'notes'=>'Premium materials']);
     feature_check($status===409 && !empty(json_decode($json,true)['confirm_over_budget']),'More than 5000 above budget asks Send anyway, even with notes');
+    $warning = json_decode($json,true)['error'] ?? '';
+    feature_check(strpos($warning,'Customer budget: ₱1,000.00')!==false && strpos($warning,'Quotation total: ₱6,000.01')!==false && strpos($warning,'Amount over budget: ₱5,000.01')!==false,'Over-budget confirmation includes saved budget, quotation total and excess');
+    [$status,$json]=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170.01,'confirm_over_budget'=>'1']);
+    feature_check($status===422 && (json_decode($json,true)['field']??'')==='notes','Even confirmed quotations more than 5000 over budget require justification');
     feature_check((int)$pdo->query('SELECT COUNT(*) FROM quotations')->fetchColumn()===$budgetCount && $pdo->query('SELECT status FROM project_requests WHERE id=3')->fetchColumn()==='Requesting Quotation','Budget validation and unconfirmed warnings save no quotation or request changes');
     feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170,'notes'=>'Premium materials'])[0]===200,'Exactly 5000 over budget sends with justification');
-    feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170.01,'confirm_over_budget'=>'1'])[0]===200,'More than 5000 over budget sends only after explicit confirmation');
+    feature_check(feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote+['special_works'=>4170.01,'confirm_over_budget'=>'1','notes'=>'Premium materials'])[0]===200,'More than 5000 over budget sends only with justification and explicit confirmation');
     foreach ([1829.99,1830,2000,null,0] as $savedBudget) {
         $pdo->prepare('UPDATE project_requests SET budget=? WHERE id=3')->execute([$savedBudget]);
         $status=feature_http($admin,$base.'/admin/create_quotation.php',$budgetQuote)[0];

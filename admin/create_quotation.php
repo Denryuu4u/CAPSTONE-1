@@ -103,11 +103,14 @@ if ($requestId) {
     $budget = $budgetQuery->fetchColumn();
     if ($budget !== false && $budget !== null && $budget !== '' && (float)$budget > 0) {
         $excessCents = (int)round($total * 100) - (int)round((float)$budget * 100);
-        if ($excessCents > 0 && $excessCents <= 500000 && $notes === '') {
+        if ($excessCents > 0 && $notes === '') {
             q_fail('This quotation is ' . peso($excessCents / 100) . ' above the customer budget. Enter Notes/Price justification before sending.', 422, ['field' => 'notes']);
         }
         if ($excessCents > 500000 && ($_POST['confirm_over_budget'] ?? '') !== '1') {
-            q_fail('The created cost quotation is way above the customer budget (' . peso($excessCents / 100) . ' over budget). Send anyway?', 409, ['confirm_over_budget' => true]);
+            q_fail("The created cost quotation is way above the customer budget.\n\nCustomer budget: " . peso((float)$budget)
+                . "\nQuotation total: " . peso($total)
+                . "\nAmount over budget: " . peso($excessCents / 100)
+                . "\n\nSend anyway?", 409, ['confirm_over_budget' => true]);
         }
     }
 }

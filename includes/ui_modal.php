@@ -73,16 +73,25 @@
   var cancelBtn = document.getElementById('vsmCancel');
   var resolver = null;   // pending Promise resolve
   var isConfirm = false;
+  var previousFocus = null, parentModal = null;
 
   function close(result){
     overlay.classList.remove('show');
-    document.removeEventListener('keydown', onKey);
+    document.removeEventListener('keydown', onKey, true);
+    if (parentModal) document.body.appendChild(overlay);
+    if (previousFocus && previousFocus.isConnected && !previousFocus.disabled) previousFocus.focus();
+    else if (parentModal) parentModal.focus();
+    parentModal = null;
     var r = resolver; resolver = null;
     if (r) r(result);
   }
   function onKey(e){
-    if (e.key === 'Escape') { e.preventDefault(); close(isConfirm ? false : undefined); }
-    else if (e.key === 'Enter') { e.preventDefault(); close(isConfirm ? true : undefined); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(isConfirm ? false : undefined); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(isConfirm ? document.activeElement !== cancelBtn : undefined); }
+    else if (e.key === 'Tab') {
+      e.preventDefault(); e.stopPropagation();
+      (isConfirm && document.activeElement === okBtn ? cancelBtn : okBtn).focus();
+    }
   }
   okBtn.addEventListener('click', function(){ close(isConfirm ? true : undefined); });
   cancelBtn.addEventListener('click', function(){ close(false); });
@@ -92,6 +101,11 @@
 
   function open(message, opts, confirmMode){
     opts = opts || {};
+    previousFocus = document.activeElement;
+    // Keep the confirmation within Bootstrap's existing focus trap when it
+    // opens above another modal, without closing or resetting the underlying form.
+    parentModal = document.querySelector('.modal.show');
+    if (parentModal) parentModal.appendChild(overlay);
     isConfirm = !!confirmMode;
     titleEl.textContent = opts.title || (isConfirm ? 'Please confirm' : 'Notice');
     msgEl.textContent = message == null ? '' : String(message);
@@ -100,7 +114,7 @@
     cancelBtn.style.display = isConfirm ? '' : 'none';
     overlay.classList.toggle('tone-danger', opts.tone === 'danger');
     overlay.classList.add('show');
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     setTimeout(function(){ (isConfirm ? okBtn : okBtn).focus(); }, 30);
     return new Promise(function(res){ resolver = res; });
   }

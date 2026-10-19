@@ -995,11 +995,11 @@ $reqBadge = [
                 const excess = qState.budget > 0 ? Math.round(total * 100) - Math.round(qState.budget * 100) : 0;
                 const notes = document.getElementById('quotationNotes');
                 notes.setCustomValidity('');
-                notes.required = excess > 0 && excess <= 500000;
+                notes.required = excess > 0;
                 const warning = document.getElementById('quotationBudgetStatus');
                 warning.hidden = excess <= 0;
                 warning.textContent = excess > 500000
-                    ? 'This quotation is way above the customer budget by ' + pesoFmt(excess / 100) + '. You will be asked to confirm before sending.'
+                    ? 'This quotation is way above the customer budget by ' + pesoFmt(excess / 100) + '. Notes/Price justification is required. You will also be asked to confirm before sending.'
                     : 'This quotation is ' + pesoFmt(excess / 100) + ' above the customer budget. Notes/Price justification is required.';
                 document.getElementById('quotationNotesHelp').textContent = (notes.required ? 'Required. ' : 'Optional. ') + 'The customer will see this note in monitoring and when reviewing the quotation before accepting.';
             }
@@ -1107,7 +1107,11 @@ $reqBadge = [
                     const response = await fetch('create_quotation.php', { method: 'POST', body });
                     const data = await response.json().catch(() => ({ok:false, error:'The quotation could not be sent. Please try again.'}));
                     if (data.confirm_over_budget && !body.has('confirm_over_budget')) {
-                        if (!window.confirm(data.error)) return null;
+                        if (!await vsConfirm(data.error, {
+                            title: 'Quotation exceeds customer budget',
+                            okText: 'Send anyway',
+                            cancelText: 'Cancel'
+                        })) return null;
                         body.append('confirm_over_budget', '1');
                         return sendQuotation();
                     }
