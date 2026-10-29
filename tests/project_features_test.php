@@ -251,6 +251,43 @@ try {
     feature_check(feature_http($admin,$assetUrl.'&file_id='.$fileId)[0]===404,'Attachment paths cannot escape uploads');
     $pdo->prepare('UPDATE request_files SET file_path=? WHERE id=?')->execute([$requestAssetFiles[1],$fileId]);
     $pdo->prepare('UPDATE project_requests SET reference_design=? WHERE id=1')->execute([basename($requestAssetFiles[0])]);
+    // Email edits must update customer contact and linked login atomically.
+    $userEdit = ['id'=>4,'full_name'=>'Test Client','email'=>'updated-client@example.test','role'=>'Client','status'=>'Active'];
+    feature_check(feature_http($super,$base.'/admin/save_user.php',$userEdit)[0]===200,'Super Admin can edit an account email');
+    feature_check($pdo->query('SELECT email FROM users WHERE id=4')->fetchColumn()==='updated-client@example.test' && $pdo->query('SELECT email FROM customers WHERE id=1')->fetchColumn()==='updated-client@example.test','User Management synchronizes the customer contact email');
+    $customerEdit = ['id'=>1,'name'=>'Demo Customer','email'=>'customer-updated@example.test'];
+    feature_check(feature_http($admin,$base.'/admin/save_customer.php',$customerEdit)[0]===200,'Admin can edit a customer email');
+    feature_check($pdo->query('SELECT email FROM users WHERE id=4')->fetchColumn()==='customer-updated@example.test' && $pdo->query('SELECT email FROM customers WHERE id=1')->fetchColumn()==='customer-updated@example.test','Customers synchronizes the account login email');
+    foreach ([['save_user.php',$userEdit],['save_customer.php',$customerEdit]] as [$route,$edit]) {
+        $edit['email']='admin2@vastsolutions.com';
+        feature_check(feature_http($super,$base.'/admin/'.$route,$edit)[0]===409,'Duplicate email rejected by '.$route);
+        feature_check($pdo->query('SELECT email FROM users WHERE id=4')->fetchColumn()==='customer-updated@example.test' && $pdo->query('SELECT email FROM customers WHERE id=1')->fetchColumn()==='customer-updated@example.test','Rejected duplicate leaves login and contact unchanged');
+    }
+    $customerEdit['email']='';
+    feature_check(feature_http($admin,$base.'/admin/save_customer.php',$customerEdit)[0]===400,'Linked login email cannot be cleared');
+    $customerEdit['email']='client@demo.test';
+    feature_check(feature_http($admin,$base.'/admin/save_customer.php',$customerEdit)[0]===200,'Fixture login restored after email tests');
+    $description=['quotation_id'=>1,'csrf'=>$token,'scope'=>'Supply and Installation of Main Kitchen Cabinets','finishes'=>'Finishes: Matte white','carcass'=>'Carcass: Moisture-resistant board','doors'=>'Doors: <sample> & soft-close','inclusions'=>"Inclusions: Delivery\nInstallation",'accessories'=>'Accessories: Handles'];
+    feature_check(feature_http($client,$base.'/admin/save_quotation_description.php',$description)[0]===403,'Customer cannot edit quotation description');
+    $invalidDescription=$description;$invalidDescription['csrf']='invalid';
+    feature_check(feature_http($admin,$base.'/admin/save_quotation_description.php',$invalidDescription)[0]===403,'Description edits require CSRF');
+    $invalidDescription=$description;$invalidDescription['scope']='   ';
+    feature_check(feature_http($admin,$base.'/admin/save_quotation_description.php',$invalidDescription)[0]===400,'Blank main quotation description is rejected');
+    $invalidDescription=$description;$invalidDescription['doors']=str_repeat('x',2001);
+    feature_check(feature_http($admin,$base.'/admin/save_quotation_description.php',$invalidDescription)[0]===400,'Description field length is enforced');
+    feature_check(feature_http($admin,$base.'/admin/save_quotation_description.php',$description)[0]===200,'Admin saves all six description fields');
+    $savedDescription=json_decode($pdo->query('SELECT description_json FROM quotations WHERE id=1')->fetchColumn(),true);
+    feature_check(count($savedDescription)===6 && $savedDescription['doors']===$description['doors'],'Six description fields persist exactly');
+    [$status,$paper]=feature_http($admin,$base.'/download_quote.php?id=1');
+    feature_check($status===200 && strpos($paper,'alt="Vast Solutions logo"')!==false && strpos($paper,'/style/assets/logo.jpg')!==false,'Printed quotation includes company logo');
+    feature_check(strpos($paper,'Doors: &lt;sample&gt; &amp; soft-close')!==false && strpos($paper,'Finishes: Matte white')!==false,'Printed quotation shows escaped customer-facing description');
+    [$status,$clientPaper]=feature_http($client,$base.'/download_quote.php?id=1');
+    feature_check($status===200 && strpos($clientPaper,'Finishes: Matte white')!==false,'Owning customer receives the same saved printable description');
+    [$status,$html]=feature_http($client,$base.'/user-dashboard/my_projects.php');
+    feature_check($status===200 && strpos($html,'Finishes: Matte white')!==false,'Customer quotation preview receives saved description');
+    $state($admin,$token,'paused');
+    feature_check(feature_http($admin,$base.'/admin/save_quotation_description.php',$description)[0]===409,'Paused project description remains frozen');
+    $state($admin,$token,'active');
     if (in_array('--serve',$argv,true)) { echo 'READY FOR UI: ',$base,PHP_EOL; fflush(STDOUT); fgets(STDIN); }
 } finally {
     if (is_resource($server)) { proc_terminate($server); foreach($pipes as $pipe) if(is_resource($pipe))fclose($pipe);proc_close($server); }

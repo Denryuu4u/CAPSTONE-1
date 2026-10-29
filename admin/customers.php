@@ -54,6 +54,7 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 
 <head>
     <script src="../assets/connection.js"></script>
+    <script src="../assets/table-numbers.js" defer></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Customer Profiles – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
@@ -395,7 +396,8 @@ foreach ($messages as $m) { if (empty($m['is_read'])) $unreadCount++; }
 
                         <div class="col-md-6">
                             <label class="form-label edit-customer-label">Email</label>
-                            <input type="email" class="form-control edit-customer-input" id="editCustomerEmail" readonly aria-readonly="true" title="Email cannot be changed" style="background-color:#f3f4f6;color:#6b7280;cursor:not-allowed;" placeholder="Enter email">
+                            <input type="email" class="form-control edit-customer-input" id="editCustomerEmail" maxlength="150" placeholder="Enter email">
+                            <div class="form-text">For customers with a login account, this also updates their login email.</div>
                         </div>
 
                         <div class="col-md-6">

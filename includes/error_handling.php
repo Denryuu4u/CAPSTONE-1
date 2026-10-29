@@ -38,7 +38,7 @@ function app_error_wants_json(): bool
         'revoke_revert_code.php', 'save_branding.php', 'save_customer.php', 'save_gallery_image.php',
         'save_legal.php', 'save_logo.php', 'save_password.php', 'save_project.php', 'save_settings.php',
         'save_tracking.php', 'save_user.php', 'send_project_design.php', 'set_project_state.php',
-        'tracking_data.php', 'update_project_status.php', 'update_quotation.php', 'change_password.php',
+        'tracking_data.php', 'update_project_status.php', 'update_quotation.php', 'save_quotation_description.php', 'change_password.php',
         'confirm_completion.php', 'poll_updates.php', 'post_comment.php', 'report_completion_issue.php',
         'save_address.php', 'save_profile.php',
     ], true);

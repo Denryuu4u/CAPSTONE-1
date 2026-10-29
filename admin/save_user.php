@@ -26,13 +26,23 @@ if ($id > 0 && $id === (int) $meId && ($role !== 'Super Admin' || $status !== 'A
 
 try {
     if ($id > 0) {
-        if ($pass !== '') {
-            db()->prepare("UPDATE users SET full_name=?, phone=?, role=?, status=?, password_hash=? WHERE id=?")
-                ->execute([$name, $phone ?: null, $role, $status, password_hash($pass, PASSWORD_BCRYPT), $id]);
-        } else {
-            db()->prepare("UPDATE users SET full_name=?, phone=?, role=?, status=? WHERE id=?")
-                ->execute([$name, $phone ?: null, $role, $status, $id]);
+        $pdo = db();
+        $pdo->beginTransaction();
+        $duplicateCustomer = $pdo->prepare('SELECT id FROM customers WHERE email=? AND (user_id IS NULL OR user_id<>?) LIMIT 1');
+        $duplicateCustomer->execute([$email,$id]);
+        if ($duplicateCustomer->fetchColumn()) {
+            $pdo->rollBack(); http_response_code(409);
+            echo json_encode(['ok'=>false,'error'=>'That email is already in use by another customer.']); exit;
         }
+        if ($pass !== '') {
+            $pdo->prepare("UPDATE users SET full_name=?, email=?, phone=?, role=?, status=?, password_hash=? WHERE id=?")
+                ->execute([$name, $email, $phone ?: null, $role, $status, password_hash($pass, PASSWORD_BCRYPT), $id]);
+        } else {
+            $pdo->prepare("UPDATE users SET full_name=?, email=?, phone=?, role=?, status=? WHERE id=?")
+                ->execute([$name, $email, $phone ?: null, $role, $status, $id]);
+        }
+        $pdo->prepare('UPDATE customers SET email=? WHERE user_id=?')->execute([$email,$id]);
+        $pdo->commit();
         log_audit('User Management', "Edited user #{$id}", "{$name} ({$role})");
     } else {
         $hash = password_hash($pass !== '' ? $pass : 'changeme123', PASSWORD_BCRYPT);
@@ -44,6 +54,7 @@ try {
     }
     echo json_encode(['ok' => true, 'id' => $id]);
 } catch (PDOException $e) {
+    if (db()->inTransaction()) db()->rollBack();
     if ($e->getCode() === '23000') { http_response_code(409); echo json_encode(['ok' => false, 'error' => 'That email is already in use.']); exit; }
     http_response_code(500); echo json_encode(['ok' => false, 'error' => app_error_message($e)]);
 }

@@ -24,6 +24,7 @@ $archivedUsers = db()->query(
 
 <head>
     <script src="../assets/connection.js"></script>
+    <script src="../assets/table-numbers.js" defer></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>User Management – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
@@ -309,7 +310,8 @@ $archivedUsers = db()->query(
 
                         <div class="col-md-6">
                             <label class="add-customer-label">Email</label>
-                            <input type="email" class="form-control add-customer-input" id="editUserEmail" readonly aria-readonly="true" title="Email cannot be changed" style="background-color:#f3f4f6;color:#6b7280;cursor:not-allowed;">
+                            <input type="email" class="form-control add-customer-input" id="editUserEmail" required maxlength="150">
+                            <div class="form-text">Changing this email also changes the account's login email.</div>
                         </div>
 
                         <div class="col-md-6">

@@ -218,6 +218,7 @@ CREATE TABLE `projects` (
 --               "Create Cost Quotation" modal in project-requests.php.
 -- ---------------------------------------------------------------------
 CREATE TABLE `quotations` (
+  `description_json` TEXT NULL,
   `design_path` VARCHAR(255) NULL,
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `quote_code`     VARCHAR(30) NOT NULL,               -- QT-2026-042

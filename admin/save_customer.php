@@ -28,8 +28,25 @@ if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) sc_fail('Enter 
 $pdo = db();
 try {
     if ($id > 0) {
-        $pdo->prepare("UPDATE customers SET name=?, contact_person=?, phone=?, address=?, industry=? WHERE id=?")
-            ->execute([$name, $contact ?: null, $phone ?: null, $address ?: null, $industry ?: null, $id]);
+        $pdo->beginTransaction();
+        $existing = $pdo->prepare('SELECT user_id FROM customers WHERE id=? FOR UPDATE');
+        $existing->execute([$id]);
+        $customer = $existing->fetch();
+        if (!$customer) { $pdo->rollBack(); sc_fail('Customer not found.',404); }
+        if ($customer['user_id'] && $email === '') { $pdo->rollBack(); sc_fail('A valid email is required for this customer login account.'); }
+        $duplicate = $pdo->prepare('SELECT id FROM customers WHERE email=? AND id<>? LIMIT 1');
+        $duplicate->execute([$email,$id]);
+        if ($email !== '' && $duplicate->fetchColumn()) { $pdo->rollBack(); sc_fail('That email is already in use by another customer.',409); }
+        $duplicateAccount = $pdo->prepare('SELECT id FROM users WHERE email=? AND id<>? LIMIT 1');
+        $duplicateAccount->execute([$email,(int)($customer['user_id'] ?? 0)]);
+        if ($email !== '' && $duplicateAccount->fetchColumn()) { $pdo->rollBack(); sc_fail('That email is already in use by another account.',409); }
+        if ($customer['user_id']) {
+            $pdo->prepare('UPDATE users SET email=? WHERE id=?')->execute([$email,$customer['user_id']]);
+            $pdo->prepare('UPDATE customers SET email=? WHERE user_id=?')->execute([$email,$customer['user_id']]);
+        }
+        $pdo->prepare("UPDATE customers SET name=?, email=?, contact_person=?, phone=?, address=?, industry=? WHERE id=?")
+            ->execute([$name, $email ?: null, $contact ?: null, $phone ?: null, $address ?: null, $industry ?: null, $id]);
+        $pdo->commit();
         log_audit('Customers', "Edited customer #{$id}", $name);
         echo json_encode(['ok' => true, 'id' => $id]);
         exit;

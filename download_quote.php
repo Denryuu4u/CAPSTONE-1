@@ -7,6 +7,8 @@
  * GET: id
  */
 require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__.'/includes/quotation_description.php';
+ensure_quotation_description();
 
 $id = (int) ($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(400); exit('Invalid quotation.'); }
@@ -42,6 +44,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <html lang="en">
 <head>
     <script src="assets/connection.js"></script>
+    <script src="assets/table-numbers.js" defer></script>
 <meta charset="UTF-8">
 <title>Quotation <?= $e($q['quote_code']) ?></title>
 <style>
@@ -73,6 +76,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   <div class="bar"></div>
   <div class="pad row">
     <div>
+      <img src="<?= $e(company_logo_url()) ?>" alt="<?= $e(company_name()) ?> logo" style="width:72px;height:72px;object-fit:contain;margin-bottom:10px;">
       <div class="co-name"><?= $e($company['company_name'] ?? 'VAST') ?></div>
       <div class="muted"><?= $e($company['address'] ?? '') ?></div>
       <div class="muted"><?= $e($company['contact_number'] ?? '') ?></div>
@@ -108,9 +112,14 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
       <tbody>
         <tr>
           <td>
+            <?php if (!empty($q['description_json'])): ?>
+            <div style="white-space:pre-wrap;overflow-wrap:anywhere;"><?= $e(quotation_description_text($q['description_json'])) ?></div>
+            <span class="muted">Quantity: <?= (int)($q['unit_quantity']??1) ?> identical unit(s). Amount covers the entire project.</span>
+            <?php else: ?>
             <b><?= $e($q['project_name']) ?></b><br>
             <span class="muted">Quantity: <?= (int) ($q['unit_quantity'] ?? 1) ?> identical unit(s). Amount covers the entire project.</span><br>
             <span class="muted">Custom cabinetry works — design, fabrication, and installation as specified.</span>
+            <?php endif; ?>
           </td>
           <td style="text-align:right;"><?= peso($q['total_amount']) ?></td>
         </tr>

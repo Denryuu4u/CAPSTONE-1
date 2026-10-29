@@ -8,11 +8,14 @@ $user_name = $_SESSION['full_name'] ?? 'Admin User';
 
 require_once __DIR__ . '/../includes/helpers.php';
 ensure_counter_offer_columns(); // client counter-offer support (self-migrating)
+require_once __DIR__.'/../includes/quotation_description.php';
+ensure_quotation_description();
 
 $quotes = db()->query(
-    "SELECT q.*, c.name AS customer_name, c.address AS customer_address
+    "SELECT q.*, c.name AS customer_name, c.address AS customer_address, p.status AS project_status
        FROM quotations q
        LEFT JOIN customers c ON c.id = q.customer_id
+       LEFT JOIN projects p ON p.id = q.project_id
       ORDER BY q.date_created DESC, q.id DESC"
 )->fetchAll();
 
@@ -42,6 +45,7 @@ $quoteBadge = [
 
 <head>
     <script src="../assets/connection.js"></script>
+    <script src="../assets/table-numbers.js" defer></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quotations – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
@@ -212,10 +216,12 @@ $quoteBadge = [
                                                data-status="<?= htmlspecialchars($q['status']) ?>"
                                                data-counter-amount="<?= htmlspecialchars($counterAmt) ?>"
                                                data-counter-comment="<?= htmlspecialchars($counterCmt) ?>"
+                                               data-description="<?= htmlspecialchars(json_encode(quotation_description_fields($q['description_json']??null)),ENT_QUOTES,'UTF-8') ?>"
+                                               data-description-frozen="<?= project_status_key($q['project_status']??'')==='on_hold'?'1':'0' ?>"
                                                data-items='<?= $itemsJson ?>'>
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="<?= BASE_URL ?>/download_quote.php?id=<?= (int) $q['id'] ?>" target="_blank" class="quotation-action" title="Download"><i class="bi bi-download"></i></a>
+                                            <a href="<?= BASE_URL ?>/download_quote.php?id=<?= (int) $q['id'] ?>" class="quotation-action edit-download-quote-btn" title="Edit description and download" aria-label="Edit description and download quotation <?= htmlspecialchars($q['quote_code'], ENT_QUOTES) ?>"><i class="bi bi-download"></i></a>
                                         </div>
                                     </div>
                                 </td>
@@ -246,11 +252,11 @@ $quoteBadge = [
                         <div style="display:flex;gap:15px;">
                             <div style="width:80px;height:80px;background:#2e4a45;color:#fff;
                                 display:flex;align-items:center;justify-content:center;font-weight:bold;">
-                                <img src="../style/assets/logo.jpg" style="width:60px;height:60px;object-fit:contain;">
+                                <img src="<?= htmlspecialchars(company_logo_url(),ENT_QUOTES) ?>" alt="Company logo" style="width:60px;height:60px;object-fit:contain;">
                             </div>
 
                             <div style="font-family:'Montserrat', sans-serif;">
-                                <div style="font-size:22px;font-weight:800;">VAST</div>
+                                <div style="font-size:22px;font-weight:800;"><?= htmlspecialchars(company_name()) ?></div>
                                 <div style="font-size:13px;">B34 L1, Hibiscus St. Ceris 1, Calamba, Laguna</div>
                                 <div style="font-size:13px;">+639178850408</div>
                                 <div style="font-size:13px;">inquiries@vastsolutionsmanila.com</div>
@@ -291,6 +297,20 @@ $quoteBadge = [
                     </div>
 
                     <!-- TABLE -->
+                    <section class="p-3 border-bottom" aria-label="Quotation description">
+                        <h6>Quotation description</h6>
+                        <p class="text-muted small">These details appear in the customer's quotation and printed copy. Internal costing and price justification are separate.</p>
+                        <div class="row g-3">
+                        <?php foreach (['scope'=>'Supply and installation','finishes'=>'Finishes','carcass'=>'Carcass','doors'=>'Doors','inclusions'=>'Inclusions','accessories'=>'Accessories'] as $key=>$label): ?>
+                            <div class="<?= $key==='scope'?'col-12':'col-md-6' ?>">
+                                <label class="form-label" for="vqDescription_<?= $key ?>"><?= $label ?></label>
+                                <textarea class="form-control" id="vqDescription_<?= $key ?>" data-quote-description="<?= $key ?>" rows="2" maxlength="2000" <?= $key==='scope'?'required':'' ?>></textarea>
+                            </div>
+                        <?php endforeach; ?>
+                        </div>
+                        <div id="vqDescriptionError" class="text-danger small mt-2" role="alert" hidden></div>
+                        <button type="button" class="btn btn-outline-success btn-sm mt-3" id="vqSaveDescription">Save description</button>
+                    </section>
                     <div class="qd-table-wrap" style="padding:20px;font-family:'Montserrat', sans-serif;">
 
                         <table style="width:100%;border-collapse:collapse;border:2px solid #1f2f2b;">
@@ -434,6 +454,7 @@ $quoteBadge = [
 
             // Tracks which quotation the view modal is currently showing.
             let currentQuotationId = 0;
+            let quotationDescriptionFrozen = false;
 
             document.querySelectorAll(".view-quotation-btn").forEach(btn => {
                 btn.addEventListener("click", function () {
@@ -446,6 +467,11 @@ $quoteBadge = [
                     document.getElementById("vqDate").textContent = this.dataset.date;
                     document.getElementById("vqValid").textContent = this.dataset.valid || '';
                     document.getElementById("vqTotal").textContent = this.dataset.total;
+                    const description=JSON.parse(this.dataset.description || '{}');
+                    quotationDescriptionFrozen=this.dataset.descriptionFrozen==='1';
+                    document.querySelectorAll('[data-quote-description]').forEach(field=>{field.value=description[field.dataset.quoteDescription]||'';field.readOnly=quotationDescriptionFrozen;});
+                    document.getElementById('vqSaveDescription').disabled=quotationDescriptionFrozen;
+                    document.getElementById('vqDescriptionError').hidden=true;
 
                     // Counter-offer callout (only for countered quotes).
                     const cc = document.getElementById("vqCounterCallout");
@@ -474,12 +500,48 @@ $quoteBadge = [
                 });
             });
 
-            // Download the quotation from the view modal.
+            // Both row actions open the editor before a PDF is downloaded.
+            document.querySelectorAll('.edit-download-quote-btn').forEach(button=>{
+                button.addEventListener('click',event=>{
+                    const preview=button.closest('tr')?.querySelector('.view-quotation-btn');
+                    if(!preview)return;
+                    event.preventDefault();
+                    preview.click();
+                });
+            });
+            async function saveQuotationDescription() {
+                const body=new FormData();
+                body.append('quotation_id',currentQuotationId);
+                body.append('csrf',<?= json_encode(project_csrf_token()) ?>);
+                const fields={};
+                for(const field of document.querySelectorAll('[data-quote-description]')) {
+                    if(!field.reportValidity())throw new Error('Please complete the quotation description.');
+                    fields[field.dataset.quoteDescription]=field.value;
+                    body.append(field.dataset.quoteDescription,field.value);
+                }
+                const response=await fetch('save_quotation_description.php',{method:'POST',body});
+                const data=await response.json();
+                if(!response.ok||!data.ok)throw new Error(data.error||'The description could not be saved.');
+                document.querySelectorAll('.view-quotation-btn').forEach(button=>{if(Number(button.dataset.id)===currentQuotationId)button.dataset.description=JSON.stringify(fields);});
+            }
+            function descriptionError(error) {
+                const message=document.getElementById('vqDescriptionError');message.textContent=error.message;message.hidden=false;
+            }
+            document.getElementById('vqSaveDescription').addEventListener('click',async function(){
+                this.disabled=true;document.getElementById('vqDescriptionError').hidden=true;
+                try{await saveQuotationDescription();vsToast('Quotation description saved.');}catch(error){descriptionError(error);}finally{this.disabled=false;}
+            });
+            // Save edits before opening the printable document.
             const vqDownloadBtn = document.getElementById("vqDownloadBtn");
             if (vqDownloadBtn) {
-                vqDownloadBtn.addEventListener("click", function () {
+                vqDownloadBtn.addEventListener("click", async function () {
                     if (!currentQuotationId) { alert("No quotation selected."); return; }
-                    window.open('<?= BASE_URL ?>/download_quote.php?id=' + currentQuotationId, '_blank');
+                    const printTab=window.open('about:blank','_blank');
+                    this.disabled=true;
+                    try{if(!quotationDescriptionFrozen)await saveQuotationDescription();
+                        const url='<?= BASE_URL ?>/download_quote.php?id='+currentQuotationId;
+                        if(printTab)printTab.location.href=url;else window.location.href=url;
+                    }catch(error){if(printTab)printTab.close();descriptionError(error);}finally{this.disabled=false;}
                 });
             }
 

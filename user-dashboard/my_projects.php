@@ -23,6 +23,8 @@ require_once __DIR__ . '/../includes/helpers.php';
 auto_confirm_completions();
 ensure_project_features();
 ensure_request_quantity();
+require_once __DIR__.'/../includes/quotation_description.php';
+ensure_quotation_description();
 
 // Build the current client's projects from the database, in the shape the page expects.
 $clientId  = current_user()['id'] ?? 0;
@@ -35,7 +37,7 @@ $__rows = db()->prepare(
     "SELECT p.*, c.name AS customer_name,
             q.id AS quotation_id, q.design_path, q.quote_code, q.status AS quote_status_raw,
             q.date_created AS quote_issued, q.valid_until AS quote_valid,
-            q.total_amount AS quote_total, q.notes AS quote_notes,
+            q.total_amount AS quote_total, q.notes AS quote_notes, q.description_json,
             q.counter_amount AS counter_amount, q.counter_comment AS counter_comment, r.id AS req_id, r.unit_quantity,
             -- 'Last Updated' = most recent activity: the project row, its quotation,
             -- or its latest timeline update (quote accept/approve only touch quotations).
@@ -83,6 +85,7 @@ foreach ($__rows->fetchAll() as $r) {
     // Client sees only the final total (one summary line), not the internal materials.
     $unitQuantity = (int) ($r['unit_quantity'] ?? 1);
     $quoteItems = $r['quotation_id'] ? [['desc' => 'Custom cabinetry works — ' . $r['project_name'] . ' (' . $unitQuantity . ' identical unit(s), entire project)', 'qty' => 1, 'unit' => $qtot, 'amount' => $qtot]] : [];
+    if($quoteItems && !empty($r['description_json']))$quoteItems[0]['desc']=quotation_description_text($r['description_json']);
 
     $projects[] = [
         'id' => $pid, 'name' => $r['project_name'], 'category' => $r['category'] ?? '',
@@ -270,6 +273,7 @@ usort($projects, fn($a, $b) => (client_needs_action($a) ? 0 : 1) <=> (client_nee
 <html lang="en">
 <head>
     <script src="../assets/connection.js"></script>
+    <script src="../assets/table-numbers.js" defer></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Projects – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
@@ -1263,7 +1267,7 @@ document.querySelectorAll('.verify-btn').forEach(btn => {
     const items = JSON.parse(d.quoteItems || '[]');
     document.getElementById('vmPaperItems').innerHTML = items.length
       ? items.map(i=>`<tr>
-          <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;">${i.desc}</td>
+          <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;white-space:pre-wrap;">${String(i.desc??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</td>
           <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;text-align:center;">${i.qty}</td>
           <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;text-align:right;">${peso(i.unit)}</td>
           <td style="padding:9px 10px;font-size:.72rem;color:#374151;border-bottom:1px solid #f0f0f0;text-align:right;">${peso(i.amount)}</td>
