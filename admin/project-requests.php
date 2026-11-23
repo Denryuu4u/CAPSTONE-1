@@ -77,6 +77,7 @@ $reqBadge = [
 
 <head>
     <script src="../assets/connection.js"></script>
+    <script src="../assets/table-numbers.js" defer></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Project Requests – <?= function_exists('company_name') ? htmlspecialchars(company_name()) : 'Vast Solutions' ?></title>
@@ -643,41 +644,27 @@ $reqBadge = [
                                 <input type="number" step="any" class="form-control project-input cp-recalc" id="cpSubstrate" value="0">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label project-label">Out of Town</label>
-                                <select class="form-select project-input cp-recalc" id="cpOutOfTown">
-                                    <option selected>0%</option>
-                                    <option>5%</option>
-                                    <option>10%</option>
-                                    <option>15%</option>
-                                    <option>20%</option>
-                                </select>
+                                <label class="form-label project-label">Out of Town %</label>
+                                <input type="number" min="0" max="100" step="any" inputmode="decimal" class="form-control project-input cp-recalc" id="cpOutOfTown" value="0">
                             </div>
                         </div>
 
                         <div class="row g-3 mt-1">
                             <div class="col-md-3">
-                                <label class="form-label project-label">Markup</label>
-                                <select class="form-select project-input cp-recalc" id="cpMarkup">
-                                    <?= $cpSelect(['15%', '10%', '20%', '25%'], $costDefaults['markup']) ?>
-                                </select>
+                                <label class="form-label project-label">Markup %</label>
+                                <input type="number" min="0" max="100" step="any" inputmode="decimal" class="form-control project-input cp-recalc" id="cpMarkup" value="<?= $costDefaults['markup'] ?>">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label project-label">Contingency</label>
-                                <select class="form-select project-input cp-recalc" id="cpContingency">
-                                    <?= $cpSelect(['5%', '3%', '10%'], $costDefaults['contingency']) ?>
-                                </select>
+                                <label class="form-label project-label">Contingency %</label>
+                                <input type="number" min="0" max="100" step="any" inputmode="decimal" class="form-control project-input cp-recalc" id="cpContingency" value="<?= $costDefaults['contingency'] ?>">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label project-label">Service</label>
-                                <select class="form-select project-input cp-recalc" id="cpService">
-                                    <?= $cpSelect(['10%', '5%', '15%'], $costDefaults['service']) ?>
-                                </select>
+                                <label class="form-label project-label">Service %</label>
+                                <input type="number" min="0" max="100" step="any" inputmode="decimal" class="form-control project-input cp-recalc" id="cpService" value="<?= $costDefaults['service'] ?>">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label project-label">Protection</label>
-                                <select class="form-select project-input cp-recalc" id="cpProtection">
-                                    <?= $cpSelect(['3%', '2%', '5%'], $costDefaults['protection']) ?>
-                                </select>
+                                <label class="form-label project-label">Protection %</label>
+                                <input type="number" min="0" max="100" step="any" inputmode="decimal" class="form-control project-input cp-recalc" id="cpProtection" value="<?= $costDefaults['protection'] ?>">
                             </div>
                         </div>
 
@@ -1170,7 +1157,7 @@ $reqBadge = [
             // ══════════════════════════════════════════════════════════
             const cpBody = () => document.getElementById('cpCostBody');
             const cpRows = () => Array.from(document.querySelectorAll('#cpCostBody .qc-row'));
-            const cpPct  = id => parseFloat(document.getElementById(id).value) || 0; // "15%" -> 15
+            const cpPct  = id => Math.min(100, Math.max(0, parseFloat(document.getElementById(id).value) || 0)); // typed %, clamped 0-100
 
             function cpRenderRows(items) {
                 if (!items.length) {
